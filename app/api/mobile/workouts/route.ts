@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
-import { users, workouts } from "../../../../db/schema";
+import { pointsLedger, posts, users, workouts } from "../../../../db/schema";
 import { apiError, cleanText, json, options, requireMobileUser } from "../_shared";
 
 export const OPTIONS = options;
@@ -70,6 +70,21 @@ export async function POST(request: Request) {
       calories,
       evidenceKey,
     }).returning();
+    await getDb().insert(posts).values({
+      familyId: current.familyId,
+      userId: current.userId,
+      workoutId: workout.id,
+      caption: `Completó ${activityType.toLowerCase()} y sumó un día a su meta 4×7.`,
+      evidenceKey,
+    });
+    await getDb().insert(pointsLedger).values({
+      familyId: current.familyId,
+      userId: current.userId,
+      points: 100,
+      reason: "Entrenamiento completado",
+      sourceType: "workout",
+      sourceId: workout.id,
+    });
     return json({ workout }, 201);
   } catch (error) {
     return apiError(error);

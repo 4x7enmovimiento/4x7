@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://familia-cuatro-por-siete.p-glez-lpz92.chatgpt.site';
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://familia-cuatro-por-siete.p-glez-lpz92.chatgpt.site';
 const SESSION_KEY = '4x7:session';
 
 export type Session = {
@@ -28,6 +28,23 @@ type WorkoutPayload = {
   steps: number;
   calories: number;
   evidenceKey?: string | null;
+};
+
+export type FeedPost = {
+  id: number;
+  userId: number;
+  userName: string;
+  caption: string;
+  evidenceUrl: string | null;
+  createdAt: string;
+  activityType: string | null;
+  durationSeconds: number | null;
+  distanceMeters: number | null;
+  steps: number | null;
+  calories: number | null;
+  likes: number;
+  comments: number;
+  likedByMe: boolean;
 };
 
 async function request<T>(path: string, init: RequestInit = {}, token?: string): Promise<T> {
@@ -96,4 +113,16 @@ export async function uploadEvidence(token: string, uri: string) {
 
 export function saveWorkout(token: string, workout: WorkoutPayload) {
   return request<{ workout: { id: number } }>('/api/mobile/workouts', { method: 'POST', body: JSON.stringify(workout) }, token);
+}
+
+export function getFeed(token: string) {
+  return request<{ posts: FeedPost[] }>('/api/mobile/feed', {}, token);
+}
+
+export function togglePostLike(token: string, postId: number) {
+  return request<{ liked: boolean }>(`/api/mobile/feed/${postId}/like`, { method: 'POST' }, token);
+}
+
+export function addPostComment(token: string, postId: number, body: string) {
+  return request<{ comment: { id: number; userName: string; body: string } }>(`/api/mobile/feed/${postId}/comments`, { method: 'POST', body: JSON.stringify({ body }) }, token);
 }

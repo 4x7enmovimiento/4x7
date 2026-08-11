@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.familia4x7.app",
+      "buildNumber": "1",
       "infoPlist": {
         "NSHealthShareUsageDescription": "4x7 usa tus datos de actividad para mostrar pasos, progreso y entrenamientos.",
         "NSHealthUpdateUsageDescription": "4x7 guarda entrenamientos que tú decidas registrar.",
@@ -24,6 +25,7 @@
     },
     "android": {
       "package": "com.familia4x7.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#185A40",
         "foregroundImage": "./assets/android-icon-foreground.png",

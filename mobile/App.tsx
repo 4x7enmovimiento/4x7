@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Dimensions,
@@ -17,7 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { DevicePermissions, PermissionState, useDeviceActivity } from './src/device';
 import { AuthScreen } from './src/AuthScreen';
-import { saveWorkout, Session, uploadEvidence, useSession } from './src/api';
+import { API_URL, FeedPost, getFeed, saveWorkout, Session, togglePostLike, uploadEvidence, useSession } from './src/api';
 
 const COLORS = {
   background: '#F4F7F4',
@@ -89,6 +89,8 @@ function AppContent({ session, onLogout }: { session: Session; onLogout: () => P
   const [liked, setLiked] = useState(false);
   const [workoutType, setWorkoutType] = useState('Caminar');
   const [savingWorkout, setSavingWorkout] = useState(false);
+  const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
+  const [feedLoading, setFeedLoading] = useState(false);
   const device = useDeviceActivity();
   const familyMembers = family.map((member) => member.name === 'Pedro' ? { ...member, name: session.user.name } : member);
 
@@ -114,6 +116,30 @@ function AppContent({ session, onLogout }: { session: Session; onLogout: () => P
   };
 
   const openRegister = () => setTab('Registrar');
+  const refreshFeed = useCallback(async () => {
+    setFeedLoading(true);
+    try {
+      const result = await getFeed(session.token);
+      setFeedPosts(result.posts);
+    } catch (error) {
+      Alert.alert('No pudimos actualizar el muro', error instanceof Error ? error.message : 'Intenta nuevamente.');
+    } finally {
+      setFeedLoading(false);
+    }
+  }, [session.token]);
+
+  useEffect(() => {
+    if (tab === 'Muro') refreshFeed();
+  }, [refreshFeed, tab]);
+
+  const likeFeedPost = async (postId: number) => {
+    setFeedPosts((current) => current.map((post) => post.id === postId ? { ...post, likedByMe: !post.likedByMe, likes: post.likes + (post.likedByMe ? -1 : 1) } : post));
+    try {
+      await togglePostLike(session.token, postId);
+    } catch {
+      await refreshFeed();
+    }
+  };
 
   const finishWorkout = async () => {
     const endedAt = Date.now();
@@ -136,6 +162,7 @@ function AppContent({ session, onLogout }: { session: Session; onLogout: () => P
         calories,
         evidenceKey,
       });
+      await refreshFeed();
       Alert.alert('¡Entrenamiento guardado!', `Recorriste ${kilometers} km y tu familia ya puede ver la actividad.`);
     } catch (error) {
       Alert.alert('Entrenamiento pendiente', error instanceof Error ? error.message : 'No pudimos guardarlo. Intenta nuevamente.');
@@ -231,7 +258,7 @@ function AppContent({ session, onLogout }: { session: Session; onLogout: () => P
 
   const renderFeed = () => (
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerRow}><View><Text style={styles.overline}>EN FAMILIA</Text><Text style={styles.pageTitle}>Muro del Sudor</Text></View><Pressable style={styles.roundButton} onPress={device.captureEvidence}><Ionicons name="camera-outline" size={22} color={COLORS.green} /></Pressable></View>
+      <View style={styles.headerRow}><View><Text style={styles.overline}>{session.family.name.toUpperCase()}</Text><Text style={styles.pageTitle}>Muro del Sudor</Text></View><View style={{ flexDirection: 'row', gap: 8 }}><Pressable style={styles.roundButton} onPress={refreshFeed}><Ionicons name="refresh-outline" size={21} color={COLORS.green} /></Pressable><Pressable style={styles.roundButton} onPress={device.captureEvidence}><Ionicons name="camera-outline" size={22} color={COLORS.green} /></Pressable></View></View>
       <Text style={styles.introText}>Fotos, entrenamientos y pequeñas victorias de quienes más quieres.</Text>
       {device.evidenceUri && (
         <View style={styles.evidenceCard}>
@@ -239,11 +266,15 @@ function AppContent({ session, onLogout }: { session: Session; onLogout: () => P
           <View style={styles.evidenceOverlay}><Text style={styles.evidenceLabel}>TU EVIDENCIA DE HOY</Text><Text style={styles.evidenceTitle}>Listo para compartir</Text></View>
         </View>
       )}
-      <View style={styles.feedPost}>
-        <View style={styles.postHeader}><Avatar name="Sofi" color={COLORS.lilac} /><View style={styles.postPerson}><Text style={styles.postName}>Sofi</Text><Text style={styles.postTime}>Ayer · En casa</Text></View><Ionicons name="ellipsis-horizontal" size={18} color="#9AA69F" /></View>
-        <View style={[styles.postArt, styles.strengthArt]}><Text style={styles.postArtWord}>FUERZA</Text><View style={styles.weightShape}><View /><View /></View><View style={styles.statPill}><Text style={styles.statPillText}>46 MIN · +100 PTS</Text></View></View>
-        <View style={styles.postBody}><Text style={styles.postTitle}>Día de piernas completado</Text><Text style={styles.postCaption}>Semana 3 del reto. Ya se siente la diferencia.</Text><View style={styles.postActions}><View style={styles.action}><Ionicons name="heart" size={20} color="#E7675B" /><Text style={styles.actionText}>12</Text></View><View style={styles.action}><Ionicons name="chatbubble-outline" size={18} color={COLORS.muted} /><Text style={styles.actionText}>5</Text></View></View></View>
-      </View>
+      {feedLoading && feedPosts.length === 0 && <View style={styles.emptyFeed}><Text style={styles.emptyFeedTitle}>Actualizando el muro…</Text></View>}
+      {!feedLoading && feedPosts.length === 0 && <View style={styles.emptyFeed}><Ionicons name="footsteps-outline" size={31} color={COLORS.green} /><Text style={styles.emptyFeedTitle}>La primera victoria empieza aquí</Text><Text style={styles.emptyFeedBody}>Registra un entrenamiento y aparecerá automáticamente para tu familia.</Text></View>}
+      {feedPosts.map((post) => (
+        <View style={styles.feedPost} key={post.id}>
+          <View style={styles.postHeader}><Avatar name={post.userName} color={post.userId === session.user.id ? '#C8F3D8' : COLORS.lilac} /><View style={styles.postPerson}><Text style={styles.postName}>{post.userName}{post.userId === session.user.id ? ' · Tú' : ''}</Text><Text style={styles.postTime}>{new Date(post.createdAt.replace(' ', 'T') + 'Z').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</Text></View><Ionicons name="ellipsis-horizontal" size={18} color="#9AA69F" /></View>
+          {post.evidenceUrl ? <Image source={{ uri: `${API_URL}${post.evidenceUrl}`, headers: { Authorization: `Bearer ${session.token}` } }} style={styles.remoteEvidence} /> : <View style={[styles.postArt, styles.strengthArt]}><Text style={styles.postArtWord}>{(post.activityType ?? '4×7').toUpperCase()}</Text><View style={styles.routeShape} /><View style={styles.statPill}><Text style={styles.statPillText}>{post.durationSeconds ? `${Math.round(post.durationSeconds / 60)} MIN` : 'ACTIVIDAD'} · +100 PTS</Text></View></View>}
+          <View style={styles.postBody}><Text style={styles.postTitle}>{post.activityType ? `${post.activityType} completado` : 'Nueva evidencia'}</Text><Text style={styles.postCaption}>{post.caption}</Text><View style={styles.postActions}><Pressable style={styles.action} onPress={() => likeFeedPost(post.id)}><Ionicons name={post.likedByMe ? 'heart' : 'heart-outline'} size={20} color={post.likedByMe ? '#E7675B' : COLORS.muted} /><Text style={styles.actionText}>{post.likes}</Text></Pressable><Pressable style={styles.action} onPress={() => Alert.alert('Comentarios', 'La conversación completa se habilitará en la siguiente compilación.')}><Ionicons name="chatbubble-outline" size={18} color={COLORS.muted} /><Text style={styles.actionText}>{post.comments}</Text></Pressable></View></View>
+        </View>
+      ))}
       <Pressable style={styles.cameraCta} onPress={device.captureEvidence}><Ionicons name="camera" size={22} color="white" /><View><Text style={styles.cameraCtaTitle}>Subir evidencia</Text><Text style={styles.cameraCtaBody}>Usa la cámara del teléfono</Text></View></Pressable>
     </ScrollView>
   );
@@ -456,6 +487,10 @@ const styles = StyleSheet.create({
   evidenceOverlay: { position: 'absolute', left: 14, right: 14, bottom: 14, backgroundColor: 'rgba(18,47,35,.78)', borderRadius: 15, padding: 14 },
   evidenceLabel: { color: 'rgba(255,255,255,.6)', fontSize: 8, fontWeight: '800', letterSpacing: 1.1 },
   evidenceTitle: { color: 'white', fontSize: 17, fontWeight: '800', marginTop: 3 },
+  remoteEvidence: { width: '100%', height: 300, backgroundColor: '#DCE5E0' },
+  emptyFeed: { minHeight: 190, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.line, borderRadius: 22, padding: 24 },
+  emptyFeedTitle: { color: COLORS.ink, fontSize: 16, fontWeight: '800', marginTop: 10, textAlign: 'center' },
+  emptyFeedBody: { color: COLORS.muted, fontSize: 10, lineHeight: 16, marginTop: 5, textAlign: 'center', maxWidth: 260 },
   cameraCta: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.green, borderRadius: 18, padding: 16, marginTop: 16 },
   cameraCtaTitle: { color: 'white', fontSize: 14, fontWeight: '800' },
   cameraCtaBody: { color: 'rgba(255,255,255,.65)', fontSize: 10, marginTop: 2 },
