@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { DevicePermissions, PermissionState, useDeviceActivity } from './src/device';
+import { AuthScreen } from './src/AuthScreen';
+import { saveWorkout, Session, uploadEvidence, useSession } from './src/api';
 
 const COLORS = {
   background: '#F4F7F4',
@@ -80,13 +82,15 @@ function PermissionBadge({ state }: { state: PermissionState }) {
   );
 }
 
-function AppContent() {
+function AppContent({ session, onLogout }: { session: Session; onLogout: () => Promise<void> }) {
   const [tab, setTab] = useState<Tab>('Inicio');
   const [permissionOpen, setPermissionOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [liked, setLiked] = useState(false);
   const [workoutType, setWorkoutType] = useState('Caminar');
+  const [savingWorkout, setSavingWorkout] = useState(false);
   const device = useDeviceActivity();
+  const familyMembers = family.map((member) => member.name === 'Pedro' ? { ...member, name: session.user.name } : member);
 
   useEffect(() => {
     if (!device.isTracking) return;
@@ -111,15 +115,44 @@ function AppContent() {
 
   const openRegister = () => setTab('Registrar');
 
+  const finishWorkout = async () => {
+    const endedAt = Date.now();
+    const startedAt = device.startedAt ?? endedAt;
+    setSavingWorkout(true);
+    await device.stopWorkout();
+    try {
+      let evidenceKey: string | null = null;
+      if (device.evidenceUri) {
+        const uploaded = await uploadEvidence(session.token, device.evidenceUri);
+        evidenceKey = uploaded.evidenceKey;
+      }
+      await saveWorkout(session.token, {
+        activityType: workoutType,
+        startedAt: new Date(startedAt).toISOString(),
+        endedAt: new Date(endedAt).toISOString(),
+        durationSeconds: Math.max(1, Math.round((endedAt - startedAt) / 1000)),
+        distanceMeters: device.distance,
+        steps: Math.round(device.distance / 0.78),
+        calories,
+        evidenceKey,
+      });
+      Alert.alert('¡Entrenamiento guardado!', `Recorriste ${kilometers} km y tu familia ya puede ver la actividad.`);
+    } catch (error) {
+      Alert.alert('Entrenamiento pendiente', error instanceof Error ? error.message : 'No pudimos guardarlo. Intenta nuevamente.');
+    } finally {
+      setSavingWorkout(false);
+    }
+  };
+
   const renderHome = () => (
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.overline}>LUNES, 10 DE AGOSTO</Text>
-          <Text style={styles.pageTitle}>Hola, Pedro</Text>
+          <Text style={styles.pageTitle}>Hola, {session.user.name}</Text>
         </View>
         <Pressable style={styles.headerAvatar} onPress={() => setPermissionOpen(true)}>
-          <Avatar name="Pedro" color="#C8F3D8" size={43} />
+          <Avatar name={session.user.name} color="#C8F3D8" size={43} />
           <View style={styles.onlineDot} />
         </Pressable>
       </View>
@@ -217,7 +250,7 @@ function AppContent() {
 
   const renderRegister = () => (
     <ScrollView contentContainerStyle={[styles.scrollContent, styles.registerContent]} showsVerticalScrollIndicator={false}>
-      <View style={styles.centerHeader}><Text style={styles.overline}>ENTRENAMIENTO EN VIVO</Text><Text style={styles.pageTitle}>{device.isTracking ? 'Sigue así, Pedro' : '¿Qué harás hoy?'}</Text><Text style={styles.introText}>{device.isTracking ? 'Estamos usando el GPS mientras entrenas.' : 'Elige una actividad y deja que 4x7 mida el resto.'}</Text></View>
+      <View style={styles.centerHeader}><Text style={styles.overline}>ENTRENAMIENTO EN VIVO</Text><Text style={styles.pageTitle}>{device.isTracking ? `Sigue así, ${session.user.name}` : '¿Qué harás hoy?'}</Text><Text style={styles.introText}>{device.isTracking ? 'Estamos usando el GPS mientras entrenas.' : 'Elige una actividad y deja que 4x7 mida el resto.'}</Text></View>
 
       {!device.isTracking ? (
         <>
@@ -249,7 +282,7 @@ function AppContent() {
             <View style={styles.metricDivider} />
             <View><Text style={styles.liveMetricValue}>{Math.round(device.distance / 0.78)}</Text><Text style={styles.liveMetricLabel}>PASOS</Text></View>
           </View>
-          <Pressable style={styles.stopButton} onPress={async () => { await device.stopWorkout(); Alert.alert('¡Entrenamiento completado!', `Recorriste ${kilometers} km y sumaste +100 puntos.`); }}><View style={styles.stopSquare} /><Text style={styles.stopText}>Finalizar entrenamiento</Text></Pressable>
+          <Pressable style={[styles.stopButton, savingWorkout && { opacity: 0.65 }]} onPress={finishWorkout} disabled={savingWorkout}><View style={styles.stopSquare} /><Text style={styles.stopText}>{savingWorkout ? 'Guardando…' : 'Finalizar entrenamiento'}</Text></Pressable>
         </View>
       )}
     </ScrollView>
@@ -282,14 +315,14 @@ function AppContent() {
 
   const renderFamily = () => (
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerRow}><View><Text style={styles.overline}>FAMILIA GONZÁLEZ</Text><Text style={styles.pageTitle}>Liga 4×7</Text></View><Pressable style={styles.roundButton}><Ionicons name="person-add-outline" size={21} color={COLORS.green} /></Pressable></View>
+      <View style={styles.headerRow}><View><Text style={styles.overline}>{session.family.name.toUpperCase()}</Text><Text style={styles.pageTitle}>Liga 4×7</Text></View><Pressable style={styles.roundButton} onPress={() => Alert.alert('Código para invitar', session.family.inviteCode)}><Ionicons name="person-add-outline" size={21} color={COLORS.green} /></Pressable></View>
       <View style={styles.podiumCard}>
         <Text style={styles.podiumLabel}>PUNTOS EN FAMILIA</Text><Text style={styles.podiumTotal}>4,180</Text><Text style={styles.podiumTrend}>+740 esta semana</Text>
-        <View style={styles.podiumPeople}><View style={[styles.podiumPerson, { marginTop: 28 }]}><Avatar name="Pedro" color="#C8F3D8" size={58} /><Text style={styles.podiumName}>Pedro</Text><View style={[styles.podiumBlock, styles.podiumSecond]}><Text style={styles.podiumPlace}>2</Text><Text style={styles.podiumPoints}>1,160</Text></View></View><View style={styles.podiumPerson}><View style={styles.crown}><Ionicons name="trophy" size={17} color="#8E6914" /></View><Avatar name="Ana" color={COLORS.coral} size={66} /><Text style={styles.podiumName}>Ana</Text><View style={[styles.podiumBlock, styles.podiumFirst]}><Text style={styles.podiumPlace}>1</Text><Text style={styles.podiumPoints}>1,280</Text></View></View><View style={[styles.podiumPerson, { marginTop: 46 }]}><Avatar name="Sofi" color={COLORS.lilac} size={54} /><Text style={styles.podiumName}>Sofi</Text><View style={[styles.podiumBlock, styles.podiumThird]}><Text style={styles.podiumPlace}>3</Text><Text style={styles.podiumPoints}>980</Text></View></View></View>
+        <View style={styles.podiumPeople}><View style={[styles.podiumPerson, { marginTop: 28 }]}><Avatar name={session.user.name} color="#C8F3D8" size={58} /><Text style={styles.podiumName}>{session.user.name}</Text><View style={[styles.podiumBlock, styles.podiumSecond]}><Text style={styles.podiumPlace}>2</Text><Text style={styles.podiumPoints}>1,160</Text></View></View><View style={styles.podiumPerson}><View style={styles.crown}><Ionicons name="trophy" size={17} color="#8E6914" /></View><Avatar name="Ana" color={COLORS.coral} size={66} /><Text style={styles.podiumName}>Ana</Text><View style={[styles.podiumBlock, styles.podiumFirst]}><Text style={styles.podiumPlace}>1</Text><Text style={styles.podiumPoints}>1,280</Text></View></View><View style={[styles.podiumPerson, { marginTop: 46 }]}><Avatar name="Sofi" color={COLORS.lilac} size={54} /><Text style={styles.podiumName}>Sofi</Text><View style={[styles.podiumBlock, styles.podiumThird]}><Text style={styles.podiumPlace}>3</Text><Text style={styles.podiumPoints}>980</Text></View></View></View>
       </View>
       <View style={styles.challengeCard}><View style={styles.challengeTop}><View><Text style={styles.overline}>RETO ACTIVO</Text><Text style={styles.challengeTitle}>Constancia familiar</Text></View><View style={styles.challengeDays}><Text style={styles.challengeDaysBig}>21</Text><Text style={styles.challengeDaysSmall}>DÍAS</Text></View></View><Text style={styles.challengeBody}>Que todos cumplan su meta semanal durante tres semanas consecutivas.</Text><View style={styles.challengeProgress}><View style={styles.challengeProgressFill} /></View><View style={styles.challengeBottom}><Text style={styles.challengeWeek}>Semana 2 de 3</Text><Text style={styles.challengePercent}>67%</Text></View></View>
       <Text style={styles.sectionTitle}>Clasificación</Text>
-      <View style={styles.rankingCard}>{family.map((member, index) => <View key={member.name} style={[styles.rankingRow, member.name === 'Pedro' && styles.rankingRowMe]}><Text style={styles.rankNumber}>{index + 1}</Text><Avatar name={member.name} color={member.color} size={36} /><View style={styles.rankingPerson}><Text style={styles.rankingName}>{member.name}{member.name === 'Pedro' ? ' · Tú' : ''}</Text><Text style={styles.rankingGain}>+{120 - index * 20} esta semana</Text></View><Text style={styles.rankingPoints}>{member.points.toLocaleString('es-MX')}</Text></View>)}</View>
+      <View style={styles.rankingCard}>{familyMembers.map((member, index) => <View key={member.name} style={[styles.rankingRow, member.name === session.user.name && styles.rankingRowMe]}><Text style={styles.rankNumber}>{index + 1}</Text><Avatar name={member.name} color={member.color} size={36} /><View style={styles.rankingPerson}><Text style={styles.rankingName}>{member.name}{member.name === session.user.name ? ' · Tú' : ''}</Text><Text style={styles.rankingGain}>+{120 - index * 20} esta semana</Text></View><Text style={styles.rankingPoints}>{member.points.toLocaleString('es-MX')}</Text></View>)}</View>
     </ScrollView>
   );
 
@@ -328,6 +361,7 @@ function AppContent() {
                 </Pressable>
               );
             })}
+            <View style={styles.accountCard}><View><Text style={styles.accountLabel}>FAMILIA</Text><Text style={styles.accountValue}>{session.family.name} · {session.family.inviteCode}</Text></View><Pressable onPress={onLogout}><Text style={styles.logoutText}>Salir</Text></Pressable></View>
             <Pressable style={styles.sheetDone} onPress={() => setPermissionOpen(false)}><Text style={styles.sheetDoneText}>Listo</Text></Pressable>
           </Pressable>
         </Pressable>
@@ -338,10 +372,11 @@ function AppContent() {
 }
 
 export default function App() {
+  const auth = useSession();
   return (
     <SafeAreaProvider>
       <NativeStatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-      <AppContent />
+      {auth.loading ? <View style={styles.loading}><Text style={styles.loadingLogo}>4×7</Text><Text style={styles.loadingText}>Preparando tu familia…</Text></View> : auth.session ? <AppContent session={auth.session} onLogout={auth.logout} /> : <AuthScreen onLogin={auth.login} onRegister={auth.register} />}
     </SafeAreaProvider>
   );
 }
@@ -533,4 +568,11 @@ const styles = StyleSheet.create({
   permissionBadgeTextOn: { color: COLORS.green },
   sheetDone: { height: 51, borderRadius: 17, backgroundColor: COLORS.green, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   sheetDoneText: { color: 'white', fontSize: 14, fontWeight: '900' },
+  accountCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.card, borderRadius: 15, borderWidth: 1, borderColor: COLORS.line, padding: 13, marginTop: 4 },
+  accountLabel: { color: COLORS.muted, fontSize: 8, fontWeight: '900', letterSpacing: 1 },
+  accountValue: { color: COLORS.ink, fontSize: 12, fontWeight: '800', marginTop: 3 },
+  logoutText: { color: '#B04E44', fontSize: 11, fontWeight: '800' },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background },
+  loadingLogo: { color: COLORS.green, fontSize: 44, fontWeight: '900', letterSpacing: -3 },
+  loadingText: { color: COLORS.muted, fontSize: 11, marginTop: 7 },
 });

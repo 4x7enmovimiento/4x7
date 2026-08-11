@@ -4,6 +4,8 @@ Aplicación móvil nativa de fitness familiar construida con Expo y React Native
 
 ## Lo que ya funciona
 
+- Registro e inicio de sesión con sesiones seguras.
+- Creación de familia o acceso mediante código privado de invitación.
 - Panel semanal con la meta de 4 entrenamientos de 7 días.
 - Lectura del podómetro del teléfono y conteo de pasos.
 - Registro de entrenamientos con duración, distancia GPS y calorías estimadas.
@@ -11,6 +13,7 @@ Aplicación móvil nativa de fitness familiar construida con Expo y React Native
 - Recordatorio local diario configurable desde la aplicación.
 - Pantallas de progreso, liga familiar, retos, rachas y ranking.
 - Permisos nativos preparados para movimiento, cámara, ubicación y notificaciones.
+- Sincronización con el backend 4x7 para guardar entrenamientos y evidencias.
 
 ## Ejecutar en un teléfono
 
@@ -20,6 +23,8 @@ npm start
 ```
 
 Después, escanea el código QR con Expo Go. La cámara, el podómetro, la ubicación en primer plano y las notificaciones locales pueden probarse directamente en un dispositivo físico.
+
+La aplicación usa por defecto el backend publicado de 4x7. Para trabajar contra otra instalación se puede definir `EXPO_PUBLIC_API_URL` antes de iniciar Expo.
 
 ## Compilación nativa
 
@@ -42,4 +47,4 @@ npm run export:android
 
 ## Siguiente etapa
 
-La base actual usa el podómetro del dispositivo. La sincronización histórica y escritura de entrenamientos en HealthKit y Health Connect debe añadirse en el desarrollo nativo, junto con el backend para cuentas, familias, publicaciones, comentarios, retos y almacenamiento de fotografías.
+La base actual usa el podómetro del dispositivo. La sincronización histórica y escritura de entrenamientos en HealthKit y Health Connect debe añadirse en el desarrollo nativo. El backend ya cubre cuentas, familias, sesiones, entrenamientos y fotografías; la siguiente ampliación incorporará publicaciones, comentarios, retos y puntuación dinámica.
