@@ -20,8 +20,7 @@ test("renders the 4x7 family fitness app", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>4x7 — Tu familia en movimiento<\/title>/i);
-  assert.match(html, /Buenas tardes, Pedro/);
-  assert.match(html, /Liga familiar/i);
-  assert.match(html, /Registrar entrenamiento/i);
+  assert.match(html, /Preparando el espacio de tu familia/i);
+  assert.match(html, /La red privada que convierte el ejercicio familiar en un hábito compartido/i);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });

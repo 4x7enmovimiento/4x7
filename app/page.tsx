@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthScreen } from "./components/AuthScreen";
-import { clientApi, type FeedPost, type Session } from "./lib/client-api";
+import { ProfileOnboarding } from "./components/ProfileOnboarding";
+import { clientApi, type FeedPost, type ProfileResponse, type Session } from "./lib/client-api";
 
 const navItems = ["Inicio", "Muro", "Progreso", "Calendario", "Liga", "Retos"] as const;
 type Section = typeof navItems[number];
@@ -39,6 +40,8 @@ function Glyph({ label }: { label: string }) {
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
+  const [fitness, setFitness] = useState<ProfileResponse | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [active, setActive] = useState<Section>("Inicio");
@@ -70,10 +73,13 @@ export default function Home() {
 
   useEffect(() => {
     clientApi.me()
-      .then((current) => { setSession(current); return clientApi.feed(); })
-      .then((response) => setFeedPosts(response.posts))
+      .then(async (current) => {
+        setSession(current);
+        const [feed, profile] = await Promise.all([clientApi.feed(), clientApi.profile()]);
+        setFeedPosts(feed.posts); setFitness(profile);
+      })
       .catch(() => setSession(null))
-      .finally(() => setSessionLoading(false));
+      .finally(() => { setSessionLoading(false); setProfileLoading(false); });
   }, []);
 
   const notify = (message: string) => {
@@ -158,8 +164,9 @@ export default function Home() {
 
   const Wall = () => <section className="module-page"><div className="module-toolbar"><div><p>Las evidencias aparecen aquí para que nadie entrene solo.</p></div><label className="upload-button">＋ Subir evidencia<input type="file" accept="image/*" capture="environment" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setEvidenceFile(file); notify("Evidencia lista para publicar"); } }} /></label></div>{evidenceFile && <div className="evidence-ready"><span>✓</span><div><b>{evidenceFile.name}</b><small>Lista para acompañar tu próximo entrenamiento</small></div><button onClick={() => setQuickLogOpen(true)}>Registrar ahora</button></div>}<div className="wall-layout"><div>{feedLoading ? <div className="feed-loading">Actualizando el muro…</div> : feedPosts.length ? <div className="feed wall-feed">{feedPosts.map((post) => <PostCard post={post} key={post.id} />)}</div> : <EmptyFeed />}</div><aside className="wall-side"><article className="family-prompt"><span>🔥</span><p className="eyebrow">RACHA FAMILIAR</p><h3>La racha comienza con el primer registro</h3><p>Cuando todos cumplan sus cuatro días, la familia desbloqueará puntos extra.</p></article><ChallengeMini /></aside></div></section>;
 
-  const Progress = () => <section className="module-page"><div className="progress-summary"><article className="progress-hero"><div><p className="eyebrow">PESO ACTUAL</p><strong>82.4 <small>kg</small></strong><span>−2.1 kg desde julio</span></div><div className="trend-chart">{[78, 70, 72, 58, 61, 43, 35, 27].map((height, index) => <i key={index} style={{ height }} className={index === 7 ? "last" : ""} />)}</div><div className="chart-axis"><span>12 JUL</span><span>10 AGO</span></div></article><article className="goal-card"><p className="eyebrow">PROYECCIÓN 4×7</p><h2>7 semanas</h2><p>para acercarte a 78 kg manteniendo tu ritmo actual.</p><div className="goal-line"><i /></div><small>53% del camino</small></article></div>
-    <div className="indicator-grid">{[["Cintura", "91.5 cm", "−3.0 cm", "◎"], ["Entrenamientos", logged ? "15" : "14", "+18%", "↗"], ["Racha actual", "6 sem", "Mejor: 9", "🔥"], ["Pasos promedio", "7,240", "+820", "⌁"]].map(([label, value, trend, icon]) => <article className="indicator" key={label}><span>{icon}</span><div><small>{label}</small><strong>{value}</strong></div><em>{trend}</em></article>)}</div>
+  const Progress = () => <section className="module-page"><div className="progress-summary"><article className="progress-hero"><div><p className="eyebrow">PESO ACTUAL</p><strong>{fitness?.profile?.measurement.weightKg ?? "—"} <small>kg</small></strong><span>IMC {fitness?.projection?.bmi ?? "—"} · {fitness?.projection?.bmiCategory ?? "Sin calcular"}</span></div><div className="trend-chart">{(fitness?.projection?.weeks.slice(0, 8) ?? []).map((week, index, rows) => { const weights = rows.map((row) => row.weightKg); const high = Math.max(...weights); const low = Math.min(...weights); const height = high === low ? 65 : 28 + ((week.weightKg - low) / (high - low)) * 55; return <i key={week.week} style={{ height }} className={index === rows.length - 1 ? "last" : ""} />; })}</div><div className="chart-axis"><span>HOY</span><span>SEMANA 8</span></div></article><article className="goal-card"><p className="eyebrow">PROYECCIÓN INTELIGENTE 4×7</p><h2>{fitness?.profile?.targetWeightKg ? `${fitness.profile.targetWeightKg} kg` : "4 días"}</h2><p>{fitness?.profile?.targetWeightKg ? "es tu meta actual; la ruta se ajustará con cada medición real." : "por semana para mejorar condición y constancia."}</p><div className="goal-line"><i /></div><small>Proyección orientativa, no diagnóstico</small></article></div>
+    <div className="indicator-grid">{[["Cintura", fitness?.profile?.measurement.waistCm ? `${fitness.profile.measurement.waistCm} cm` : "Sin dato", "Opcional", "◎"], ["Entrenamientos", logged ? "15" : "14", "+18%", "↗"], ["Racha actual", "6 sem", "Mejor: 9", "🔥"], ["Meta semanal", "4 días", "4×7", "⌁"]].map(([label, value, trend, icon]) => <article className="indicator" key={label}><span>{icon}</span><div><small>{label}</small><strong>{value}</strong></div><em>{trend}</em></article>)}</div>
+    {fitness?.projection && <div className="weekly-projection"><div className="compare-head"><div><p className="eyebrow">RUTA SEMANA A SEMANA</p><h2>Qué puede pasar con constancia</h2></div><span>12 semanas</span></div><div className="projection-week-grid">{fitness.projection.weeks.map((week) => <article key={week.week}><span>SEM {week.week}</span><strong>{week.weightKg} kg</strong><small>{week.phase}</small><p>{week.focus}</p></article>)}</div><p className="health-disclaimer">La proyección es orientativa y se actualizará con tus registros. El IMC es una medida de referencia y no sustituye una valoración médica o nutricional.</p></div>}
     <div className="compare-card"><div className="compare-head"><div><p className="eyebrow">ANTES VS. AHORA</p><h2>El cambio se construye despacio</h2></div><button onClick={() => notify("Comparador listo para añadir fotografías")}>Añadir fotos</button></div><div className="compare-visual"><div><span>12 JUL</span><b>84.5 kg</b></div><div className="compare-arrow">→</div><div><span>10 AGO</span><b>82.4 kg</b></div></div></div></section>;
 
   const Calendar = () => <section className="module-page calendar-layout"><article className="calendar-card"><div className="calendar-head"><button aria-label="Mes anterior">←</button><div><p className="eyebrow">PLAN MENSUAL</p><h2>Agosto 2026</h2></div><button aria-label="Mes siguiente">→</button></div><div className="weekday-row">{["L", "M", "M", "J", "V", "S", "D"].map((day, i) => <b key={`${day}-${i}`}>{day}</b>)}</div><div className="month-grid">{calendarDays.map((day, index) => day ? <button key={day} onClick={() => toggleSchedule(day)} className={`${[3, 5, 7, 10, 11, 13].includes(day) ? "completed" : ""} ${scheduledDays.includes(day) ? "planned" : ""} ${selectedDay === day ? "selected" : ""}`}><span>{day}</span>{[3, 5, 7, 10, 11, 13].includes(day) && <i>✓</i>}{scheduledDays.includes(day) && <i>•</i>}</button> : <span key={`empty-${index}`} />)}</div><div className="calendar-key"><span><i className="key-done" /> Completado</span><span><i className="key-plan" /> Programado</span></div></article><aside className="agenda"><p className="eyebrow">PRÓXIMOS ENTRENAMIENTOS</p><h2>Tu semana</h2>{scheduledDays.sort((a,b) => a-b).slice(0,4).map((day, index) => <article key={day}><time>{day}<small>AGO</small></time><div><b>{index % 2 ? "Fuerza en casa" : "Caminata al aire libre"}</b><span>{index % 2 ? "35 min · 7:00 p. m." : "40 min · 7:30 a. m."}</span></div><button onClick={() => toggleSchedule(day)}>×</button></article>)}<button className="agenda-add" onClick={() => toggleSchedule(selectedDay === 31 ? 14 : selectedDay + 1)}>＋ Programar otro día</button><div className="calendar-tip"><span>✦</span><p><b>Consejo 4×7</b>Deja un día de descanso entre sesiones de fuerza.</p></div></aside></section>;
@@ -173,8 +180,9 @@ export default function Home() {
   ];
   const Challenges = () => <section className="module-page"><div className="challenge-banner"><span>⚑</span><div><p className="eyebrow">MOTIVACIÓN COMPARTIDA</p><h2>Cuando uno afloja, los demás jalan</h2><p>Los retos convierten la constancia en una victoria de toda la familia.</p></div></div><div className="challenge-grid">{challenges.map((challenge) => { const isJoined = joined.includes(challenge.id); return <article className="challenge-full" key={challenge.id}><div className="challenge-full-top"><span>{challenge.days}</span><b>{challenge.reward}</b></div><h2>{challenge.title}</h2><p>{challenge.body}</p><div className="challenge-full-progress"><i style={{ width: `${challenge.progress}%` }} /></div><div className="challenge-full-meta"><span>{challenge.progress}% completado</span><span>{isJoined ? "Participando" : "3 participantes"}</span></div><button className={isJoined ? "joined" : ""} onClick={() => toggleChallenge(challenge.id)}>{isJoined ? "✓ Ya estás dentro" : "Unirme al reto"}</button></article>; })}</div></section>;
 
-  if (sessionLoading) return <main className="app-loading"><div className="auth-brand"><span>4×7</span><i /></div><p>Preparando el espacio de tu familia…</p></main>;
-  if (!session) return <AuthScreen onAuthenticated={(current) => { setSession(current); setSessionLoading(false); loadFeed(); }} />;
+  if (sessionLoading || (session && profileLoading)) return <main className="app-loading"><div className="auth-brand"><span>4×7</span><i /></div><p>Preparando el espacio de tu familia…</p></main>;
+  if (!session) return <AuthScreen onAuthenticated={(current) => { setSession(current); setSessionLoading(false); setProfileLoading(true); Promise.all([clientApi.profile(), clientApi.feed()]).then(([profile, feed]) => { setFitness(profile); setFeedPosts(feed.posts); }).finally(() => setProfileLoading(false)); }} />;
+  if (!fitness?.profile) return <ProfileOnboarding name={session.user.name} onComplete={(result) => setFitness(result)} />;
 
   const page = active === "Inicio" ? <Dashboard /> : active === "Muro" ? <Wall /> : active === "Progreso" ? <Progress /> : active === "Calendario" ? <Calendar /> : active === "Liga" ? <League /> : <Challenges />;
   const currentTitle = active === "Inicio" ? `Buenas tardes, ${session.user.name.split(" ")[0]}` : titleCopy[active][1];

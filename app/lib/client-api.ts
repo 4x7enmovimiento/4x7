@@ -20,6 +20,24 @@ export type FeedPost = {
   likedByMe: boolean;
 };
 
+export type Projection = {
+  bmi: number;
+  bmiCategory: string;
+  weeklyPaceKg: number;
+  weeks: Array<{ week: number; weightKg: number; phase: string; focus: string; workoutGoal: number }>;
+};
+
+export type FitnessProfile = {
+  objective: "lose_fat" | "gain_muscle" | "maintain" | "general_fitness";
+  birthDate: string;
+  sex: "female" | "male" | "other" | "prefer_not";
+  heightCm: number;
+  targetWeightKg: number | null;
+  measurement: { weightKg: number; waistCm?: number | null; chestCm?: number | null; hipCm?: number | null; armCm?: number | null; thighCm?: number | null; calfCm?: number | null; neckCm?: number | null; bodyFatPercent?: number | null };
+};
+
+export type ProfileResponse = { profile: FitnessProfile | null; projection: Projection | null };
+
 type ApiError = { error?: string };
 
 async function request<T>(path: string, init: RequestInit = {}) {
@@ -42,6 +60,8 @@ export const clientApi = {
     body: JSON.stringify(data),
   }),
   logout: () => request<{ ok: boolean }>("/api/mobile/auth/logout", { method: "POST" }),
+  profile: () => request<ProfileResponse>("/api/mobile/profile"),
+  saveProfile: (data: Record<string, string | number | null>) => request<ProfileResponse>("/api/mobile/profile", { method: "POST", body: JSON.stringify(data) }),
   feed: () => request<{ posts: FeedPost[] }>("/api/mobile/feed"),
   toggleLike: (postId: number) => request<{ liked: boolean }>(`/api/mobile/feed/${postId}/like`, { method: "POST" }),
   comment: (postId: number, body: string) => request<{ comment: unknown }>(`/api/mobile/feed/${postId}/comments`, {
