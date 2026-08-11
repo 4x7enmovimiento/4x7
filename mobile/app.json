@@ -1,0 +1,79 @@
+{
+  "expo": {
+    "name": "4x7",
+    "slug": "familia-4x7",
+    "scheme": "cuatroxsiete",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F4F7F4"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.familia4x7.app",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "4x7 usa tus datos de actividad para mostrar pasos, progreso y entrenamientos.",
+        "NSHealthUpdateUsageDescription": "4x7 guarda entrenamientos que tú decidas registrar.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.familia4x7.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#185A40",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": true,
+      "permissions": [
+        "android.permission.ACTIVITY_RECOGNITION"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Permite que 4x7 lea tus pasos y actividad para calcular tu progreso."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "4x7 usa tu ubicación durante entrenamientos para calcular distancia y recorrido.",
+          "locationAlwaysAndWhenInUsePermission": "4x7 puede continuar registrando tu ruta mientras entrenas con la pantalla apagada.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Permite que 4x7 use la cámara para registrar evidencia de tus entrenamientos.",
+          "photosPermission": "Permite que 4x7 elija fotografías que tú quieras compartir.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#185A40",
+          "defaultChannel": "motivation"
+        }
+      ]
+    ],
+    "extra": {
+      "product": "4x7",
+      "healthIntegrations": {
+        "ios": "HealthKit",
+        "android": "Health Connect"
+      }
+    }
+  }
+}
