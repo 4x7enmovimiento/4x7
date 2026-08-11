@@ -1,0 +1,69 @@
+export type Session = {
+  user: { id: number; name: string; email: string };
+  family: { id: number; name: string; inviteCode: string; role: "admin" | "member" };
+};
+
+export type FeedPost = {
+  id: number;
+  userId: number;
+  userName: string;
+  caption: string;
+  evidenceUrl: string | null;
+  createdAt: string;
+  activityType: string | null;
+  durationSeconds: number | null;
+  distanceMeters: number | null;
+  steps: number | null;
+  calories: number | null;
+  likes: number;
+  comments: number;
+  likedByMe: boolean;
+};
+
+type ApiError = { error?: string };
+
+async function request<T>(path: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
+  const response = await fetch(path, { ...init, headers, credentials: "include", cache: "no-store" });
+  const payload = await response.json().catch(() => ({})) as T & ApiError;
+  if (!response.ok) throw new Error(payload.error || "No pudimos completar la operación.");
+  return payload;
+}
+
+export const clientApi = {
+  me: () => request<Session>("/api/mobile/me"),
+  login: (email: string, password: string) => request<Session>("/api/mobile/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  }),
+  register: (data: { name: string; email: string; password: string; familyName?: string; inviteCode?: string }) => request<Session>("/api/mobile/auth/register", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }),
+  logout: () => request<{ ok: boolean }>("/api/mobile/auth/logout", { method: "POST" }),
+  feed: () => request<{ posts: FeedPost[] }>("/api/mobile/feed"),
+  toggleLike: (postId: number) => request<{ liked: boolean }>(`/api/mobile/feed/${postId}/like`, { method: "POST" }),
+  comment: (postId: number, body: string) => request<{ comment: unknown }>(`/api/mobile/feed/${postId}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ body }),
+  }),
+  uploadEvidence: async (photo: File) => {
+    const form = new FormData();
+    form.append("photo", photo);
+    return request<{ evidenceKey: string; evidenceUrl: string }>("/api/mobile/evidence", { method: "POST", body: form });
+  },
+  workout: (data: {
+    activityType: string;
+    startedAt: string;
+    endedAt: string;
+    durationSeconds: number;
+    distanceMeters: number;
+    steps: number;
+    calories: number;
+    evidenceKey: string | null;
+  }) => request<{ workout: { id: number } }>("/api/mobile/workouts", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }),
+};

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
 import { families, familyMembers, users } from "../../../../../db/schema";
-import { apiError, cleanText, createSession, hashPassword, json, normalizeEmail, options, randomToken } from "../../_shared";
+import { apiError, cleanText, createSession, hashPassword, json, normalizeEmail, options, randomToken, sessionCookie } from "../../_shared";
 
 export const OPTIONS = options;
 
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       expiresAt: session.expiresAt,
       user: { id: user.id, name: user.name, email: user.email },
       family: { id: family.id, name: family.name, inviteCode: family.inviteCode, role },
-    }, 201);
+    }, 201, { "Set-Cookie": sessionCookie(session.token, request) });
   } catch (error) {
     return apiError(error);
   }

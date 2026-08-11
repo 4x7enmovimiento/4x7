@@ -9,10 +9,11 @@ export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Authorization, Content-Type",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Cache-Control": "no-store",
 };
 
-export function json(data: unknown, status = 200) {
-  return Response.json(data, { status, headers: corsHeaders });
+export function json(data: unknown, status = 200, extraHeaders?: HeadersInit) {
+  return Response.json(data, { status, headers: { ...corsHeaders, ...Object.fromEntries(new Headers(extraHeaders).entries()) } });
 }
 
 export function options() {
@@ -55,9 +56,23 @@ export async function createSession(userId: number) {
   return { token, expiresAt };
 }
 
-export async function requireMobileUser(request: Request) {
+export function sessionCookie(token: string, request: Request, maxAge = SESSION_DAYS * 86_400) {
+  const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
+  return `four_seven_session=${token}; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
+}
+
+export function clearSessionCookie(request: Request) {
+  return sessionCookie("", request, 0);
+}
+
+export function sessionToken(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
-  const token = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  const cookieToken = request.headers.get("cookie")?.split(";").map((item) => item.trim()).find((item) => item.startsWith("four_seven_session="))?.slice("four_seven_session=".length) ?? "";
+  return authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : cookieToken;
+}
+
+export async function requireMobileUser(request: Request) {
+  const token = sessionToken(request);
   if (!token) return null;
 
   const tokenHash = await sha256(token);
