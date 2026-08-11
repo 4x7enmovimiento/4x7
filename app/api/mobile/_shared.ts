@@ -4,6 +4,7 @@ import { families, familyMembers, sessions, users } from "../../../db/schema";
 
 const encoder = new TextEncoder();
 const SESSION_DAYS = 30;
+const PASSWORD_HASH_ITERATIONS = 100_000;
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,7 +42,7 @@ export async function hashPassword(password: string, salt: string) {
     ["deriveBits"],
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt: encoder.encode(salt), iterations: 120_000 },
+    { name: "PBKDF2", hash: "SHA-256", salt: encoder.encode(salt), iterations: PASSWORD_HASH_ITERATIONS },
     material,
     256,
   );
