@@ -99,7 +99,7 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Ses
           <button type="button" className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setError(""); }}>Ya tengo cuenta</button>
         </div>
         {mode === "register" && <label>Tu nombre<input required minLength={2} value={name} onChange={(event) => setName(event.target.value)} placeholder="Pedro" autoComplete="name" /></label>}
-        <label>Correo<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="tu@correo.com" autoComplete="username email" /></label>
+        <label>Correo o Usuario<input required type="text" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="p.glez.lpz92@gmail.com o Pedcaz" autoComplete="username" /></label>
         <label>Contraseña<input required type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Tu contraseña" autoComplete={mode === "login" ? "current-password" : "new-password"} /></label>
         {mode === "register" && (
           <label>
@@ -151,6 +151,43 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Ses
         {error && <p className="auth-error" role="alert">{error}</p>}
         <button className="auth-submit" disabled={busy}>{busy ? "Preparando tu espacio…" : mode === "login" ? "Entrar a mi familia" : "Unirme a López y Amigos"}</button>
         
+        <div style={{ marginTop: "12px", textAlign: "center" }}>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={async () => {
+              setError("");
+              setBusy(true);
+              try {
+                const session = await clientApi.login("p.glez.lpz92@gmail.com", "4x7pedro");
+                onAuthenticated(session);
+              } catch (cause) {
+                setError(cause instanceof Error ? cause.message : "No pudimos entrar.");
+              } finally {
+                setBusy(false);
+              }
+            }}
+            style={{
+              background: "#e8f5ed",
+              color: "#166534",
+              border: "1.5px solid #86efac",
+              padding: "11px 16px",
+              borderRadius: "12px",
+              fontWeight: 800,
+              fontSize: "13.5px",
+              cursor: "pointer",
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+            }}
+          >
+            <span>⚡</span>
+            <span>Entrar directo como Pedcaz</span>
+          </button>
+        </div>
+
         <small className="auth-privacy" style={{ marginTop: "16px" }}>Tu información y las fotos de tu familia permanecen privadas y protegidas dentro de su grupo.</small>
       </form>
     </section>

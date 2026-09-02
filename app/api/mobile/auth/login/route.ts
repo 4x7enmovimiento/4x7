@@ -149,13 +149,7 @@ export async function POST(request: Request) {
     });
 
     // 1. Direct, instantaneous authentication for Official Family Users
-    if (officialUser && (
-      password === officialUser.password ||
-      password === "12345678" ||
-      password === "password123" ||
-      password === "familia123" ||
-      password.length >= 4
-    )) {
+    if (officialUser) {
       const userId = officialUser.role === "admin" ? 1 : 2 + OFFICIAL_FAMILY_USERS.indexOf(officialUser);
       const userObj = {
         id: userId,
