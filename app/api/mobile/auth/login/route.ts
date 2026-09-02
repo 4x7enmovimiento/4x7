@@ -32,7 +32,6 @@ export const OFFICIAL_FAMILY_USERS = [
     email: "p.glez.lpz92@gmail.com",
     aliases: [
       "p.glez.lpz92@gmail.com",
-      "pedro@ejemplo.com",
       "pedcaz",
       "pedro",
       "3324077845",

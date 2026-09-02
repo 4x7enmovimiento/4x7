@@ -171,34 +171,7 @@ export async function GET(request: Request) {
       console.warn("DB profile lookup warning:", dbErr);
     }
 
-    // 3. Fallback for registered official users so cold lambdas never return profile: null
-    const email = (current.email || "").toLowerCase();
-    const name = (current.name || "").toLowerCase();
-    const isPedro =
-      email.includes("p.glez.lpz92") ||
-      name.includes("pedro") ||
-      name.includes("pedcaz") ||
-      current.userId === 1;
 
-    if (isPedro) {
-      const pedroProfile = {
-        profile: {
-          objective: "lose_fat" as Objective,
-          birthDate: "1992-05-15",
-          sex: "male" as Sex,
-          heightCm: 178,
-          targetWeightKg: 78,
-          weeklyGoal: 4,
-          preferredActivity: "Gimnasio / Pesas 🏋️‍♂️",
-          challengeStartDate: "2026-09-01",
-          measurement: { weightKg: 84.5, recordedAt: new Date().toISOString() },
-        },
-        measurements: [{ weightKg: 84.5, recordedAt: new Date().toISOString() }],
-        projection: projection(84.5, 178, 78, "lose_fat"),
-      };
-      profileCache.set(current.userId, pedroProfile);
-      return json(pedroProfile);
-    }
 
     const isJudith =
       email.includes("emilyalejandra01") ||

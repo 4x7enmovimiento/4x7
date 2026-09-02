@@ -238,30 +238,6 @@ function getStoredProfile(userName?: string): ProfileResponse | null {
 
   // Fallback so official Pedro or Judith NEVER gets blocked by onboarding on a new browser/computer:
   const lower = (userName || "").toLowerCase();
-  if (lower.includes("pedro") || lower.includes("pedcaz")) {
-    return {
-      profile: {
-        objective: "lose_fat",
-        birthDate: "1992-05-15",
-        sex: "male",
-        heightCm: 178,
-        targetWeightKg: 78,
-        weeklyGoal: 4,
-        preferredActivity: "Gimnasio / Pesas 🏋️‍♂️",
-        challengeStartDate: "2026-09-01",
-        measurement: { weightKg: 84.5, recordedAt: new Date().toISOString() },
-      },
-      measurements: [{ weightKg: 84.5, recordedAt: new Date().toISOString() }],
-      projection: {
-        weeks: 16,
-        targetWeightKg: 78,
-        currentWeightKg: 84.5,
-        targetDate: "2026-12-20",
-        weeklyLossKg: 0.4,
-        totalLossKg: 6.5,
-      } as any,
-    };
-  }
 
   if (lower.includes("judith") || lower.includes("juuglez") || lower.includes("ale")) {
     return {
@@ -319,14 +295,8 @@ export default function Home() {
   const [commentOpen, setCommentOpen] = useState<number | null>(null);
   const [commentText, setCommentText] = useState("");
   const [commentsByPost, setCommentsByPost] = useState<Record<number, any[]>>({});
-  const [familyStats, setFamilyStats] = useState<Record<string, any>>({
-    pedcaz: { nickname: "Pedcaz", workouts: 1, points: 100, activity: "Gimnasio / Pesas 🏋️‍♂️", completedDates: [new Date().toISOString().split("T")[0]] },
-    pedro: { nickname: "Pedcaz", workouts: 1, points: 100, activity: "Gimnasio / Pesas 🏋️‍♂️", completedDates: [new Date().toISOString().split("T")[0]] },
-  });
-  const [familyProfiles, setFamilyProfiles] = useState<Record<string, any>>({
-    pedcaz: { preferredActivity: "Gimnasio / Pesas 🏋️‍♂️" },
-    pedro: { preferredActivity: "Gimnasio / Pesas 🏋️‍♂️" },
-  });
+  const [familyStats, setFamilyStats] = useState<Record<string, any>>({});
+  const [familyProfiles, setFamilyProfiles] = useState<Record<string, any>>({});
 
   // Guadalajara (GDL / America/Mexico_City) Date & Real Week Helper
   const getGdlDateInfo = useCallback(() => {

@@ -94,20 +94,6 @@ if (!familyProfilesCache.has("juuglez")) {
   familyProfilesCache.set("emilyalejandra01@gmail.com", judithSummary);
 }
 
-if (!familyProfilesCache.has("pedcaz")) {
-  const pedroSummary: FamilyMemberSummary = {
-    name: "Pedro",
-    fullName: "Pedro Humberto González López",
-    nickname: "Pedcaz",
-    preferredActivity: "Gimnasio / Pesas 🏋️‍♂️",
-    objective: "lose_fat",
-    updatedAt: new Date().toISOString(),
-  };
-  familyProfilesCache.set("pedcaz", pedroSummary);
-  familyProfilesCache.set("pedro", pedroSummary);
-  familyProfilesCache.set("p.glez.lpz92@gmail.com", pedroSummary);
-}
-
 export interface SharedFeedPost {
   id: number;
   userId: number;
@@ -173,41 +159,6 @@ if (!sharedMemberStatsCache.has("juuglez")) {
   sharedMemberStatsCache.set("juuglez", judithStats);
   sharedMemberStatsCache.set("judith", judithStats);
   sharedMemberStatsCache.set("emilyalejandra01@gmail.com", judithStats);
-}
-
-if (!sharedMemberStatsCache.has("pedcaz")) {
-  const pedroStats: SharedMemberStats = {
-    nickname: "Pedcaz",
-    fullName: "Pedro Humberto González López",
-    workouts: 1,
-    completedDates: [todayStr],
-    points: 100,
-    activity: "Gimnasio / Pesas 🏋️‍♂️",
-    lastCheckinDate: todayStr,
-  };
-  sharedMemberStatsCache.set("pedcaz", pedroStats);
-  sharedMemberStatsCache.set("pedro", pedroStats);
-  sharedMemberStatsCache.set("p.glez.lpz92@gmail.com", pedroStats);
-}
-
-if (!sharedPostsCache.has(1001)) {
-  sharedPostsCache.set(1001, {
-    id: 1001,
-    userId: 1,
-    userName: "Pedcaz",
-    caption: "¡Entrenamiento de Gimnasio y Fuerza completado! 💪 Poniendo el ejemplo en el Reto 4×7.",
-    evidenceKey: null,
-    evidenceUrl: "/images/machines/bench_flat.jpg",
-    createdAt: new Date().toISOString(),
-    activityType: "Gimnasio / Pesas 🏋️‍♂️",
-    durationSeconds: 2700,
-    distanceMeters: null,
-    steps: null,
-    calories: 320,
-    likes: 1,
-    comments: 0,
-    likedUserIds: [2],
-  });
 }
 
 export async function createSession(userId: number, userInfo?: Partial<CachedUserSession>) {
