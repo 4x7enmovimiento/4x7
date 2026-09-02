@@ -16,8 +16,8 @@ export async function POST(request: Request) {
     const familyName = cleanText(payload.familyName, 60) || DEFAULT_FAMILY_NAME;
     const inviteCode = cleanText(payload.inviteCode, 12).toUpperCase();
 
-    if (name.length < 2 || !email.includes("@") || password.length < 8) {
-      return json({ error: "Escribe tu nombre, un correo válido y una contraseña de al menos 8 caracteres." }, 400);
+    if (name.length < 2 || !email.includes("@") || password.length < 4) {
+      return json({ error: "Escribe tu nombre, un correo válido y tu contraseña." }, 400);
     }
 
     const db = getDb();

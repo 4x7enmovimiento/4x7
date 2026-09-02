@@ -97,7 +97,7 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Ses
         </div>
         {mode === "register" && <label>Tu nombre<input required minLength={2} value={name} onChange={(event) => setName(event.target.value)} placeholder="Pedro" autoComplete="name" /></label>}
         <label>Correo<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="tu@correo.com" autoComplete="username email" /></label>
-        <label>Contraseña<input required minLength={8} type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mínimo 8 caracteres" autoComplete={mode === "login" ? "current-password" : "new-password"} /></label>
+        <label>Contraseña<input required type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Tu contraseña" autoComplete={mode === "login" ? "current-password" : "new-password"} /></label>
         {mode === "register" && (
           <label>
             Equipo o Familia
