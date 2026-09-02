@@ -1012,7 +1012,7 @@ export default function Home() {
         workouts: currentWorkouts,
         lastCheckIn,
         points,
-        completedDays: Array.from({ length: 4 }, (_, i) => i < currentWorkouts),
+        completedDays: Array.from({ length: 7 }, (_, i) => i < currentWorkouts),
         status: currentWorkouts >= 4 ? "completed" : currentWorkouts >= 2 ? "progress" : "pending",
       };
     });
@@ -1249,16 +1249,19 @@ export default function Home() {
             const nick = sess.user.name.includes("Pedro") ? "Pedcaz" : sess.user.name.includes("Judith") ? "JuuGlez" : sess.user.name.split(" ")[0];
             const checkinRaw = localStorage.getItem(`4x7_user_${sess.user.id}_checkin_state`);
             const checkinParsed = checkinRaw ? JSON.parse(checkinRaw) : null;
-            const workoutsCount = checkinParsed?.workouts || (completedCheckInDates.length > 0 ? completedCheckInDates.length : 1);
-            const prefAct = (fitness?.profile as any)?.preferredActivity || (nick === "Pedcaz" ? "Gimnasio / Pesas 🏋️‍♂️" : "");
-            clientSyncData = {
-              nickname: nick,
-              fullName: sess.user.name,
-              workouts: workoutsCount,
-              completedDates: checkinParsed?.completedDates || completedCheckInDates,
-              activity: prefAct,
-              lastCheckinDate: checkinParsed?.lastCheckinDate || new Date().toISOString().split("T")[0],
-            };
+            const workoutsCount = checkinParsed?.workouts ?? completedCheckInDates.length;
+            const completedDates = checkinParsed?.completedDates || completedCheckInDates;
+            const prefAct = (fitness?.profile as any)?.preferredActivity || "";
+            if (workoutsCount > 0 || prefAct) {
+              clientSyncData = {
+                nickname: nick,
+                fullName: sess.user.name,
+                workouts: workoutsCount,
+                completedDates,
+                activity: prefAct,
+                lastCheckinDate: checkinParsed?.lastCheckinDate || (workoutsCount > 0 ? new Date().toISOString().split("T")[0] : ""),
+              };
+            }
           }
         } catch {}
       }
@@ -2249,13 +2252,14 @@ export default function Home() {
 
                 <div className="row-center-progress">
                   <div className="checkin-pills-sequence">
-                    {[1, 2, 3, 4].map((stepNum) => {
+                    {[1, 2, 3, 4, 5, 6, 7].map((stepNum) => {
                       const done = stepNum <= member.workouts;
+                      const isBonus = stepNum > 4;
                       return (
                         <div
                           key={stepNum}
-                          className={`step-pill ${done ? "done" : "empty"}`}
-                          title={`Check-in ${stepNum} ${done ? "completado" : "pendiente"}`}
+                          className={`step-pill ${done ? (isBonus ? "done-bonus" : "done") : (isBonus ? "bonus-pill empty" : "empty")}`}
+                          title={`Día ${stepNum} ${done ? "completado ✓" : "pendiente"} ${isBonus ? "(Día extra campeón ⭐)" : ""}`}
                         >
                           {done ? "✓" : stepNum}
                         </div>
@@ -2263,14 +2267,18 @@ export default function Home() {
                     })}
                   </div>
                   <div className="status-label-badge">
-                    {isCompleted ? (
-                      <span className="badge-done">🏆 4/4 ¡META CUMPLIDA!</span>
-                    ) : isNear ? (
+                    {member.workouts >= 7 ? (
+                      <span className="badge-done" style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>🔥 7/7 ¡SEMANA PERFECTA!</span>
+                    ) : member.workouts >= 4 ? (
+                      <span className="badge-done">🏆 {member.workouts}/4 ¡META CUMPLIDA!</span>
+                    ) : member.workouts === 3 ? (
                       <span className="badge-near">⚡ 3/4 (A 1 día)</span>
                     ) : member.workouts === 2 ? (
                       <span className="badge-mid">🟡 2/4 (A 2 días)</span>
+                    ) : member.workouts === 1 ? (
+                      <span className="badge-need">🟢 1/4 (¡Buen arranque!)</span>
                     ) : (
-                      <span className="badge-need">🔴 {member.workouts}/4 (¡A motivar!)</span>
+                      <span className="badge-need">🔴 0/4 (¡A motivar!)</span>
                     )}
                   </div>
                 </div>
