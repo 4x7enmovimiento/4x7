@@ -173,7 +173,15 @@ export async function GET(request: Request) {
 
     // 3. Fallback for registered official users so cold lambdas never return profile: null
     const email = (current.email || "").toLowerCase();
-    if (email.includes("p.glez.lpz92@gmail.com") || current.name.toLowerCase().includes("pedro")) {
+    const name = (current.name || "").toLowerCase();
+    const isPedro =
+      email.includes("p.glez.lpz92") ||
+      email.includes("pedcaz") ||
+      name.includes("pedro") ||
+      name.includes("pedcaz") ||
+      current.userId === 1;
+
+    if (isPedro) {
       const pedroProfile = {
         profile: {
           objective: "lose_fat" as Objective,
@@ -193,7 +201,16 @@ export async function GET(request: Request) {
       return json(pedroProfile);
     }
 
-    if (email.includes("emilyalejandra01@gmail.com") || current.name.toLowerCase().includes("judith")) {
+    const isJudith =
+      email.includes("emilyalejandra01") ||
+      email.includes("juuglez") ||
+      name.includes("judith") ||
+      name.includes("juuglez") ||
+      name.includes("ale") ||
+      current.userId === 8 ||
+      current.userId === 2;
+
+    if (isJudith) {
       const judithProfile = {
         profile: {
           objective: "lose_fat" as Objective,

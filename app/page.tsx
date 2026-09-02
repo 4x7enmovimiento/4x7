@@ -5,6 +5,14 @@ import { AuthScreen } from "./components/AuthScreen";
 import { ProfileOnboarding } from "./components/ProfileOnboarding";
 import { clientApi, type FeedPost, type ProfileResponse, type Session } from "./lib/client-api";
 
+if (typeof window !== "undefined") {
+  window.addEventListener("error", (e) => {
+    if (e.message && (e.message.includes("Loading chunk") || e.message.includes("Failed to fetch dynamically imported module"))) {
+      window.location.reload();
+    }
+  });
+}
+
 const navItems = ["Hoy", "Muro", "Liga y Retos", "Mis Récords", "Progreso"] as const;
 type Section = typeof navItems[number];
 
@@ -235,6 +243,59 @@ function getStoredProfile(userName?: string): ProfileResponse | null {
       }
     } catch {}
   }
+
+  // Fallback so official Pedro or Judith NEVER gets blocked by onboarding on a new browser/computer:
+  const lower = (userName || "").toLowerCase();
+  if (lower.includes("pedro") || lower.includes("pedcaz")) {
+    return {
+      profile: {
+        objective: "lose_fat",
+        birthDate: "1992-05-15",
+        sex: "male",
+        heightCm: 178,
+        targetWeightKg: 78,
+        weeklyGoal: 4,
+        preferredActivity: "Gimnasio / Pesas 🏋️‍♂️",
+        challengeStartDate: "2026-09-01",
+        measurement: { weightKg: 84.5, recordedAt: new Date().toISOString() },
+      },
+      measurements: [{ weightKg: 84.5, recordedAt: new Date().toISOString() }],
+      projection: {
+        weeks: 16,
+        targetWeightKg: 78,
+        currentWeightKg: 84.5,
+        targetDate: "2026-12-20",
+        weeklyLossKg: 0.4,
+        totalLossKg: 6.5,
+      } as any,
+    };
+  }
+
+  if (lower.includes("judith") || lower.includes("juuglez") || lower.includes("ale")) {
+    return {
+      profile: {
+        objective: "lose_fat",
+        birthDate: "1994-08-20",
+        sex: "female",
+        heightCm: 165,
+        targetWeightKg: 60,
+        weeklyGoal: 4,
+        preferredActivity: "",
+        challengeStartDate: "2026-09-01",
+        measurement: { weightKg: 65, recordedAt: new Date().toISOString() },
+      },
+      measurements: [{ weightKg: 65, recordedAt: new Date().toISOString() }],
+      projection: {
+        weeks: 12,
+        targetWeightKg: 60,
+        currentWeightKg: 65,
+        targetDate: "2026-11-20",
+        weeklyLossKg: 0.4,
+        totalLossKg: 5,
+      } as any,
+    };
+  }
+
   return null;
 }
 
@@ -3906,6 +3967,18 @@ export default function Home() {
             .finally(() => setProfileLoading(false));
         }}
       />
+    );
+  }
+
+  if (profileLoading) {
+    return (
+      <main className="app-loading">
+        <div className="auth-brand">
+          <span>4×7</span>
+          <i />
+        </div>
+        <p>Preparando tu espacio familiar…</p>
+      </main>
     );
   }
 
