@@ -257,6 +257,7 @@ export async function POST(request: Request) {
       recordedAt: new Date().toISOString(),
     };
 
+    const preferredActivity = cleanText(payload.preferredActivity, 100) || undefined;
     const fullProfileObj = {
       objective,
       birthDate,
@@ -264,6 +265,7 @@ export async function POST(request: Request) {
       heightCm,
       targetWeightKg,
       weeklyGoal: 4,
+      preferredActivity: preferredActivity || null,
       challengeStartDate: challengeStartDate || "2026-09-01",
       measurement: currentMeasurement,
     };

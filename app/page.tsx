@@ -774,18 +774,18 @@ export default function Home() {
 
   const familyCheckInData = useMemo(() => {
     const rawMembers = [
-      { name: "Pedro", fullName: "Pedro Humberto González López", nickname: "Pedcaz", relation: "Papá / Admin", initials: "P", color: "mint", activity: "Gimnasio & Fuerza", phone: "523324077845" },
-      { name: "Ian", fullName: "Ian González Torres", nickname: "Baby", relation: "", initials: "I", color: "sun", activity: "Calistenia & Cardio", phone: "523312804849" },
-      { name: "Belén", fullName: "María Belén Chávez López", nickname: "Mabel", relation: "", initials: "B", color: "coral", activity: "Zumba & Bici", phone: "52333871243" },
-      { name: "Edgar", fullName: "Edgar Josué López Melchor", nickname: "Wero LM", relation: "", initials: "E", color: "lilac", activity: "Gimnasio & Pesas", phone: "523310838858" },
-      { name: "Lucy", fullName: "Luz María Ramírez Hernández", nickname: "Lucy", relation: "", initials: "L", color: "coral", activity: "Caminata Activa", phone: "523316089229" },
-      { name: "Cristina", fullName: "Cristina Díaz González", nickname: "CristinaFit", relation: "", initials: "C", color: "mint", activity: "Fitness & Funcional", phone: "523331586066" },
-      { name: "Judith", fullName: "Judith González López", nickname: "JuuGlez", relation: "", initials: "J", color: "sun", activity: "Spinning & Bici", phone: "523327479701" },
-      { name: "Ivan", fullName: "Ivan Chávez López", nickname: "Ivanovich", relation: "", initials: "I", color: "mint", activity: "CrossFit & Fuerza", phone: "522326621281" },
-      { name: "Estefany", fullName: "Estefany López Melchor", nickname: "EstefanyLM", relation: "", initials: "E", color: "coral", activity: "Pilates & Cardio", phone: "523324265455" },
-      { name: "Ely", fullName: "Elizabeth López Álvarez", nickname: "Ely", relation: "", initials: "E", color: "lilac", activity: "Yoga & Movilidad", phone: "523333541315" },
-      { name: "Emmanuel", fullName: "Emmanuel López Álvarez", nickname: "Emanuelle", relation: "", initials: "E", color: "sun", activity: "Running & HIIT", phone: "523331087798" },
-      { name: "Viridiana", fullName: "Viridiana Contreras", nickname: "Virinovich", relation: "", initials: "V", color: "coral", activity: "Box & Fitness", phone: "523322729289" },
+      { name: "Pedro", fullName: "Pedro Humberto González López", nickname: "Pedcaz", relation: "Papá / Admin", initials: "P", color: "mint", phone: "523324077845" },
+      { name: "Ian", fullName: "Ian González Torres", nickname: "Baby", relation: "", initials: "I", color: "sun", phone: "523312804849" },
+      { name: "Belén", fullName: "María Belén Chávez López", nickname: "Mabel", relation: "", initials: "B", color: "coral", phone: "52333871243" },
+      { name: "Edgar", fullName: "Edgar Josué López Melchor", nickname: "Wero LM", relation: "", initials: "E", color: "lilac", phone: "523310838858" },
+      { name: "Lucy", fullName: "Luz María Ramírez Hernández", nickname: "Lucy", relation: "", initials: "L", color: "coral", phone: "523316089229" },
+      { name: "Cristina", fullName: "Cristina Díaz González", nickname: "CristinaFit", relation: "", initials: "C", color: "mint", phone: "523331586066" },
+      { name: "Judith", fullName: "Judith González López", nickname: "JuuGlez", relation: "", initials: "J", color: "sun", phone: "523327479701" },
+      { name: "Ivan", fullName: "Ivan Chávez López", nickname: "Ivanovich", relation: "", initials: "I", color: "mint", phone: "522326621281" },
+      { name: "Estefany", fullName: "Estefany López Melchor", nickname: "EstefanyLM", relation: "", initials: "E", color: "coral", phone: "523324265455" },
+      { name: "Ely", fullName: "Elizabeth López Álvarez", nickname: "Ely", relation: "", initials: "E", color: "lilac", phone: "523333541315" },
+      { name: "Emmanuel", fullName: "Emmanuel López Álvarez", nickname: "Emanuelle", relation: "", initials: "E", color: "sun", phone: "523331087798" },
+      { name: "Viridiana", fullName: "Viridiana Contreras", nickname: "Virinovich", relation: "", initials: "V", color: "coral", phone: "523322729289" },
     ];
 
     const gdl = getGdlDateInfo();
@@ -830,8 +830,37 @@ export default function Home() {
         ? (logged ? "Hoy (Reciente)" : "Pendiente hoy")
         : (hasRecentPost ? "Esta semana" : "Sin check-in aún");
 
+      // Determine real selected activity without inventing fake data
+      let realActivity = "";
+      if (isCurrentUser) {
+        const preferred = (fitness?.profile as any)?.preferredActivity;
+        if (preferred && typeof preferred === "string" && preferred.trim()) {
+          realActivity = preferred.trim();
+        } else if (memberWeekPosts.length > 0 && memberWeekPosts[0].activityType) {
+          realActivity = memberWeekPosts[0].activityType;
+        }
+      } else {
+        try {
+          const cached =
+            localStorage.getItem(`four_seven_profile_${m.fullName}`) ||
+            localStorage.getItem(`four_seven_profile_${m.nickname}`) ||
+            localStorage.getItem(`four_seven_profile_${m.name}`);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (parsed?.profile?.preferredActivity) {
+              realActivity = parsed.profile.preferredActivity;
+            }
+          }
+        } catch {}
+
+        if (!realActivity && memberWeekPosts.length > 0 && memberWeekPosts[0].activityType) {
+          realActivity = memberWeekPosts[0].activityType;
+        }
+      }
+
       return {
         ...m,
+        activity: realActivity,
         workouts: currentWorkouts,
         lastCheckIn,
         points,
@@ -839,7 +868,7 @@ export default function Home() {
         status: currentWorkouts >= 4 ? "completed" : currentWorkouts >= 2 ? "progress" : "pending",
       };
     });
-  }, [currentUserName, logged, weeklyWorkoutsCount, userBonusPoints, feedPosts, getGdlDateInfo]);
+  }, [currentUserName, logged, weeklyWorkoutsCount, completedCheckInDates, userBonusPoints, feedPosts, fitness, getGdlDateInfo]);
 
   // Family dynamic points calculation
   const familyScores = useMemo(() => {
@@ -2044,7 +2073,15 @@ export default function Home() {
                       )}
                     </div>
                     <span className="activity-line-sub">
-                      {member.activity} · <small>{member.lastCheckIn}</small>
+                      {member.activity ? (
+                        <>
+                          <b style={{ color: "var(--ink)", fontWeight: 700 }}>{member.activity}</b> · <small>{member.lastCheckIn}</small>
+                        </>
+                      ) : (
+                        <small style={{ color: "#71897d" }}>
+                          {member.workouts > 0 ? member.lastCheckIn : "Sin registro aún"}
+                        </small>
+                      )}
                     </span>
                   </div>
                 </div>
