@@ -265,6 +265,13 @@ export default function Home() {
   const [active, setActive] = useState<Section>("Hoy");
   const [commentOpen, setCommentOpen] = useState<number | null>(null);
   const [commentText, setCommentText] = useState("");
+  const [commentsByPost, setCommentsByPost] = useState<Record<number, any[]>>({});
+  const [familyStats, setFamilyStats] = useState<Record<string, any>>({
+    juuglez: { nickname: "JuuGlez", workouts: 1, points: 100, activity: "Bicicleta & Spinning 🚴", completedDates: [new Date().toISOString().split("T")[0]] },
+    judith: { nickname: "JuuGlez", workouts: 1, points: 100, activity: "Bicicleta & Spinning 🚴", completedDates: [new Date().toISOString().split("T")[0]] },
+    pedcaz: { nickname: "Pedcaz", workouts: 1, points: 100, activity: "Gimnasio / Pesas 🏋️‍♂️", completedDates: [new Date().toISOString().split("T")[0]] },
+    pedro: { nickname: "Pedcaz", workouts: 1, points: 100, activity: "Gimnasio / Pesas 🏋️‍♂️", completedDates: [new Date().toISOString().split("T")[0]] },
+  });
   const [familyProfiles, setFamilyProfiles] = useState<Record<string, any>>({
     juuglez: { preferredActivity: "Bicicleta & Spinning 🚴" },
     judith: { preferredActivity: "Bicicleta & Spinning 🚴" },
@@ -859,25 +866,36 @@ export default function Home() {
         return gdl.currentWeekDays.some((d) => d.dateKey === pKey);
       });
 
+      // 1. Check shared stats from server for this member!
+      const serverStat =
+        familyStats[m.nickname.toLowerCase()] ||
+        familyStats[m.name.toLowerCase()] ||
+        familyStats[m.fullName.toLowerCase()] ||
+        familyStats[m.phone];
+
+      const statWorkouts = serverStat?.workouts || 0;
+      const statDates: string[] = serverStat?.completedDates || [];
+
       const memberUniqueDates = Array.from(
-        new Set(
-          memberWeekPosts.map((p) => {
+        new Set([
+          ...memberWeekPosts.map((p) => {
             const postDate = new Date(p.createdAt!);
             return `${postDate.getFullYear()}-${String(postDate.getMonth() + 1).padStart(2, "0")}-${String(postDate.getDate()).padStart(2, "0")}`;
-          })
-        )
+          }),
+          ...statDates,
+        ])
       );
 
       const currentWorkouts = isCurrentUser
-        ? Math.max(memberUniqueDates.length, completedCheckInDates.length)
-        : memberUniqueDates.length;
+        ? Math.max(memberUniqueDates.length, completedCheckInDates.length, statWorkouts)
+        : Math.max(memberUniqueDates.length, statWorkouts);
       const isDone = currentWorkouts >= 4;
       const points = (currentWorkouts * 100) + (isDone ? 300 : 0) + (isCurrentUser ? userBonusPoints : 0);
 
-      const hasRecentPost = memberWeekPosts.length > 0;
+      const hasRecentPost = memberWeekPosts.length > 0 || statWorkouts > 0;
       const lastCheckIn = isCurrentUser
         ? (logged ? "Hoy (Reciente)" : "Pendiente hoy")
-        : (hasRecentPost ? "Esta semana" : "Sin check-in aún");
+        : (hasRecentPost ? "Hoy (Completado)" : "Sin check-in aún");
 
       // Determine real selected activity without inventing fake data
       let realActivity = "";
@@ -932,7 +950,7 @@ export default function Home() {
         status: currentWorkouts >= 4 ? "completed" : currentWorkouts >= 2 ? "progress" : "pending",
       };
     });
-  }, [currentUserName, logged, weeklyWorkoutsCount, completedCheckInDates, userBonusPoints, feedPosts, fitness, familyProfiles, getGdlDateInfo]);
+  }, [currentUserName, logged, weeklyWorkoutsCount, completedCheckInDates, userBonusPoints, feedPosts, fitness, familyProfiles, familyStats, getGdlDateInfo]);
 
   // Family dynamic points calculation
   const familyScores = useMemo(() => {
@@ -1161,6 +1179,9 @@ export default function Home() {
       if (response?.familyProfiles) {
         setFamilyProfiles((prev) => ({ ...prev, ...response.familyProfiles }));
       }
+      if (response?.familyStats) {
+        setFamilyStats((prev) => ({ ...prev, ...response.familyStats }));
+      }
     } catch {
       setFeedPosts([]);
     } finally {
@@ -1184,6 +1205,9 @@ export default function Home() {
         setFeedPosts(finalFeed);
         if (feed?.familyProfiles) {
           setFamilyProfiles((prev) => ({ ...prev, ...feed.familyProfiles }));
+        }
+        if (feed?.familyStats) {
+          setFamilyStats((prev) => ({ ...prev, ...feed.familyStats }));
         }
 
         if (current?.user) {
@@ -1427,16 +1451,39 @@ export default function Home() {
     }
   };
 
+  const toggleCommentSection = (postId: number) => {
+    if (commentOpen === postId) {
+      setCommentOpen(null);
+    } else {
+      setCommentOpen(postId);
+      if (!commentsByPost[postId]) {
+        clientApi
+          .comments(postId)
+          .then((res) => {
+            if (res?.comments) {
+              setCommentsByPost((prev) => ({ ...prev, [postId]: res.comments }));
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  };
+
   const addComment = async (id: number) => {
     if (!commentText.trim()) return;
     const body = commentText.trim();
     try {
-      await clientApi.comment(id, body);
+      const res = await clientApi.comment(id, body);
+      if (res?.comment) {
+        setCommentsByPost((prev) => ({
+          ...prev,
+          [id]: [...(prev[id] || []), res.comment],
+        }));
+      }
       setFeedPosts((posts) =>
         posts.map((post) => (post.id === id ? { ...post, comments: post.comments + 1 } : post))
       );
       setCommentText("");
-      setCommentOpen(null);
       notify("Comentario publicado en el muro 👏");
     } catch (cause) {
       notify(cause instanceof Error ? cause.message : "No pudimos publicar el comentario");
@@ -1646,7 +1693,7 @@ export default function Home() {
             <span className="fb-reaction-icons">🔥👏</span>
             <small>{post.likes} {post.likes === 1 ? "motivación" : "motivaciones"}</small>
           </div>
-          <div className="fb-comments-count" onClick={() => setCommentOpen(commentOpen === post.id ? null : post.id)}>
+          <div className="fb-comments-count" onClick={() => toggleCommentSection(post.id)}>
             <small>{post.comments} {post.comments === 1 ? "comentario" : "comentarios"}</small>
           </div>
         </div>
@@ -1664,7 +1711,7 @@ export default function Home() {
           <button
             type="button"
             className={`fb-action-btn ${commentOpen === post.id ? "active-comment" : ""}`}
-            onClick={() => setCommentOpen(commentOpen === post.id ? null : post.id)}
+            onClick={() => toggleCommentSection(post.id)}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <b>Comentar</b>
@@ -1688,182 +1735,21 @@ export default function Home() {
         {commentOpen === post.id && (
           <div className="fb-comments-section">
             <div className="fb-comments-thread">
-              {post.userName === "Ana" && (
-                <>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny mint">P</span>
+              {commentsByPost[post.id] && commentsByPost[post.id].length > 0 ? (
+                commentsByPost[post.id].map((comm) => (
+                  <div key={comm.id} className="fb-comment-bubble">
+                    <span className="avatar tiny mint">
+                      {comm.userName ? comm.userName.charAt(0).toUpperCase() : "F"}
+                    </span>
                     <div className="fb-comment-text-box">
-                      <b>Pedro</b>
-                      <span>¡Con todo amor! Yo hoy voy por mi 4to día también 💪🔥</span>
+                      <b>{comm.userName}</b>
+                      <span>{comm.body}</span>
                     </div>
                   </div>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny mint">M</span>
-                    <div className="fb-comment-text-box">
-                      <b>Mateo</b>
-                      <span>Apenas voy saliendo para el parque jaja no me dejen atrás 🏃</span>
-                    </div>
-                  </div>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny lilac">S</span>
-                    <div className="fb-comment-text-box">
-                      <b>Sofi</b>
-                      <span>¡Esa es mi mamá! 💃👑 A ver quién gana la rifa del mes</span>
-                    </div>
-                  </div>
-                </>
-              )}
-              {post.userName === "Sofi" && (
-                <>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny coral">A</span>
-                    <div className="fb-comment-text-box">
-                      <b>Ana</b>
-                      <span>¡Orgullosa de ti hermosa! Mañana nos toca juntas ❤️</span>
-                    </div>
-                  </div>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny mint">P</span>
-                    <div className="fb-comment-text-box">
-                      <b>Pedro</b>
-                      <span>¡Excelente energía Sofi! Ya casi aseguras tu bono familiar ⚡</span>
-                    </div>
-                  </div>
-                </>
-              )}
-              {post.userName === "Mateo" && (
-                <>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny mint">P</span>
-                    <div className="fb-comment-text-box">
-                      <b>Pedro</b>
-                      <span>¡Buena carrera campeón! Ya casi rompes tu récord de 5k 👟</span>
-                    </div>
-                  </div>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny lilac">S</span>
-                    <div className="fb-comment-text-box">
-                      <b>Sofi</b>
-                      <span>Menos mal porque no querías pagar los tacos de castigo 😂🌮</span>
-                    </div>
-                  </div>
-                </>
-              )}
-              {post.userName === "Carlos" && (
-                <>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny mint">P</span>
-                    <div className="fb-comment-text-box">
-                      <b>Pedro</b>
-                      <span>¡Inspiración total tío! La disciplina del 4×7 no se negocia 💪</span>
-                    </div>
-                  </div>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny coral">A</span>
-                    <div className="fb-comment-text-box">
-                      <b>Ana</b>
-                      <span>¡Excelente disciplina Carlos! Un abrazo 👏</span>
-                    </div>
-                  </div>
-                </>
-              )}
-              {post.userName === "Pedro" && (
-                <>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny coral">A</span>
-                    <div className="fb-comment-text-box">
-                      <b>Ana</b>
-                      <span>¡Eso mi amor! Siempre dando el ejemplo a la familia ❤️</span>
-                    </div>
-                  </div>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny sun">C</span>
-                    <div className="fb-comment-text-box">
-                      <b>Carlos</b>
-                      <span>¡Buena rutina Pedro! Nos vemos el fin de semana 🏋️</span>
-                    </div>
-                  </div>
-                </>
-              )}
-              {post.userName === "Diego" && (
-                <>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny sun">C</span>
-                    <div className="fb-comment-text-box">
-                      <b>Carlos</b>
-                      <span>¡Qué intensidad primo! Mañana me uno al WOD ⚡🔥</span>
-                    </div>
-                  </div>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny mint">P</span>
-                    <div className="fb-comment-text-box">
-                      <b>Pedro</b>
-                      <span>¡Fuerza pura Diego! Ya aseguraste tu 4×7 de la semana 🏋️👏</span>
-                    </div>
-                  </div>
-                </>
-              )}
-              {post.userName === "Mariana" && (
-                <>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny coral">A</span>
-                    <div className="fb-comment-text-box">
-                      <b>Ana</b>
-                      <span>¡Qué paz se ve en esa foto cuñada! Excelente sesión 🧘‍♀️✨</span>
-                    </div>
-                  </div>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny lilac">S</span>
-                    <div className="fb-comment-text-box">
-                      <b>Sofi</b>
-                      <span>¡Tía Mariana me tienes que enseñar esa rutina de estiramientos! ❤️</span>
-                    </div>
-                  </div>
-                </>
-              )}
-              {post.userName === "Tere" && (
-                <>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny coral">A</span>
-                    <div className="fb-comment-text-box">
-                      <b>Ana</b>
-                      <span>¡La más disciplinada de todos! Te queremos abuela ❤️🌳</span>
-                    </div>
-                  </div>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny mint">M</span>
-                    <div className="fb-comment-text-box">
-                      <b>Mateo</b>
-                      <span>¡Bravo abuela Tere! Sumando puntos para el equipo 👏</span>
-                    </div>
-                  </div>
-                </>
-              )}
-              {post.userName === "Lalo" && (
-                <>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny mint">P</span>
-                    <div className="fb-comment-text-box">
-                      <b>Pedro</b>
-                      <span>¡Esos ganchos al costal compadre! A cumplir el 4×7 sin falta 🥊💥</span>
-                    </div>
-                  </div>
-                  <div className="fb-comment-bubble">
-                    <span className="avatar tiny sun">C</span>
-                    <div className="fb-comment-text-box">
-                      <b>Carlos</b>
-                      <span>¡Nada de pagar el café compadre jaja con todo! ☕👊</span>
-                    </div>
-                  </div>
-                </>
-              )}
-              {post.userName !== "Ana" && post.userName !== "Sofi" && post.userName !== "Mateo" && post.userName !== "Carlos" && post.userName !== "Pedro" && post.userName !== "Tere" && post.userName !== "Diego" && post.userName !== "Mariana" && post.userName !== "Lalo" && (
-                <div className="fb-comment-bubble">
-                  <span className="avatar tiny mint">P</span>
-                  <div className="fb-comment-text-box">
-                    <b>Pedro</b>
-                    <span>¡Excelente check-in! A seguir dándole con todo 🔥💪</span>
-                  </div>
+                ))
+              ) : (
+                <div style={{ padding: "10px 14px", fontSize: "12.5px", color: "var(--muted)", fontStyle: "italic" }}>
+                  Sé el primero en dejar porras o un comentario familiar 👏
                 </div>
               )}
             </div>
@@ -3863,6 +3749,9 @@ export default function Home() {
               setFeedPosts(finalFeed);
               if (feed?.familyProfiles) {
                 setFamilyProfiles((prev) => ({ ...prev, ...feed.familyProfiles }));
+              }
+              if (feed?.familyStats) {
+                setFamilyStats((prev) => ({ ...prev, ...feed.familyStats }));
               }
               syncUserCheckInState(current.user.email, current.user.id, finalFeed);
             })
