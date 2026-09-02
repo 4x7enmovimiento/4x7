@@ -297,7 +297,7 @@ export default function Home() {
 
   const [completedCheckInDates, setCompletedCheckInDates] = useState<string[]>([]);
   const [logged, setLogged] = useState<boolean>(false);
-  const [weeklyWorkoutsCount, setWeeklyWorkoutsCount] = useState<number>(3);
+  const [weeklyWorkoutsCount, setWeeklyWorkoutsCount] = useState<number>(0);
   const [userBonusPoints, setUserBonusPoints] = useState<number>(0);
   const [toast, setToast] = useState("");
   const [showPointsModal, setShowPointsModal] = useState(false);
@@ -819,7 +819,9 @@ export default function Home() {
         )
       );
 
-      const currentWorkouts = isCurrentUser ? weeklyWorkoutsCount : memberUniqueDates.length;
+      const currentWorkouts = isCurrentUser
+        ? Math.max(memberUniqueDates.length, completedCheckInDates.length)
+        : memberUniqueDates.length;
       const isDone = currentWorkouts >= 4;
       const points = (currentWorkouts * 100) + (isDone ? 300 : 0) + (isCurrentUser ? userBonusPoints : 0);
 
