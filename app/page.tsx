@@ -229,12 +229,6 @@ function getStoredProfile(userName?: string): ProfileResponse | null {
   const keys = [
     resolvedUser ? `four_seven_profile_${resolvedUser}` : "",
     resolvedUser ? `four_seven_profile_${resolvedUser.split(" ")[0]}` : "",
-    "four_seven_profile_Pedro Humberto González López",
-    "four_seven_profile_Pedcaz",
-    "four_seven_profile_Pedro",
-    "four_seven_profile_Judith González López",
-    "four_seven_profile_JuuGlez",
-    "four_seven_profile_Judith",
     "four_seven_saved_profile",
   ].filter(Boolean);
 
@@ -246,59 +240,6 @@ function getStoredProfile(userName?: string): ProfileResponse | null {
         if (parsed?.profile) return parsed;
       }
     } catch {}
-  }
-
-  // Fallback so official Pedro or Judith NEVER gets blocked by onboarding on a new browser/computer:
-  const lower = (resolvedUser || "").toLowerCase();
-
-  if (lower.includes("pedro") || lower.includes("pedcaz") || lower.includes("p.glez.lpz92") || !resolvedUser) {
-    return {
-      profile: {
-        objective: "lose_fat",
-        birthDate: "1992-05-15",
-        sex: "male",
-        heightCm: 178,
-        targetWeightKg: 78,
-        weeklyGoal: 4,
-        preferredActivity: "Gimnasio",
-        challengeStartDate: "2026-09-01",
-        measurement: { weightKg: 84.5, recordedAt: new Date().toISOString() },
-      },
-      measurements: [{ weightKg: 84.5, recordedAt: new Date().toISOString() }],
-      projection: {
-        weeks: 16,
-        targetWeightKg: 78,
-        currentWeightKg: 84.5,
-        targetDate: "2026-12-20",
-        weeklyLossKg: 0.4,
-        totalLossKg: 6.5,
-      } as any,
-    };
-  }
-
-  if (lower.includes("judith") || lower.includes("juuglez") || lower.includes("ale")) {
-    return {
-      profile: {
-        objective: "lose_fat",
-        birthDate: "1994-08-20",
-        sex: "female",
-        heightCm: 165,
-        targetWeightKg: 60,
-        weeklyGoal: 4,
-        preferredActivity: "",
-        challengeStartDate: "2026-09-01",
-        measurement: { weightKg: 65, recordedAt: new Date().toISOString() },
-      },
-      measurements: [{ weightKg: 65, recordedAt: new Date().toISOString() }],
-      projection: {
-        weeks: 12,
-        targetWeightKg: 60,
-        currentWeightKg: 65,
-        targetDate: "2026-11-20",
-        weeklyLossKg: 0.4,
-        totalLossKg: 5,
-      } as any,
-    };
   }
 
   return null;

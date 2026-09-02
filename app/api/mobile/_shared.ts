@@ -144,22 +144,11 @@ export const sharedPostsCache = socialStore.__sharedPosts;
 export const sharedCommentsCache = socialStore.__sharedComments;
 export const sharedMemberStatsCache = socialStore.__sharedMemberStats;
 
-const todayStr = new Date().toISOString().split("T")[0];
-
-if (!sharedMemberStatsCache.has("juuglez")) {
-  const judithStats: SharedMemberStats = {
-    nickname: "JuuGlez",
-    fullName: "Judith González López",
-    workouts: 0,
-    completedDates: [],
-    points: 0,
-    activity: "",
-    lastCheckinDate: "",
-  };
-  sharedMemberStatsCache.set("juuglez", judithStats);
-  sharedMemberStatsCache.set("judith", judithStats);
-  sharedMemberStatsCache.set("emilyalejandra01@gmail.com", judithStats);
-}
+// All social caches start 100% clean for authentic live user registrations
+sharedPostsCache.clear();
+sharedCommentsCache.clear();
+sharedMemberStatsCache.clear();
+familyProfilesCache.clear();
 
 export async function createSession(userId: number, userInfo?: Partial<CachedUserSession>) {
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000).toISOString();

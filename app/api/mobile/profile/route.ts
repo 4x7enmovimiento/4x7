@@ -173,64 +173,6 @@ export async function GET(request: Request) {
 
 
 
-    const email = (current.email || "").toLowerCase();
-    const name = (current.name || "").toLowerCase();
-
-    const isPedro =
-      email.includes("p.glez.lpz92") ||
-      name.includes("pedro") ||
-      name.includes("pedcaz") ||
-      current.userId === 1;
-
-    if (isPedro) {
-      const pedroProfile = {
-        profile: {
-          objective: "lose_fat" as Objective,
-          birthDate: "1992-05-15",
-          sex: "male" as Sex,
-          heightCm: 178,
-          targetWeightKg: 78,
-          weeklyGoal: 4,
-          preferredActivity: "Gimnasio",
-          challengeStartDate: "2026-09-01",
-          measurement: { weightKg: 84.5, recordedAt: new Date().toISOString() },
-        },
-        measurements: [{ weightKg: 84.5, recordedAt: new Date().toISOString() }],
-        projection: projection(84.5, 178, 78, "lose_fat"),
-      };
-      profileCache.set(current.userId, pedroProfile);
-      return json(pedroProfile);
-    }
-
-    const isJudith =
-      email.includes("emilyalejandra01") ||
-      email.includes("juuglez") ||
-      name.includes("judith") ||
-      name.includes("juuglez") ||
-      name.includes("ale") ||
-      current.userId === 8 ||
-      current.userId === 2;
-
-    if (isJudith) {
-      const judithProfile = {
-        profile: {
-          objective: "lose_fat" as Objective,
-          birthDate: "1994-08-20",
-          sex: "female" as Sex,
-          heightCm: 165,
-          targetWeightKg: 60,
-          weeklyGoal: 4,
-          preferredActivity: familyProfilesCache.get("juuglez")?.preferredActivity || "",
-          challengeStartDate: "2026-09-01",
-          measurement: { weightKg: 65, recordedAt: new Date().toISOString() },
-        },
-        measurements: [{ weightKg: 65, recordedAt: new Date().toISOString() }],
-        projection: projection(65, 165, 60, "lose_fat"),
-      };
-      profileCache.set(current.userId, judithProfile);
-      return json(judithProfile);
-    }
-
     return json({ profile: null, measurements: [], projection: null });
   } catch (error) { return apiError(error); }
 }
