@@ -20,11 +20,35 @@ export type FeedPost = {
   likedByMe: boolean;
 };
 
+export type BodyMeasurement = {
+  id?: number;
+  weightKg: number;
+  waistCm?: number | null;
+  chestCm?: number | null;
+  hipCm?: number | null;
+  armCm?: number | null;
+  thighCm?: number | null;
+  calfCm?: number | null;
+  neckCm?: number | null;
+  bodyFatPercent?: number | null;
+  recordedAt?: string;
+};
+
+export type ObjectiveAdvice = {
+  title: string;
+  goalSummary: string;
+  doList: string[];
+  dontList: string[];
+};
+
 export type Projection = {
   bmi: number;
   bmiCategory: string;
   weeklyPaceKg: number;
+  estimatedWeeks: number;
+  etaSummary: string;
   weeks: Array<{ week: number; weightKg: number; phase: string; focus: string; workoutGoal: number }>;
+  advice: ObjectiveAdvice;
 };
 
 export type FitnessProfile = {
@@ -33,10 +57,15 @@ export type FitnessProfile = {
   sex: "female" | "male" | "other" | "prefer_not";
   heightCm: number;
   targetWeightKg: number | null;
-  measurement: { weightKg: number; waistCm?: number | null; chestCm?: number | null; hipCm?: number | null; armCm?: number | null; thighCm?: number | null; calfCm?: number | null; neckCm?: number | null; bodyFatPercent?: number | null };
+  challengeStartDate?: string;
+  measurement: BodyMeasurement;
 };
 
-export type ProfileResponse = { profile: FitnessProfile | null; projection: Projection | null };
+export type ProfileResponse = {
+  profile: FitnessProfile | null;
+  measurements: BodyMeasurement[];
+  projection: Projection | null;
+};
 
 type ApiError = { error?: string };
 
@@ -55,13 +84,17 @@ export const clientApi = {
     method: "POST",
     body: JSON.stringify({ email, password }),
   }),
-  register: (data: { name: string; email: string; password: string; familyName?: string; inviteCode?: string }) => request<Session>("/api/mobile/auth/register", {
+  register: (data: { name: string; email: string; password: string; familyName?: string; inviteCode?: string; challengeStartDate?: string }) => request<Session>("/api/mobile/auth/register", {
     method: "POST",
     body: JSON.stringify(data),
   }),
   logout: () => request<{ ok: boolean }>("/api/mobile/auth/logout", { method: "POST" }),
   profile: () => request<ProfileResponse>("/api/mobile/profile"),
   saveProfile: (data: Record<string, string | number | null>) => request<ProfileResponse>("/api/mobile/profile", { method: "POST", body: JSON.stringify(data) }),
+  addMeasurement: (data: { weightKg: number; waistCm?: number | null }) => request<ProfileResponse>("/api/mobile/profile", {
+    method: "POST",
+    body: JSON.stringify({ action: "add_measurement", ...data }),
+  }),
   feed: () => request<{ posts: FeedPost[] }>("/api/mobile/feed"),
   toggleLike: (postId: number) => request<{ liked: boolean }>(`/api/mobile/feed/${postId}/like`, { method: "POST" }),
   comment: (postId: number, body: string) => request<{ comment: unknown }>(`/api/mobile/feed/${postId}/comments`, {
@@ -82,8 +115,34 @@ export const clientApi = {
     steps: number;
     calories: number;
     evidenceKey: string | null;
+    caption?: string | null;
   }) => request<{ workout: { id: number } }>("/api/mobile/workouts", {
     method: "POST",
     body: JSON.stringify(data),
   }),
+  getPrize: () => request<{ prize: { title: string; description: string; imageUrl: string; month: string; minWeeklyCheckIns: number } }>("/api/mobile/admin?action=prize"),
+  adminListUsers: (pin: string) => request<{
+    users: Array<{ id: number; name: string; email: string; createdAt: string; workoutCount: number; eligibleForPrize: boolean }>;
+    prize: { title: string; description: string; imageUrl: string; month: string };
+  }>("/api/mobile/admin", {
+    method: "POST",
+    body: JSON.stringify({ pin, action: "list_users" }),
+  }),
+  adminResetPassword: (pin: string, targetUserId: number, newPassword: string) => request<{ ok: boolean; message: string }>("/api/mobile/admin", {
+    method: "POST",
+    body: JSON.stringify({ pin, action: "reset_password", targetUserId, newPassword }),
+  }),
+  adminDeleteUser: (pin: string, targetUserId: number) => request<{ ok: boolean; message: string }>("/api/mobile/admin", {
+    method: "POST",
+    body: JSON.stringify({ pin, action: "delete_user", targetUserId }),
+  }),
+  adminSavePrize: (pin: string, data: { title: string; description: string; imageUrl: string; month?: string }) => request<{
+    ok: boolean;
+    prize: { title: string; description: string; imageUrl: string; month: string };
+    message: string;
+  }>("/api/mobile/admin", {
+    method: "POST",
+    body: JSON.stringify({ pin, action: "save_prize", ...data }),
+  }),
 };
+

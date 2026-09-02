@@ -58,6 +58,9 @@ export async function POST(request: Request) {
       return json({ error: "La evidencia no pertenece a esta cuenta." }, 403);
     }
 
+    const customCaption = cleanText(payload.caption, 280);
+    const caption = customCaption || `Completó ${activityType.toLowerCase()} y sumó un día a su meta 4×7.`;
+
     const [workout] = await getDb().insert(workouts).values({
       userId: current.userId,
       familyId: current.familyId,
@@ -74,7 +77,7 @@ export async function POST(request: Request) {
       familyId: current.familyId,
       userId: current.userId,
       workoutId: workout.id,
-      caption: `Completó ${activityType.toLowerCase()} y sumó un día a su meta 4×7.`,
+      caption,
       evidenceKey,
     });
     await getDb().insert(pointsLedger).values({

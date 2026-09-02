@@ -19,6 +19,7 @@ export const userProfiles = sqliteTable("user_profiles", {
   heightCm: real("height_cm"),
   targetWeightKg: real("target_weight_kg"),
   weeklyGoal: integer("weekly_goal").notNull().default(4),
+  challengeStartDate: text("challenge_start_date").default("2026-09-01"),
   timezone: text("timezone").notNull().default("America/Mexico_City"),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("idx_user_profiles_user_id").on(table.userId)]);

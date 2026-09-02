@@ -32,11 +32,14 @@ export async function GET(request: Request) {
       .where(eq(posts.familyId, current.familyId))
       .orderBy(desc(posts.createdAt))
       .limit(50);
-    return json({ posts: rows.map((row) => ({
+
+    const dbPosts = rows.map((row) => ({
       ...row,
       likedByMe: Boolean(row.likedByMe),
       evidenceUrl: row.evidenceKey ? `/api/mobile/evidence/${row.evidenceKey}` : null,
-    })) });
+    }));
+
+    return json({ posts: dbPosts });
   } catch (error) {
     return apiError(error);
   }

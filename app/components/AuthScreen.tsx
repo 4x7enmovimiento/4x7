@@ -1,18 +1,49 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { clientApi, type Session } from "../lib/client-api";
+
+const START_DATE_OPTIONS = [
+  { value: "2026-09-01", label: "1 de Septiembre (Martes · Arranque de mes 🗓️)" },
+  { value: "2026-09-02", label: "2 de Septiembre (Miércoles)" },
+  { value: "2026-09-03", label: "3 de Septiembre (Jueves)" },
+  { value: "2026-09-04", label: "4 de Septiembre (Viernes)" },
+  { value: "2026-09-05", label: "5 de Septiembre (Sábado)" },
+  { value: "2026-09-06", label: "6 de Septiembre (Domingo)" },
+  { value: "2026-09-07", label: "7 de Septiembre (Lunes · Recomendado semana completa 🚀)" },
+  { value: "2026-09-08", label: "8 de Septiembre (Martes)" },
+  { value: "2026-09-09", label: "9 de Septiembre (Miércoles)" },
+  { value: "2026-09-10", label: "10 de Septiembre (Jueves)" },
+  { value: "2026-09-11", label: "11 de Septiembre (Viernes)" },
+  { value: "2026-09-12", label: "12 de Septiembre (Sábado)" },
+  { value: "2026-09-13", label: "13 de Septiembre (Domingo)" },
+  { value: "2026-09-14", label: "14 de Septiembre (Lunes · Semana 3 ⚡)" },
+  { value: "2026-09-15", label: "15 de Septiembre (Martes · Fecha límite de arranque 🇲🇽)" },
+];
 
 export function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Session) => void }) {
   const [mode, setMode] = useState<"login" | "register">("register");
-  const [familyMode, setFamilyMode] = useState<"create" | "join">("create");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [familyName, setFamilyName] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  const [familyName, setFamilyName] = useState("López y Amigos");
+  const [challengeStartDate, setChallengeStartDate] = useState("2026-09-01");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    try {
+      const savedEmail = localStorage.getItem("four_seven_saved_email");
+      const savedPassword = localStorage.getItem("four_seven_saved_password");
+      if (savedEmail) {
+        setEmail(savedEmail);
+        if (savedPassword) setPassword(savedPassword);
+        setMode("login");
+      }
+    } catch {
+      // Ignore if storage blocked
+    }
+  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -25,9 +56,20 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Ses
           name,
           email,
           password,
-          familyName: familyMode === "create" ? familyName : undefined,
-          inviteCode: familyMode === "join" ? inviteCode : undefined,
+          familyName: familyName.trim() || "López y Amigos",
+          challengeStartDate,
         });
+      
+      try {
+        localStorage.setItem("four_seven_saved_email", email);
+        localStorage.setItem("four_seven_saved_password", password);
+        if (mode === "register") {
+          localStorage.setItem("four_seven_challenge_start_date", challengeStartDate);
+        }
+      } catch {
+        // Ignore
+      }
+
       onAuthenticated(session);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No pudimos entrar.");
@@ -54,21 +96,61 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Ses
           <button type="button" className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setError(""); }}>Ya tengo cuenta</button>
         </div>
         {mode === "register" && <label>Tu nombre<input required minLength={2} value={name} onChange={(event) => setName(event.target.value)} placeholder="Pedro" autoComplete="name" /></label>}
-        <label>Correo<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="tu@correo.com" autoComplete="email" /></label>
+        <label>Correo<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="tu@correo.com" autoComplete="username email" /></label>
         <label>Contraseña<input required minLength={8} type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mínimo 8 caracteres" autoComplete={mode === "login" ? "current-password" : "new-password"} /></label>
-        {mode === "register" && <>
-          <div className="family-choice">
-            <button type="button" className={familyMode === "create" ? "active" : ""} onClick={() => setFamilyMode("create")}>Crear familia</button>
-            <button type="button" className={familyMode === "join" ? "active" : ""} onClick={() => setFamilyMode("join")}>Tengo un código</button>
-          </div>
-          {familyMode === "create"
-            ? <label>Nombre de la familia<input required value={familyName} onChange={(event) => setFamilyName(event.target.value)} placeholder="Familia González" /></label>
-            : <label>Código de invitación<input required value={inviteCode} onChange={(event) => setInviteCode(event.target.value.toUpperCase())} placeholder="4X7ABC123" /></label>}
-        </>}
+        {mode === "register" && (
+          <label>
+            Equipo o Familia
+            <input
+              required
+              value={familyName}
+              onChange={(event) => setFamilyName(event.target.value)}
+              placeholder="López y Amigos"
+            />
+          </label>
+        )}
+        {mode === "register" && (
+          <label style={{ display: "block", marginTop: "4px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <span>¿Cuándo inicias tu Reto 4×7?</span>
+              <span style={{ fontSize: "11px", fontWeight: "800", color: "#166534", background: "#dcfce7", border: "1px solid #86efac", padding: "2px 8px", borderRadius: "999px" }}>
+                1 al 15 de Septiembre
+              </span>
+            </div>
+            <select
+              value={challengeStartDate}
+              onChange={(event) => setChallengeStartDate(event.target.value)}
+              style={{
+                width: "100%",
+                padding: "11px 12px",
+                borderRadius: "12px",
+                border: "1.5px solid #d2e4d9",
+                fontSize: "13.5px",
+                fontWeight: "650",
+                background: "#f9fcfb",
+                color: "#183b2b",
+                outline: "none",
+                cursor: "pointer",
+                boxSizing: "border-box",
+              }}
+            >
+              {START_DATE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <small style={{ fontSize: "11px", color: "#47745e", marginTop: "4px", display: "block", lineHeight: "1.3" }}>
+              🗓️ Elige el día en que arranca tu marcador y tus metas de entrenamiento este mes.
+            </small>
+          </label>
+        )}
         {error && <p className="auth-error" role="alert">{error}</p>}
-        <button className="auth-submit" disabled={busy}>{busy ? "Preparando tu espacio…" : mode === "login" ? "Entrar a mi familia" : "Crear mi espacio 4×7"}</button>
-        <small className="auth-privacy">Tu información y las fotos de tu familia permanecen privadas dentro de su grupo.</small>
+        <button className="auth-submit" disabled={busy}>{busy ? "Preparando tu espacio…" : mode === "login" ? "Entrar a mi familia" : "Unirme a López y Amigos"}</button>
+        
+        <small className="auth-privacy" style={{ marginTop: "16px" }}>Tu información y las fotos de tu familia permanecen privadas y protegidas dentro de su grupo.</small>
       </form>
     </section>
   </main>;
 }
+

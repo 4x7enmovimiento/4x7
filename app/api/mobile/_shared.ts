@@ -3,7 +3,7 @@ import { getDb } from "../../../db";
 import { families, familyMembers, sessions, users } from "../../../db/schema";
 
 const encoder = new TextEncoder();
-const SESSION_DAYS = 30;
+const SESSION_DAYS = 365;
 const PASSWORD_HASH_ITERATIONS = 100_000;
 
 export const corsHeaders = {
@@ -113,3 +113,11 @@ export function apiError(error: unknown) {
   }
   return json({ error: "No pudimos completar la operación. Intenta nuevamente." }, 500);
 }
+
+// In-memory fallback for photos when Cloudflare R2 is not bound in local environment
+const globalStore = globalThis as unknown as { __evidenceStore?: Map<string, { buffer: ArrayBuffer; contentType: string }> };
+if (!globalStore.__evidenceStore) {
+  globalStore.__evidenceStore = new Map();
+}
+export const evidenceStore = globalStore.__evidenceStore;
+
