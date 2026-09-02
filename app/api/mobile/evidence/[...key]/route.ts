@@ -1,5 +1,6 @@
-import { env } from "cloudflare:workers";
 import { corsHeaders, evidenceStore, json, options } from "../../_shared";
+
+const env: any = (globalThis as any).process?.env || {};
 
 export const OPTIONS = options;
 
