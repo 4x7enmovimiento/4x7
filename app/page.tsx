@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthScreen } from "./components/AuthScreen";
 import { ProfileOnboarding } from "./components/ProfileOnboarding";
 import { clientApi, type FeedPost, type ProfileResponse, type Session } from "./lib/client-api";
@@ -267,7 +268,7 @@ function getStoredProfile(userName?: string): ProfileResponse | null {
   return null;
 }
 
-export default function Home() {
+function MainApp() {
   const [session, setSession] = useState<Session | null>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -302,31 +303,42 @@ export default function Home() {
   const getGdlDateInfo = useCallback(() => {
     const now = new Date();
 
-    const timeFormatter = new Intl.DateTimeFormat("es-MX", {
-      timeZone: "America/Mexico_City",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    let year = now.getFullYear();
+    let month = now.getMonth();
+    let day = now.getDate();
+    let currentTimeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
+    let fullDateStr = "Hoy";
 
-    const dateFormatter = new Intl.DateTimeFormat("es-MX", {
-      timeZone: "America/Mexico_City",
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Mexico_City",
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+      }).formatToParts(now);
 
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/Mexico_City",
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
-    }).formatToParts(now);
+      year = parseInt(parts.find((p) => p.type === "year")?.value || String(now.getFullYear()), 10);
+      month = parseInt(parts.find((p) => p.type === "month")?.value || String(now.getMonth() + 1), 10) - 1;
+      day = parseInt(parts.find((p) => p.type === "day")?.value || String(now.getDate()), 10);
 
-    const year = parseInt(parts.find((p) => p.type === "year")?.value || "2026", 10);
-    const month = parseInt(parts.find((p) => p.type === "month")?.value || "8", 10) - 1;
-    const day = parseInt(parts.find((p) => p.type === "day")?.value || "24", 10);
+      currentTimeStr = new Intl.DateTimeFormat("es-MX", {
+        timeZone: "America/Mexico_City",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).format(now);
+
+      const rawFull = new Intl.DateTimeFormat("es-MX", {
+        timeZone: "America/Mexico_City",
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(now);
+      fullDateStr = rawFull.charAt(0).toUpperCase() + rawFull.slice(1);
+    } catch {
+      fullDateStr = `${day} de Septiembre de ${year}`;
+    }
 
     const gdlDate = new Date(year, month, day);
     const dayOfWeek = gdlDate.getDay(); // 0 is Sunday, 1 is Monday...
@@ -358,13 +370,11 @@ export default function Home() {
     });
 
     const todayKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const currentTimeStr = timeFormatter.format(now);
-    const fullDateStr = dateFormatter.format(now);
 
     return {
       todayKey,
       currentTimeStr,
-      fullDateStr: fullDateStr.charAt(0).toUpperCase() + fullDateStr.slice(1),
+      fullDateStr,
       currentWeekDays,
       gdlDate,
     };
@@ -2705,8 +2715,8 @@ export default function Home() {
   };
 
   const renderProgress = () => {
-    const currentWeight = fitness?.profile?.measurement.weightKg ?? 106;
-    const targetWeight = fitness?.profile?.targetWeightKg ?? 85;
+    const currentWeight = fitness?.profile?.measurement?.weightKg ?? fitness?.measurements?.[0]?.weightKg ?? 70;
+    const targetWeight = fitness?.profile?.targetWeightKg ?? 65;
     const objective = fitness?.profile?.objective || "lose_fat";
     const advice = fitness?.projection?.advice || {
       title: "Guía de Quema de Grasa Saludable",
@@ -3975,13 +3985,16 @@ export default function Home() {
     ? renderRecords()
     : renderProgress();
 
+  const userName = session?.user?.name || "Usuario";
+  const familyName = session?.family?.name || "López y Amigos";
+
   const currentTitle = inAdminView
     ? "Panel de Control Administrador"
     : active === "Hoy"
-    ? `Buenas tardes, ${session.user.name.split(" ")[0]}`
+    ? `Buenas tardes, ${userName.split(" ")[0]}`
     : titleCopy[active][1];
 
-  const initials = session.user.name
+  const initials = userName
     .split(/\s+/)
     .slice(0, 2)
     .map((part) => part[0])
@@ -3989,9 +4002,9 @@ export default function Home() {
     .toUpperCase();
 
   const copyInvite = async () => {
-    const link = typeof window !== "undefined" ? window.location.origin : "http://192.168.100.192:3000";
-    await navigator.clipboard?.writeText(`¡Únete a nuestro reto familiar 4×7 en ${session.family.name || "López y Amigos"}! Regístrate aquí: ${link}`);
-    notify(`Enlace de invitación a ${session.family.name || "López y Amigos"} copiado 📋`);
+    const link = typeof window !== "undefined" ? window.location.origin : "https://4x7.vercel.app";
+    await navigator.clipboard?.writeText(`¡Únete a nuestro reto familiar 4×7 en ${familyName}! Regístrate aquí: ${link}`);
+    notify(`Enlace de invitación a ${familyName} copiado 📋`);
   };
 
   const logout = async () => {
@@ -4955,5 +4968,13 @@ export default function Home() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <ErrorBoundary>
+      <MainApp />
+    </ErrorBoundary>
   );
 }
