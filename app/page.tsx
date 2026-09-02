@@ -213,8 +213,21 @@ const START_DATE_OPTIONS = [
 const INITIAL_FAMILY_FEED: FeedPost[] = [];
 
 export default function Home() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [sessionLoading, setSessionLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("four_seven_active_session");
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return null;
+  });
+  const [sessionLoading, setSessionLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !localStorage.getItem("four_seven_active_session");
+    }
+    return true;
+  });
   const [fitness, setFitness] = useState<ProfileResponse | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>(INITIAL_FAMILY_FEED);
@@ -1132,7 +1145,21 @@ export default function Home() {
         }
         setFitness(finalProfile);
       })
-      .catch(() => setSession(null))
+      .catch(async () => {
+        try {
+          const savedEmail = localStorage.getItem("four_seven_saved_email");
+          const savedPass = localStorage.getItem("four_seven_saved_password");
+          if (savedEmail && savedPass) {
+            const reLoggedIn = await clientApi.login(savedEmail, savedPass);
+            setSession(reLoggedIn);
+            return;
+          }
+        } catch {}
+
+        if (!localStorage.getItem("four_seven_active_session")) {
+          setSession(null);
+        }
+      })
       .finally(() => {
         setSessionLoading(false);
         setProfileLoading(false);
@@ -2099,12 +2126,12 @@ export default function Home() {
                       </svg>
                       <span>
                         {isCompleted
-                          ? "Felicitar en Grupo"
+                          ? "Felicitar 🎉"
                           : isNear
-                          ? "Porras al Grupo"
+                          ? "Porras ⚡"
                           : member.workouts === 2
-                          ? "Motivar al Grupo"
-                          : "Carrilla al Grupo"}
+                          ? "Motivar 💪"
+                          : "Carrilla 🔥"}
                       </span>
                     </button>
                   )}

@@ -72,6 +72,17 @@ type ApiError = { error?: string };
 async function request<T>(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
   if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
+
+  // Always send token if available in localStorage
+  if (typeof window !== "undefined") {
+    try {
+      const token = localStorage.getItem("four_seven_auth_token");
+      if (token && !headers.has("Authorization")) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+    } catch {}
+  }
+
   const response = await fetch(path, { ...init, headers, credentials: "include", cache: "no-store" });
   const payload = await response.json().catch(() => ({})) as T & ApiError;
   if (!response.ok) throw new Error(payload.error || "No pudimos completar la operación.");
@@ -80,15 +91,41 @@ async function request<T>(path: string, init: RequestInit = {}) {
 
 export const clientApi = {
   me: () => request<Session>("/api/mobile/me"),
-  login: (email: string, password: string) => request<Session>("/api/mobile/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  }),
-  register: (data: { name: string; email: string; password: string; familyName?: string; inviteCode?: string; challengeStartDate?: string }) => request<Session>("/api/mobile/auth/register", {
-    method: "POST",
-    body: JSON.stringify(data),
-  }),
-  logout: () => request<{ ok: boolean }>("/api/mobile/auth/logout", { method: "POST" }),
+  login: async (email: string, password: string) => {
+    const res = await request<Session>("/api/mobile/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    if (res?.token && typeof window !== "undefined") {
+      try {
+        localStorage.setItem("four_seven_auth_token", res.token);
+        localStorage.setItem("four_seven_active_session", JSON.stringify(res));
+      } catch {}
+    }
+    return res;
+  },
+  register: async (data: { name: string; email: string; password: string; familyName?: string; inviteCode?: string; challengeStartDate?: string }) => {
+    const res = await request<Session>("/api/mobile/auth/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    if (res?.token && typeof window !== "undefined") {
+      try {
+        localStorage.setItem("four_seven_auth_token", res.token);
+        localStorage.setItem("four_seven_active_session", JSON.stringify(res));
+      } catch {}
+    }
+    return res;
+  },
+  logout: async () => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("four_seven_auth_token");
+        localStorage.removeItem("four_seven_active_session");
+      } catch {}
+    }
+    return request<{ ok: boolean }>("/api/mobile/auth/logout", { method: "POST" });
+  },
   profile: () => request<ProfileResponse>("/api/mobile/profile"),
   saveProfile: (data: Record<string, string | number | null>) => request<ProfileResponse>("/api/mobile/profile", { method: "POST", body: JSON.stringify(data) }),
   addMeasurement: (data: { weightKg: number; waistCm?: number | null }) => request<ProfileResponse>("/api/mobile/profile", {

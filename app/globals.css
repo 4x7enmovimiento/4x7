@@ -726,7 +726,7 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   .auth-mobile-brand { margin-bottom: 32px; display: flex; align-items: center; gap: 7px; font-size: 27px; font-weight: 850; letter-spacing: -.08em; }.auth-mobile-brand span { width: 8px; height: 8px; margin-top: 8px; border-radius: 50%; background: #55d68b; }
   .app-shell { min-height: 100dvh; display: block; }
   .sidebar { display: none; }
-  .workspace { width: 100%; margin-left: 0; padding: 14px 12px calc(76px + env(safe-area-inset-bottom, 8px)); min-height: auto; box-sizing: border-box; }
+  .workspace { width: 100%; margin-left: 0; padding: 14px 12px calc(115px + env(safe-area-inset-bottom, 16px)); min-height: auto; box-sizing: border-box; }
   .workspace > *:last-child,
   .dashboard-grid > *:last-child,
   .main-column > *:last-child,
@@ -3332,31 +3332,34 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 10px;
-  padding: 13px 14px;
+  padding: 12px 14px;
   border-radius: 16px;
-  border: 1px solid #e2ebe5;
+  border: 1px solid #e5ece7;
   background: white;
   align-items: center;
-  transition: transform .1s ease;
+  transition: transform .1s ease, box-shadow .15s ease;
+  box-shadow: 0 1px 4px rgba(23, 52, 40, 0.04);
 }
 
 .family-member-row-card.is-you {
-  border-color: #9fe2be;
-  background: #fbfefc;
+  border-color: #55d68b;
+  background: #f7fdfa;
+  box-shadow: 0 2px 8px rgba(85, 214, 139, 0.12);
 }
 
 .family-member-row-card.status-completed {
-  border-left: 4px solid #10b981;
+  border-color: #10b981;
+  background: #fafdfb;
 }
 .family-member-row-card.status-near {
-  border-left: 4px solid #8b5cf6;
+  border-color: #c4b5fd;
 }
 .family-member-row-card.status-progress {
-  border-left: 4px solid #f59e0b;
+  border-color: #fde68a;
 }
 .family-member-row-card.status-pending {
-  border-left: 4px solid #ef4444;
-  background: #fffafa;
+  border-color: #e5ece7;
+  background: white;
 }
 
 .row-left-user {
