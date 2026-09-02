@@ -240,6 +240,31 @@ function getStoredProfile(userName?: string): ProfileResponse | null {
   // Fallback so official Pedro or Judith NEVER gets blocked by onboarding on a new browser/computer:
   const lower = (userName || "").toLowerCase();
 
+  if (lower.includes("pedro") || lower.includes("pedcaz") || lower.includes("p.glez.lpz92")) {
+    return {
+      profile: {
+        objective: "lose_fat",
+        birthDate: "1992-05-15",
+        sex: "male",
+        heightCm: 178,
+        targetWeightKg: 78,
+        weeklyGoal: 4,
+        preferredActivity: "Gimnasio",
+        challengeStartDate: "2026-09-01",
+        measurement: { weightKg: 84.5, recordedAt: new Date().toISOString() },
+      },
+      measurements: [{ weightKg: 84.5, recordedAt: new Date().toISOString() }],
+      projection: {
+        weeks: 16,
+        targetWeightKg: 78,
+        currentWeightKg: 84.5,
+        targetDate: "2026-12-20",
+        weeklyLossKg: 0.4,
+        totalLossKg: 6.5,
+      } as any,
+    };
+  }
+
   if (lower.includes("judith") || lower.includes("juuglez") || lower.includes("ale")) {
     return {
       profile: {
