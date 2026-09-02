@@ -212,6 +212,32 @@ const START_DATE_OPTIONS = [
 
 const INITIAL_FAMILY_FEED: FeedPost[] = [];
 
+function getStoredProfile(userName?: string): ProfileResponse | null {
+  if (typeof window === "undefined") return null;
+  const keys = [
+    userName ? `four_seven_profile_${userName}` : "",
+    userName ? `four_seven_profile_${userName.split(" ")[0]}` : "",
+    "four_seven_profile_Pedro Humberto González López",
+    "four_seven_profile_Pedcaz",
+    "four_seven_profile_Pedro",
+    "four_seven_profile_Judith González López",
+    "four_seven_profile_JuuGlez",
+    "four_seven_profile_Judith",
+    "four_seven_saved_profile",
+  ].filter(Boolean);
+
+  for (const k of keys) {
+    try {
+      const raw = localStorage.getItem(k);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.profile) return parsed;
+      }
+    } catch {}
+  }
+  return null;
+}
+
 export default function Home() {
   const [session, setSession] = useState<Session | null>(() => {
     if (typeof window !== "undefined") {
@@ -228,8 +254,12 @@ export default function Home() {
     }
     return true;
   });
-  const [fitness, setFitness] = useState<ProfileResponse | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
+  const [fitness, setFitness] = useState<ProfileResponse | null>(() => {
+    return getStoredProfile();
+  });
+  const [profileLoading, setProfileLoading] = useState(() => {
+    return !getStoredProfile();
+  });
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>(INITIAL_FAMILY_FEED);
   const [feedLoading, setFeedLoading] = useState(false);
   const [active, setActive] = useState<Section>("Hoy");
@@ -1144,14 +1174,7 @@ export default function Home() {
       .then(async (current) => {
         setSession(current);
 
-        const localKey = current?.user ? `four_seven_profile_${current.user.name}` : "";
-        let cachedProfile: any = null;
-        if (localKey) {
-          try {
-            const cached = localStorage.getItem(localKey) || localStorage.getItem("four_seven_saved_profile");
-            if (cached) cachedProfile = JSON.parse(cached);
-          } catch {}
-        }
+        const cachedProfile = getStoredProfile(current?.user?.name);
         if (cachedProfile?.profile) {
           setFitness(cachedProfile);
         }
@@ -1167,19 +1190,22 @@ export default function Home() {
           syncUserCheckInState(current.user.email, current.user.id, finalFeed);
         }
 
-        let finalProfile = profile;
-        if (!finalProfile?.profile && cachedProfile?.profile) {
-          finalProfile = cachedProfile;
-        }
-        if (finalProfile?.profile && localKey) {
+        const finalProfile = profile?.profile ? profile : cachedProfile;
+        if (finalProfile?.profile) {
+          setFitness(finalProfile);
           try {
-            localStorage.setItem(localKey, JSON.stringify(finalProfile));
+            if (current?.user?.name) {
+              localStorage.setItem(`four_seven_profile_${current.user.name}`, JSON.stringify(finalProfile));
+            }
             localStorage.setItem("four_seven_saved_profile", JSON.stringify(finalProfile));
           } catch {}
         }
-        setFitness(finalProfile);
       })
       .catch(async () => {
+        const cachedProfile = getStoredProfile();
+        if (cachedProfile?.profile) {
+          setFitness(cachedProfile);
+        }
         try {
           const savedEmail = localStorage.getItem("four_seven_saved_email");
           const savedPass = localStorage.getItem("four_seven_saved_password");
@@ -3816,31 +3842,23 @@ export default function Home() {
           setSessionLoading(false);
           setProfileLoading(true);
 
-          const localKey = current?.user ? `four_seven_profile_${current.user.name}` : "";
-          let cachedProfile: any = null;
-          if (localKey) {
-            try {
-              const cached = localStorage.getItem(localKey) || localStorage.getItem("four_seven_saved_profile");
-              if (cached) cachedProfile = JSON.parse(cached);
-            } catch {}
-          }
+          const cachedProfile = getStoredProfile(current?.user?.name);
           if (cachedProfile?.profile) {
             setFitness(cachedProfile);
           }
 
           Promise.all([clientApi.profile(), clientApi.feed()])
             .then(([profile, feed]) => {
-              let finalProf = profile;
-              if (!finalProf?.profile && cachedProfile?.profile) {
-                finalProf = cachedProfile;
-              }
-              if (finalProf?.profile && localKey) {
+              const finalProf = profile?.profile ? profile : cachedProfile;
+              if (finalProf?.profile) {
                 try {
-                  localStorage.setItem(localKey, JSON.stringify(finalProf));
+                  if (current?.user?.name) {
+                    localStorage.setItem(`four_seven_profile_${current.user.name}`, JSON.stringify(finalProf));
+                  }
                   localStorage.setItem("four_seven_saved_profile", JSON.stringify(finalProf));
                 } catch {}
+                setFitness(finalProf);
               }
-              setFitness(finalProf);
               const finalFeed = feed?.posts && Array.isArray(feed.posts) ? feed.posts : [];
               setFeedPosts(finalFeed);
               if (feed?.familyProfiles) {
