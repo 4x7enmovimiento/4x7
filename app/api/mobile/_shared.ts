@@ -162,22 +162,24 @@ if (!sharedMemberStatsCache.has("juuglez")) {
 }
 
 export async function createSession(userId: number, userInfo?: Partial<CachedUserSession>) {
-  const token = randomToken();
-  const tokenHash = await sha256(token);
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000).toISOString();
+  const sessionData: CachedUserSession = {
+    userId,
+    name: userInfo?.name || "Usuario",
+    email: userInfo?.email || "",
+    familyId: userInfo?.familyId || 1,
+    familyName: userInfo?.familyName || "López y Amigos",
+    inviteCode: userInfo?.inviteCode || "4X7FAM123",
+    role: userInfo?.role || "member",
+    expiresAt,
+  };
 
-  if (userInfo) {
-    sessionCache.set(tokenHash, {
-      userId,
-      name: userInfo.name || "Usuario",
-      email: userInfo.email || "",
-      familyId: userInfo.familyId || 1,
-      familyName: userInfo.familyName || "López y Amigos",
-      inviteCode: userInfo.inviteCode || "4X7FAM123",
-      role: userInfo.role || "member",
-      expiresAt,
-    });
-  }
+  const payloadB64 = Buffer.from(JSON.stringify(sessionData)).toString("base64url");
+  const randPart = randomToken(16);
+  const token = `${payloadB64}.${randPart}`;
+  const tokenHash = await sha256(token);
+
+  sessionCache.set(tokenHash, sessionData);
 
   try {
     await getDb().insert(sessions).values({ userId, tokenHash, expiresAt });
@@ -213,6 +215,20 @@ export async function requireMobileUser(request: Request) {
     return cached;
   }
 
+  // 1. Try decoding self-contained token payload (for distributed Vercel lambdas)
+  try {
+    if (token.includes(".")) {
+      const [payloadB64] = token.split(".");
+      const jsonStr = Buffer.from(payloadB64, "base64url").toString("utf8");
+      const decoded = JSON.parse(jsonStr) as CachedUserSession;
+      if (decoded && decoded.userId && new Date(decoded.expiresAt).getTime() > Date.now()) {
+        sessionCache.set(tokenHash, decoded);
+        return decoded;
+      }
+    }
+  } catch {}
+
+  // 2. Fallback to DB query
   try {
     const db = getDb();
     const [row] = await db
@@ -246,7 +262,7 @@ export async function requireMobileUser(request: Request) {
       return row;
     }
   } catch {
-    // Silent failover to cached / empty
+    // Silent failover
   }
 
   return null;
