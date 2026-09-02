@@ -173,6 +173,9 @@ export async function GET(request: Request) {
 
 
 
+    const email = (current.email || "").toLowerCase();
+    const name = (current.name || "").toLowerCase();
+
     const isPedro =
       email.includes("p.glez.lpz92") ||
       name.includes("pedro") ||
