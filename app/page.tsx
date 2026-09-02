@@ -1171,11 +1171,36 @@ export default function Home() {
     setCompletedCheckInDates(uniqueWeekDates);
   }, [getGdlDateInfo]);
 
-  const loadFeed = useCallback(async () => {
-    setFeedLoading(true);
+  const loadFeed = useCallback(async (silent = false) => {
+    if (!silent) setFeedLoading(true);
     try {
-      const response = await clientApi.feed();
-      setFeedPosts(response?.posts && Array.isArray(response.posts) ? response.posts : []);
+      let clientSyncData: any = undefined;
+      if (typeof window !== "undefined") {
+        try {
+          const active = localStorage.getItem("four_seven_active_session");
+          const sess = active ? JSON.parse(active) : null;
+          if (sess?.user) {
+            const nick = sess.user.name.includes("Pedro") ? "Pedcaz" : sess.user.name.includes("Judith") ? "JuuGlez" : sess.user.name.split(" ")[0];
+            const checkinRaw = localStorage.getItem(`4x7_user_${sess.user.id}_checkin_state`);
+            const checkinParsed = checkinRaw ? JSON.parse(checkinRaw) : null;
+            const workoutsCount = checkinParsed?.workouts || (completedCheckInDates.length > 0 ? completedCheckInDates.length : 1);
+            const prefAct = (fitness?.profile as any)?.preferredActivity || (nick === "Pedcaz" ? "Gimnasio / Pesas 🏋️‍♂️" : "Bicicleta & Spinning 🚴");
+            clientSyncData = {
+              nickname: nick,
+              fullName: sess.user.name,
+              workouts: workoutsCount,
+              completedDates: checkinParsed?.completedDates || completedCheckInDates,
+              activity: prefAct,
+              lastCheckinDate: checkinParsed?.lastCheckinDate || new Date().toISOString().split("T")[0],
+            };
+          }
+        } catch {}
+      }
+
+      const response = await clientApi.feed(clientSyncData);
+      if (response?.posts && Array.isArray(response.posts)) {
+        setFeedPosts(response.posts);
+      }
       if (response?.familyProfiles) {
         setFamilyProfiles((prev) => ({ ...prev, ...response.familyProfiles }));
       }
@@ -1183,11 +1208,64 @@ export default function Home() {
         setFamilyStats((prev) => ({ ...prev, ...response.familyStats }));
       }
     } catch {
-      setFeedPosts([]);
+      // Keep existing state gracefully
     } finally {
-      setFeedLoading(false);
+      if (!silent) setFeedLoading(false);
     }
-  }, []);
+  }, [completedCheckInDates, fitness]);
+
+  // Facebook-style Live Sync: Auto-update when app is open & visible, pause when hidden to save bandwidth
+  useEffect(() => {
+    // 1. Refresh immediately when switching between app sections (Hoy, Muro, Liga)
+    loadFeed(true);
+  }, [active, loadFeed]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let syncInterval: NodeJS.Timeout | null = null;
+
+    const startPolling = () => {
+      if (syncInterval) clearInterval(syncInterval);
+      // Poll every 35 seconds ONLY while the user is actively viewing the app
+      syncInterval = setInterval(() => {
+        if (document.visibilityState === "visible" && navigator.onLine) {
+          loadFeed(true);
+          // If comments are open on a post, refresh that post's comments too
+          if (commentOpen !== null) {
+            clientApi.comments(commentOpen).then((res) => {
+              if (res?.comments) {
+                setCommentsByPost((prev) => ({ ...prev, [commentOpen]: res.comments }));
+              }
+            }).catch(() => {});
+          }
+        }
+      }, 35_000);
+    };
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) {
+        loadFeed(true);
+        startPolling();
+      } else {
+        // Stop polling completely when screen is off, locked, or user switched apps (0 bandwidth consumed!)
+        if (syncInterval) clearInterval(syncInterval);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    window.addEventListener("online", handleVisibilityOrFocus);
+
+    startPolling();
+
+    return () => {
+      if (syncInterval) clearInterval(syncInterval);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      window.removeEventListener("online", handleVisibilityOrFocus);
+    };
+  }, [loadFeed, commentOpen]);
 
   useEffect(() => {
     clientApi
@@ -1417,7 +1495,7 @@ export default function Home() {
 
       setCheckInNote("");
       clearPhoto();
-      await loadFeed().catch(() => void 0);
+      await loadFeed(true).catch(() => void 0);
       notify(`🔥 ¡Check-in de hoy completado! (${newWorkoutsCount}/4 días cumplidos esta semana en GDL)`);
     } catch (cause) {
       notify(cause instanceof Error ? cause.message : "No pudimos guardar el check-in");

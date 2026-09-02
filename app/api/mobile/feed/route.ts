@@ -19,6 +19,32 @@ export async function GET(request: Request) {
   try {
     const current = await requireMobileUser(request);
     if (!current) return json({ error: "Sesión no válida." }, 401);
+
+    // Fast client-to-server state synchronization
+    const clientSyncHeader = request.headers.get("x-client-sync");
+    if (clientSyncHeader) {
+      try {
+        const clientSync = JSON.parse(clientSyncHeader);
+        if (clientSync?.nickname && typeof clientSync.workouts === "number") {
+          const key = clientSync.nickname.toLowerCase();
+          const existing = sharedMemberStatsCache.get(key);
+          const maxWorkouts = Math.max(existing?.workouts || 0, clientSync.workouts);
+          const mergedDates = Array.from(new Set([...(existing?.completedDates || []), ...(clientSync.completedDates || [])]));
+          const updatedStat = {
+            nickname: clientSync.nickname,
+            fullName: clientSync.fullName || existing?.fullName || current.name,
+            workouts: maxWorkouts,
+            completedDates: mergedDates,
+            points: maxWorkouts * 100 + (maxWorkouts >= 4 ? 300 : 0),
+            activity: clientSync.activity || existing?.activity || "Entrenamiento",
+            lastCheckinDate: clientSync.lastCheckinDate || existing?.lastCheckinDate || new Date().toISOString().split("T")[0],
+          };
+          sharedMemberStatsCache.set(key, updatedStat);
+          if (current.name) sharedMemberStatsCache.set(current.name.toLowerCase(), updatedStat);
+          if (current.email) sharedMemberStatsCache.set(current.email.toLowerCase(), updatedStat);
+        }
+      } catch {}
+    }
     const rows = await getDb()
       .select({
         id: posts.id,
