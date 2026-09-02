@@ -3956,6 +3956,9 @@ export default function Home() {
               }
               syncUserCheckInState(current.user.email, current.user.id, finalFeed);
             })
+            .catch((err) => {
+              console.warn("Post-auth sync fallback:", err);
+            })
             .finally(() => setProfileLoading(false));
         }}
       />
