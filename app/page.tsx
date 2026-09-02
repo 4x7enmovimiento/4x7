@@ -5,14 +5,6 @@ import { AuthScreen } from "./components/AuthScreen";
 import { ProfileOnboarding } from "./components/ProfileOnboarding";
 import { clientApi, type FeedPost, type ProfileResponse, type Session } from "./lib/client-api";
 
-if (typeof window !== "undefined") {
-  window.addEventListener("error", (e) => {
-    if (e.message && (e.message.includes("Loading chunk") || e.message.includes("Failed to fetch dynamically imported module"))) {
-      window.location.reload();
-    }
-  });
-}
-
 const navItems = ["Hoy", "Muro", "Liga y Retos", "Mis Récords", "Progreso"] as const;
 type Section = typeof navItems[number];
 
