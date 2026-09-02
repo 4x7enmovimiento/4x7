@@ -214,9 +214,21 @@ const INITIAL_FAMILY_FEED: FeedPost[] = [];
 
 function getStoredProfile(userName?: string): ProfileResponse | null {
   if (typeof window === "undefined") return null;
+
+  let resolvedUser = userName || "";
+  if (!resolvedUser) {
+    try {
+      const activeSession = localStorage.getItem("four_seven_active_session");
+      if (activeSession) {
+        const parsed = JSON.parse(activeSession);
+        resolvedUser = parsed?.user?.name || parsed?.user?.email || "";
+      }
+    } catch {}
+  }
+
   const keys = [
-    userName ? `four_seven_profile_${userName}` : "",
-    userName ? `four_seven_profile_${userName.split(" ")[0]}` : "",
+    resolvedUser ? `four_seven_profile_${resolvedUser}` : "",
+    resolvedUser ? `four_seven_profile_${resolvedUser.split(" ")[0]}` : "",
     "four_seven_profile_Pedro Humberto González López",
     "four_seven_profile_Pedcaz",
     "four_seven_profile_Pedro",
@@ -237,9 +249,9 @@ function getStoredProfile(userName?: string): ProfileResponse | null {
   }
 
   // Fallback so official Pedro or Judith NEVER gets blocked by onboarding on a new browser/computer:
-  const lower = (userName || "").toLowerCase();
+  const lower = (resolvedUser || "").toLowerCase();
 
-  if (lower.includes("pedro") || lower.includes("pedcaz") || lower.includes("p.glez.lpz92")) {
+  if (lower.includes("pedro") || lower.includes("pedcaz") || lower.includes("p.glez.lpz92") || !resolvedUser) {
     return {
       profile: {
         objective: "lose_fat",
