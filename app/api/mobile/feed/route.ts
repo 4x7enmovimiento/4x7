@@ -45,35 +45,40 @@ export async function GET(request: Request) {
         }
       } catch {}
     }
-    const rows = await getDb()
-      .select({
-        id: posts.id,
-        userId: posts.userId,
-        userName: users.name,
-        caption: posts.caption,
-        evidenceKey: posts.evidenceKey,
-        createdAt: posts.createdAt,
-        activityType: workouts.activityType,
-        durationSeconds: workouts.durationSeconds,
-        distanceMeters: workouts.distanceMeters,
-        steps: workouts.steps,
-        calories: workouts.calories,
-        likes: sql<number>`(select count(*) from ${postLikes} where ${postLikes.postId} = ${posts.id})`,
-        comments: sql<number>`(select count(*) from ${postComments} where ${postComments.postId} = ${posts.id})`,
-        likedByMe: sql<number>`(select count(*) from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${current.userId})`,
-      })
-      .from(posts)
-      .innerJoin(users, eq(posts.userId, users.id))
-      .leftJoin(workouts, eq(posts.workoutId, workouts.id))
-      .where(eq(posts.familyId, current.familyId))
-      .orderBy(desc(posts.createdAt))
-      .limit(50);
+    let dbPosts: any[] = [];
+    try {
+      const rows = await getDb()
+        .select({
+          id: posts.id,
+          userId: posts.userId,
+          userName: users.name,
+          caption: posts.caption,
+          evidenceKey: posts.evidenceKey,
+          createdAt: posts.createdAt,
+          activityType: workouts.activityType,
+          durationSeconds: workouts.durationSeconds,
+          distanceMeters: workouts.distanceMeters,
+          steps: workouts.steps,
+          calories: workouts.calories,
+          likes: sql<number>`(select count(*) from ${postLikes} where ${postLikes.postId} = ${posts.id})`,
+          comments: sql<number>`(select count(*) from ${postComments} where ${postComments.postId} = ${posts.id})`,
+          likedByMe: sql<number>`(select count(*) from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${current.userId})`,
+        })
+        .from(posts)
+        .innerJoin(users, eq(posts.userId, users.id))
+        .leftJoin(workouts, eq(posts.workoutId, workouts.id))
+        .where(eq(posts.familyId, current.familyId))
+        .orderBy(desc(posts.createdAt))
+        .limit(50);
 
-    const dbPosts = rows.map((row) => ({
-      ...row,
-      likedByMe: Boolean(row.likedByMe),
-      evidenceUrl: row.evidenceKey ? `/api/mobile/evidence/${row.evidenceKey}` : null,
-    }));
+      dbPosts = rows.map((row) => ({
+        ...row,
+        likedByMe: Boolean(row.likedByMe),
+        evidenceUrl: row.evidenceKey ? `/api/mobile/evidence/${row.evidenceKey}` : null,
+      }));
+    } catch (dbErr) {
+      console.warn("DB feed query non-blocking fallback:", dbErr);
+    }
 
     let postsList: any[] = dbPosts;
     if (postsList.length === 0) {

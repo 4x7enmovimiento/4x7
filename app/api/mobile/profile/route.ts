@@ -176,7 +176,6 @@ export async function GET(request: Request) {
     const name = (current.name || "").toLowerCase();
     const isPedro =
       email.includes("p.glez.lpz92") ||
-      email.includes("pedcaz") ||
       name.includes("pedro") ||
       name.includes("pedcaz") ||
       current.userId === 1;
