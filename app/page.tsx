@@ -235,6 +235,12 @@ export default function Home() {
   const [active, setActive] = useState<Section>("Hoy");
   const [commentOpen, setCommentOpen] = useState<number | null>(null);
   const [commentText, setCommentText] = useState("");
+  const [familyProfiles, setFamilyProfiles] = useState<Record<string, any>>({
+    juuglez: { preferredActivity: "Bicicleta & Spinning 🚴" },
+    judith: { preferredActivity: "Bicicleta & Spinning 🚴" },
+    pedcaz: { preferredActivity: "Gimnasio / Pesas 🏋️‍♂️" },
+    pedro: { preferredActivity: "Gimnasio / Pesas 🏋️‍♂️" },
+  });
 
   // Guadalajara (GDL / America/Mexico_City) Date & Real Week Helper
   const getGdlDateInfo = useCallback(() => {
@@ -852,7 +858,22 @@ export default function Home() {
         } else if (memberWeekPosts.length > 0 && memberWeekPosts[0].activityType) {
           realActivity = memberWeekPosts[0].activityType;
         }
-      } else {
+      }
+
+      if (!realActivity) {
+        // 1. Check familyProfiles synced from server
+        const serverProf =
+          familyProfiles[m.nickname.toLowerCase()] ||
+          familyProfiles[m.name.toLowerCase()] ||
+          familyProfiles[m.fullName.toLowerCase()] ||
+          familyProfiles[m.phone];
+        if (serverProf?.preferredActivity) {
+          realActivity = serverProf.preferredActivity;
+        }
+      }
+
+      if (!realActivity) {
+        // 2. Check cached profile in localStorage
         try {
           const cached =
             localStorage.getItem(`four_seven_profile_${m.fullName}`) ||
@@ -865,10 +886,10 @@ export default function Home() {
             }
           }
         } catch {}
+      }
 
-        if (!realActivity && memberWeekPosts.length > 0 && memberWeekPosts[0].activityType) {
-          realActivity = memberWeekPosts[0].activityType;
-        }
+      if (!realActivity && memberWeekPosts.length > 0 && memberWeekPosts[0].activityType) {
+        realActivity = memberWeekPosts[0].activityType;
       }
 
       return {
@@ -881,7 +902,7 @@ export default function Home() {
         status: currentWorkouts >= 4 ? "completed" : currentWorkouts >= 2 ? "progress" : "pending",
       };
     });
-  }, [currentUserName, logged, weeklyWorkoutsCount, completedCheckInDates, userBonusPoints, feedPosts, fitness, getGdlDateInfo]);
+  }, [currentUserName, logged, weeklyWorkoutsCount, completedCheckInDates, userBonusPoints, feedPosts, fitness, familyProfiles, getGdlDateInfo]);
 
   // Family dynamic points calculation
   const familyScores = useMemo(() => {
@@ -955,6 +976,13 @@ export default function Home() {
         `🚨 @${nick} con solo 1 check-in. ¡Despierta que te queremos en la rifa, no pagando la cena! 😂👊`,
         `⚡ Un solo día no basta @${nick}. ¡Métele ganas hoy para salir de la zona de peligro! 🏃‍♂️🔥`,
         `🌮💨 @${nick} en zona caliente (1/4). ¡Hoy toca sudar la camiseta y demostrar el poder 4×7! 💪✨`,
+      ];
+    } else if ((member as any).activity) {
+      const act = (member as any).activity;
+      options = [
+        `🎉🙌 ¡Felicidades a @${nick} por sumarse al Reto 4×7 en ${act}! 🔥 ¡Con toda la actitud para romperla en equipo! 👏💪`,
+        `🚀✨ ¡Bienvenida @${nick} al Reto Oficial! Su disciplina elegida es ${act} 🚴🏋️‍♀️ ¡A darlo todo juntos!`,
+        `🎉💪 ¡@${nick} ya eligió su deporte: ${act}! ¡Vamos a romper ese 4 de 4 en familia! 🔥👏`,
       ];
     } else {
       // 0 de 4 entrenamientos
@@ -1100,6 +1128,9 @@ export default function Home() {
     try {
       const response = await clientApi.feed();
       setFeedPosts(response?.posts && Array.isArray(response.posts) ? response.posts : []);
+      if (response?.familyProfiles) {
+        setFamilyProfiles((prev) => ({ ...prev, ...response.familyProfiles }));
+      }
     } catch {
       setFeedPosts([]);
     } finally {
@@ -1128,6 +1159,9 @@ export default function Home() {
         const [feed, profile] = await Promise.all([clientApi.feed(), clientApi.profile()]);
         const finalFeed = feed?.posts && Array.isArray(feed.posts) ? feed.posts : [];
         setFeedPosts(finalFeed);
+        if (feed?.familyProfiles) {
+          setFamilyProfiles((prev) => ({ ...prev, ...feed.familyProfiles }));
+        }
 
         if (current?.user) {
           syncUserCheckInState(current.user.email, current.user.id, finalFeed);
@@ -2117,7 +2151,7 @@ export default function Home() {
                   {member.name !== "Pedro" && (
                     <button
                       type="button"
-                      className={`whatsapp-motivate-btn ${isCompleted ? "completed" : isNear ? "near" : member.workouts === 2 ? "mid" : "carrilla"}`}
+                      className={`whatsapp-motivate-btn ${isCompleted ? "completed" : isNear ? "near" : member.workouts === 2 ? "mid" : member.activity ? "completed" : "carrilla"}`}
                       onClick={() => handleSendWhatsApp(member)}
                       title={`Enviar anuncio sobre ${member.nickname || member.name} al Grupo de WhatsApp`}
                     >
@@ -2131,6 +2165,8 @@ export default function Home() {
                           ? "Porras ⚡"
                           : member.workouts === 2
                           ? "Motivar 💪"
+                          : member.activity
+                          ? "Felicitar 🎉"
                           : "Carrilla 🔥"}
                       </span>
                     </button>
@@ -2182,87 +2218,96 @@ export default function Home() {
             <div
               style={{
                 marginBottom: "20px",
-                padding: "16px 20px",
+                padding: "16px",
                 borderRadius: "18px",
                 background: "linear-gradient(135deg, #133324 0%, #206d4a 100%)",
                 color: "#ffffff",
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
+                flexDirection: "column",
                 gap: "14px",
                 boxShadow: "0 6px 20px rgba(24, 59, 43, 0.25)",
+                overflow: "hidden",
+                width: "100%",
+                maxWidth: "100%",
+                boxSizing: "border-box",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", minWidth: 0 }}>
                 <div
                   style={{
-                    width: "44px",
-                    height: "44px",
+                    width: "42px",
+                    height: "42px",
+                    flexShrink: 0,
                     borderRadius: "12px",
                     background: "rgba(255, 255, 255, 0.15)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: "22px",
+                    fontSize: "20px",
                   }}
                 >
                   🚀
                 </div>
-                <div>
-                  <span style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.85, fontWeight: 800 }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <span style={{ fontSize: "10.5px", textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.85, fontWeight: 800, display: "block" }}>
                     CUENTA REGRESIVA · RETO 4×7 SEPTIEMBRE
                   </span>
-                  <h3 style={{ margin: "2px 0 0 0", fontSize: "16px", fontWeight: 800 }}>
+                  <h3 style={{ margin: "2px 0 0 0", fontSize: "15px", fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     Tu Reto arranca el {startDayNumber} de Septiembre
                   </h3>
-                  <p style={{ margin: "3px 0 0 0", fontSize: "12.5px", opacity: 0.9 }}>
+                  <p style={{ margin: "2px 0 0 0", fontSize: "12px", opacity: 0.9 }}>
                     {daysUntilStart === 1
                       ? "¡Falta 1 solo día! Prepárate para el arranque oficial."
-                      : `¡Faltan ${daysUntilStart} días para el inicio! Puedes ir calentando con fotos y probando tus rutinas.`}
+                      : `¡Faltan ${daysUntilStart} días para el inicio! Puedes ir calentando con fotos.`}
                   </p>
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <div style={{ background: "rgba(255, 255, 255, 0.2)", border: "1px solid rgba(255,255,255,0.3)", padding: "7px 16px", borderRadius: "999px", fontWeight: 800, fontSize: "13px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", width: "100%" }}>
+                <div style={{ background: "rgba(255, 255, 255, 0.2)", border: "1px solid rgba(255,255,255,0.3)", padding: "6px 14px", borderRadius: "999px", fontWeight: 800, fontSize: "12px", whiteSpace: "nowrap" }}>
                   ⏳ {daysUntilStart} {daysUntilStart === 1 ? "día restante" : "días restantes"}
                 </div>
-                <select
-                  value={challengeStartDate}
-                  onChange={async (e) => {
-                    const nextDate = e.target.value;
-                    setChallengeStartDate(nextDate);
-                    if (typeof window !== "undefined") {
+                <div style={{ flex: "1 1 180px", minWidth: 0, maxWidth: "100%" }}>
+                  <select
+                    value={challengeStartDate}
+                    onChange={async (e) => {
+                      const nextDate = e.target.value;
+                      setChallengeStartDate(nextDate);
+                      if (typeof window !== "undefined") {
+                        try {
+                          localStorage.setItem("four_seven_challenge_start_date", nextDate);
+                        } catch {}
+                      }
                       try {
-                        localStorage.setItem("four_seven_challenge_start_date", nextDate);
-                      } catch {}
-                    }
-                    try {
-                      await clientApi.saveProfile({ challengeStartDate: nextDate });
-                      notify(`🗓️ Inicio del reto actualizado al ${nextDate.split("-")[2]} de Septiembre.`);
-                    } catch {
-                      notify(`🗓️ Inicio del reto guardado en este dispositivo.`);
-                    }
-                  }}
-                  style={{
-                    background: "#ffffff",
-                    color: "#166534",
-                    border: 0,
-                    padding: "7px 12px",
-                    borderRadius: "999px",
-                    fontSize: "12px",
-                    fontWeight: 800,
-                    cursor: "pointer",
-                    outline: "none",
-                  }}
-                  title="Ajustar fecha de inicio del reto"
-                >
-                  {START_DATE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      📅 Iniciar el {opt.label}
-                    </option>
-                  ))}
-                </select>
+                        await clientApi.saveProfile({ challengeStartDate: nextDate });
+                        notify(`🗓️ Inicio actualizado al ${nextDate.split("-")[2]} de Septiembre.`);
+                      } catch {
+                        notify(`🗓️ Inicio guardado en este dispositivo.`);
+                      }
+                    }}
+                    style={{
+                      width: "100%",
+                      maxWidth: "100%",
+                      boxSizing: "border-box",
+                      background: "#ffffff",
+                      color: "#166534",
+                      border: 0,
+                      padding: "8px 12px",
+                      borderRadius: "12px",
+                      fontSize: "12px",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                      outline: "none",
+                      textOverflow: "ellipsis",
+                    }}
+                    title="Ajustar fecha de inicio del reto"
+                  >
+                    {START_DATE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        📅 Inicio: {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           )}
@@ -3798,6 +3843,9 @@ export default function Home() {
               setFitness(finalProf);
               const finalFeed = feed?.posts && Array.isArray(feed.posts) ? feed.posts : [];
               setFeedPosts(finalFeed);
+              if (feed?.familyProfiles) {
+                setFamilyProfiles((prev) => ({ ...prev, ...feed.familyProfiles }));
+              }
               syncUserCheckInState(current.user.email, current.user.id, finalFeed);
             })
             .finally(() => setProfileLoading(false));

@@ -1,7 +1,7 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { getDb, safeMigrate } from "../../../../db";
 import { bodyMeasurements, userProfiles } from "../../../../db/schema";
-import { apiError, cleanText, json, options, requireMobileUser } from "../_shared";
+import { apiError, cleanText, familyProfilesCache, json, options, requireMobileUser } from "../_shared";
 
 export const OPTIONS = options;
 
@@ -280,6 +280,21 @@ export async function POST(request: Request) {
 
     // Cache immediately in memory!
     profileCache.set(current.userId, responsePayload);
+
+    // Update shared family profiles cache so other family members see the selected activity
+    if (preferredActivity) {
+      const summary = {
+        name: current.name.split(" ")[0],
+        fullName: current.name,
+        nickname: current.name.includes("Judith") ? "JuuGlez" : current.name.includes("Pedro") ? "Pedcaz" : current.name.split(" ")[0],
+        preferredActivity,
+        objective,
+        updatedAt: new Date().toISOString(),
+      };
+      familyProfilesCache.set(current.name.toLowerCase(), summary);
+      familyProfilesCache.set(summary.nickname.toLowerCase(), summary);
+      familyProfilesCache.set(current.email.toLowerCase(), summary);
+    }
 
     // Safely persist to DB
     try {

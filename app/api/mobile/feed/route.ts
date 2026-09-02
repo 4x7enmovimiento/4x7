@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { postComments, postLikes, posts, users, workouts } from "../../../../db/schema";
-import { apiError, cleanText, json, options, requireMobileUser } from "../_shared";
+import { apiError, cleanText, familyProfilesCache, json, options, requireMobileUser } from "../_shared";
 
 export const OPTIONS = options;
 
@@ -39,7 +39,12 @@ export async function GET(request: Request) {
       evidenceUrl: row.evidenceKey ? `/api/mobile/evidence/${row.evidenceKey}` : null,
     }));
 
-    return json({ posts: dbPosts });
+    const familyProfilesObj: Record<string, any> = {};
+    for (const [key, val] of familyProfilesCache.entries()) {
+      familyProfilesObj[key] = val;
+    }
+
+    return json({ posts: dbPosts, familyProfiles: familyProfilesObj });
   } catch (error) {
     return apiError(error);
   }

@@ -132,7 +132,7 @@ export const clientApi = {
     method: "POST",
     body: JSON.stringify({ action: "add_measurement", ...data }),
   }),
-  feed: () => request<{ posts: FeedPost[] }>("/api/mobile/feed"),
+  feed: () => request<{ posts: FeedPost[]; familyProfiles?: Record<string, any> }>("/api/mobile/feed"),
   toggleLike: (postId: number) => request<{ liked: boolean }>(`/api/mobile/feed/${postId}/like`, { method: "POST" }),
   comment: (postId: number, body: string) => request<{ comment: unknown }>(`/api/mobile/feed/${postId}/comments`, {
     method: "POST",

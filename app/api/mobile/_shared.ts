@@ -64,6 +64,50 @@ const sessionStore = globalThis as unknown as { __sessionCache?: Map<string, Cac
 sessionStore.__sessionCache ||= new Map();
 const sessionCache = sessionStore.__sessionCache;
 
+export interface FamilyMemberSummary {
+  name: string;
+  fullName: string;
+  nickname: string;
+  preferredActivity: string;
+  objective?: string;
+  updatedAt?: string;
+}
+
+const familyProfilesStore = globalThis as unknown as {
+  __familyProfiles?: Map<string, FamilyMemberSummary>;
+};
+familyProfilesStore.__familyProfiles ||= new Map();
+export const familyProfilesCache = familyProfilesStore.__familyProfiles;
+
+// Seed with JuuGlez and Pedcaz who have already registered their profiles
+if (!familyProfilesCache.has("juuglez")) {
+  const judithSummary: FamilyMemberSummary = {
+    name: "Judith",
+    fullName: "Judith González López",
+    nickname: "JuuGlez",
+    preferredActivity: "Bicicleta & Spinning 🚴",
+    objective: "lose_fat",
+    updatedAt: new Date().toISOString(),
+  };
+  familyProfilesCache.set("juuglez", judithSummary);
+  familyProfilesCache.set("judith", judithSummary);
+  familyProfilesCache.set("emilyalejandra01@gmail.com", judithSummary);
+}
+
+if (!familyProfilesCache.has("pedcaz")) {
+  const pedroSummary: FamilyMemberSummary = {
+    name: "Pedro",
+    fullName: "Pedro Humberto González López",
+    nickname: "Pedcaz",
+    preferredActivity: "Gimnasio / Pesas 🏋️‍♂️",
+    objective: "lose_fat",
+    updatedAt: new Date().toISOString(),
+  };
+  familyProfilesCache.set("pedcaz", pedroSummary);
+  familyProfilesCache.set("pedro", pedroSummary);
+  familyProfilesCache.set("p.glez.lpz92@gmail.com", pedroSummary);
+}
+
 export async function createSession(userId: number, userInfo?: Partial<CachedUserSession>) {
   const token = randomToken();
   const tokenHash = await sha256(token);
