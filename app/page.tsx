@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthScreen } from "./components/AuthScreen";
 import { ProfileOnboarding } from "./components/ProfileOnboarding";
 import { clientApi, type FeedPost, type ProfileResponse, type Session } from "./lib/client-api";
@@ -293,7 +292,7 @@ function getStoredProfile(userName?: string): ProfileResponse | null {
   return null;
 }
 
-function MainApp() {
+export default function Home() {
   const [session, setSession] = useState<Session | null>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -2214,6 +2213,7 @@ function MainApp() {
             const isCompleted = member.workouts >= 4;
             const isNear = member.workouts === 3;
             const isPending = member.workouts < 2;
+            const isCurrentUser = member.name === "Pedro" || (session?.user?.name && member.fullName?.toLowerCase().includes(session.user.name.toLowerCase()));
 
             return (
               <div
@@ -4996,13 +4996,5 @@ function MainApp() {
         </div>
       )}
     </main>
-  );
-}
-
-export default function Home() {
-  return (
-    <ErrorBoundary>
-      <MainApp />
-    </ErrorBoundary>
   );
 }
