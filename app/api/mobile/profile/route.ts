@@ -202,7 +202,7 @@ export async function GET(request: Request) {
           heightCm: 165,
           targetWeightKg: 60,
           weeklyGoal: 4,
-          preferredActivity: "Bicicleta & Spinning 🚴",
+          preferredActivity: familyProfilesCache.get("juuglez")?.preferredActivity || "",
           challengeStartDate: "2026-09-01",
           measurement: { weightKg: 65, recordedAt: new Date().toISOString() },
         },

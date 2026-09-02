@@ -267,14 +267,10 @@ export default function Home() {
   const [commentText, setCommentText] = useState("");
   const [commentsByPost, setCommentsByPost] = useState<Record<number, any[]>>({});
   const [familyStats, setFamilyStats] = useState<Record<string, any>>({
-    juuglez: { nickname: "JuuGlez", workouts: 1, points: 100, activity: "Bicicleta & Spinning 🚴", completedDates: [new Date().toISOString().split("T")[0]] },
-    judith: { nickname: "JuuGlez", workouts: 1, points: 100, activity: "Bicicleta & Spinning 🚴", completedDates: [new Date().toISOString().split("T")[0]] },
     pedcaz: { nickname: "Pedcaz", workouts: 1, points: 100, activity: "Gimnasio / Pesas 🏋️‍♂️", completedDates: [new Date().toISOString().split("T")[0]] },
     pedro: { nickname: "Pedcaz", workouts: 1, points: 100, activity: "Gimnasio / Pesas 🏋️‍♂️", completedDates: [new Date().toISOString().split("T")[0]] },
   });
   const [familyProfiles, setFamilyProfiles] = useState<Record<string, any>>({
-    juuglez: { preferredActivity: "Bicicleta & Spinning 🚴" },
-    judith: { preferredActivity: "Bicicleta & Spinning 🚴" },
     pedcaz: { preferredActivity: "Gimnasio / Pesas 🏋️‍♂️" },
     pedro: { preferredActivity: "Gimnasio / Pesas 🏋️‍♂️" },
   });
@@ -366,6 +362,63 @@ export default function Home() {
   const [evidencePreview, setEvidencePreview] = useState<string | null>(null);
   const [savingWorkout, setSavingWorkout] = useState(false);
   const [showAdditionalCheckIn, setShowAdditionalCheckIn] = useState(false);
+  const [editingActivityMember, setEditingActivityMember] = useState<{ name: string; currentActivity: string } | null>(null);
+
+  const ALL_DISCIPLINES = [
+    { id: "gimnasio", name: "Gimnasio / Pesas 🏋️‍♂️" },
+    { id: "jumping", name: "Jumping Fitness 🦘" },
+    { id: "zumba", name: "Zumba / Baile 💃" },
+    { id: "correr", name: "Correr / Running 🏃" },
+    { id: "caminata", name: "Caminata / Senderismo 🚶" },
+    { id: "funcional", name: "Funcional / HIIT ⚡" },
+    { id: "bici", name: "Bicicleta / Spinning 🚴" },
+    { id: "natacion", name: "Natación 🏊" },
+    { id: "box", name: "Boxeo / Artes Marciales 🥊" },
+    { id: "yoga", name: "Yoga / Pilates 🧘" },
+  ];
+
+  const handleUpdateMemberActivity = async (memberName: string, newActivity: string) => {
+    const isMe =
+      (session?.user?.name || "").toLowerCase().includes(memberName.toLowerCase()) ||
+      memberName.toLowerCase().includes((session?.user?.name || "").toLowerCase());
+
+    if (isMe) {
+      setFitness((prev: any) => {
+        if (!prev?.profile) return prev;
+        const updated = {
+          ...prev,
+          profile: {
+            ...prev.profile,
+            preferredActivity: newActivity,
+          },
+        };
+        try {
+          if (session?.user?.name) {
+            localStorage.setItem(`four_seven_profile_${session.user.name}`, JSON.stringify(updated));
+          }
+          localStorage.setItem("four_seven_saved_profile", JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+      try {
+        await clientApi.saveProfile({ preferredActivity: newActivity });
+      } catch {}
+    }
+
+    const key = memberName.toLowerCase();
+    setFamilyProfiles((prev) => ({
+      ...prev,
+      [key]: { ...(prev[key] || {}), preferredActivity: newActivity },
+    }));
+    setFamilyStats((prev) => ({
+      ...prev,
+      [key]: { ...(prev[key] || {}), activity: newActivity },
+    }));
+
+    setEditingActivityMember(null);
+    notify(`Disciplina de ${memberName} actualizada a: ${newActivity} ✨`);
+    await loadFeed(true);
+  };
 
   // New Custom Challenge Form State
   const [newChallengeTitle, setNewChallengeTitle] = useState("");
@@ -1184,7 +1237,7 @@ export default function Home() {
             const checkinRaw = localStorage.getItem(`4x7_user_${sess.user.id}_checkin_state`);
             const checkinParsed = checkinRaw ? JSON.parse(checkinRaw) : null;
             const workoutsCount = checkinParsed?.workouts || (completedCheckInDates.length > 0 ? completedCheckInDates.length : 1);
-            const prefAct = (fitness?.profile as any)?.preferredActivity || (nick === "Pedcaz" ? "Gimnasio / Pesas 🏋️‍♂️" : "Bicicleta & Spinning 🚴");
+            const prefAct = (fitness?.profile as any)?.preferredActivity || (nick === "Pedcaz" ? "Gimnasio / Pesas 🏋️‍♂️" : "");
             clientSyncData = {
               nickname: nick,
               fullName: sess.user.name,
@@ -2130,8 +2183,25 @@ export default function Home() {
                         </>
                       ) : (
                         <small style={{ color: "#71897d" }}>
-                          {member.workouts > 0 ? member.lastCheckIn : "Sin registro aún"}
+                          {member.workouts > 0 ? member.lastCheckIn : "Sin deporte registrado aún"}
                         </small>
+                      )}
+                      {(isCurrentUser || session?.user?.name?.toLowerCase().includes("pedro")) && (
+                        <button
+                          type="button"
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "0 4px",
+                            fontSize: "12px",
+                            opacity: 0.8,
+                          }}
+                          onClick={() => setEditingActivityMember({ name: member.nickname || member.name, currentActivity: member.activity || "" })}
+                          title="Cambiar o elegir deporte/disciplina"
+                        >
+                          ✏️
+                        </button>
                       )}
                     </span>
                   </div>
@@ -4780,6 +4850,62 @@ export default function Home() {
                 </button>
               </div>
             </form>
+          </section>
+        </div>
+      )}
+
+      {editingActivityMember && (
+        <div className="phone-modal-backdrop" onClick={() => setEditingActivityMember(null)}>
+          <section
+            className="phone-modal-card"
+            role="dialog"
+            aria-modal="true"
+            style={{ maxWidth: "420px" }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button className="close-button" onClick={() => setEditingActivityMember(null)}>
+              ×
+            </button>
+            <span className="eyebrow">DISCIPLINA / DEPORTE</span>
+            <h2>Actividad de {editingActivityMember.name} 🏃‍♂️</h2>
+            <p>
+              Selecciona el deporte o actividad principal que realiza en el Reto 4×7:
+            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "9px", margin: "16px 0" }}>
+              {ALL_DISCIPLINES.map((disc) => (
+                <button
+                  key={disc.id}
+                  type="button"
+                  style={{
+                    padding: "11px 12px",
+                    borderRadius: "10px",
+                    border: editingActivityMember.currentActivity === disc.name ? "2px solid #00c982" : "1px solid var(--line, #e2e8f0)",
+                    background: editingActivityMember.currentActivity === disc.name ? "rgba(0,201,130,0.1)" : "var(--card-bg, #ffffff)",
+                    color: "var(--ink, #0f172a)",
+                    fontWeight: editingActivityMember.currentActivity === disc.name ? 700 : 500,
+                    fontSize: "12.5px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "all 0.15s ease",
+                  }}
+                  onClick={() => handleUpdateMemberActivity(editingActivityMember.name, disc.name)}
+                >
+                  {disc.name}
+                </button>
+              ))}
+            </div>
+
+            <div className="phone-modal-actions">
+              <button
+                type="button"
+                className="phone-modal-cancel-btn"
+                onClick={() => setEditingActivityMember(null)}
+              >
+                Cerrar
+              </button>
+            </div>
           </section>
         </div>
       )}

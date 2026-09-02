@@ -85,7 +85,7 @@ if (!familyProfilesCache.has("juuglez")) {
     name: "Judith",
     fullName: "Judith González López",
     nickname: "JuuGlez",
-    preferredActivity: "Bicicleta & Spinning 🚴",
+    preferredActivity: "",
     objective: "lose_fat",
     updatedAt: new Date().toISOString(),
   };
@@ -164,11 +164,11 @@ if (!sharedMemberStatsCache.has("juuglez")) {
   const judithStats: SharedMemberStats = {
     nickname: "JuuGlez",
     fullName: "Judith González López",
-    workouts: 1,
-    completedDates: [todayStr],
-    points: 100,
-    activity: "Bicicleta & Spinning 🚴",
-    lastCheckinDate: todayStr,
+    workouts: 0,
+    completedDates: [],
+    points: 0,
+    activity: "",
+    lastCheckinDate: "",
   };
   sharedMemberStatsCache.set("juuglez", judithStats);
   sharedMemberStatsCache.set("judith", judithStats);
@@ -207,26 +207,6 @@ if (!sharedPostsCache.has(1001)) {
     likes: 1,
     comments: 0,
     likedUserIds: [2],
-  });
-}
-
-if (!sharedPostsCache.has(1002)) {
-  sharedPostsCache.set(1002, {
-    id: 1002,
-    userId: 2,
-    userName: "JuuGlez",
-    caption: "¡Completé mi sesión de Bicicleta & Spinning! 🚴‍♀️ Sumando para la familia López y Amigos.",
-    evidenceKey: null,
-    evidenceUrl: "/images/machines/bicicleta_spinning.jpg",
-    createdAt: new Date(Date.now() - 3600_000).toISOString(),
-    activityType: "Bicicleta & Spinning 🚴",
-    durationSeconds: 1800,
-    distanceMeters: null,
-    steps: null,
-    calories: 280,
-    likes: 1,
-    comments: 0,
-    likedUserIds: [1],
   });
 }
 
