@@ -193,6 +193,10 @@ export function ProfileOnboarding({ name, onComplete }: { name: string; onComple
     try {
       const saved = await clientApi.saveProfile(payload as Record<string, string | number | null>);
       setResult(saved);
+      try {
+        localStorage.setItem(`four_seven_profile_${name}`, JSON.stringify(saved));
+        localStorage.setItem("four_seven_saved_profile", JSON.stringify(saved));
+      } catch {}
       setStep(5);
     } catch {
       // Graceful local fallback so user is NEVER blocked
@@ -233,6 +237,10 @@ export function ProfileOnboarding({ name, onComplete }: { name: string; onComple
       };
 
       setResult(fallback);
+      try {
+        localStorage.setItem(`four_seven_profile_${name}`, JSON.stringify(fallback));
+        localStorage.setItem("four_seven_saved_profile", JSON.stringify(fallback));
+      } catch {}
       setStep(5);
     } finally {
       setBusy(false);
@@ -623,7 +631,13 @@ export function ProfileOnboarding({ name, onComplete }: { name: string; onComple
             type="button"
             className="onboarding-next"
             style={{ width: "100%", marginTop: "10px", height: "48px", fontSize: "14.5px" }}
-            onClick={() => onComplete(result)}
+            onClick={() => {
+              try {
+                localStorage.setItem(`four_seven_profile_${name}`, JSON.stringify(result));
+                localStorage.setItem("four_seven_saved_profile", JSON.stringify(result));
+              } catch {}
+              onComplete(result);
+            }}
           >
             🚀 Comenzar mi Reto 4×7 →
           </button>

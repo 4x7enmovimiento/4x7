@@ -130,24 +130,48 @@ function projection(currentWeight: number, heightCm: number, targetWeight: numbe
   };
 }
 
+interface CachedProfileEntry {
+  profile: any;
+  measurements: any[];
+  projection: any;
+}
+
+const profileStore = globalThis as unknown as { __profileCache?: Map<number, CachedProfileEntry> };
+profileStore.__profileCache ||= new Map();
+const profileCache = profileStore.__profileCache;
+
 export async function GET(request: Request) {
   try {
     const current = await requireMobileUser(request);
     if (!current) return json({ error: "Sesión no válida." }, 401);
-    await safeMigrate();
-    const [profile] = await getDb().select().from(userProfiles).where(eq(userProfiles.userId, current.userId)).limit(1);
-    const measurements = await getDb().select().from(bodyMeasurements).where(eq(bodyMeasurements.userId, current.userId)).orderBy(asc(bodyMeasurements.recordedAt));
-    const latestMeasurement = measurements[measurements.length - 1];
 
-    if (!profile || !latestMeasurement?.weightKg || !profile.heightCm) {
-      return json({ profile: null, measurements: [], projection: null });
+    // 1. Check in-memory server cache first
+    const cached = profileCache.get(current.userId);
+    if (cached?.profile) {
+      return json(cached);
     }
 
-    return json({
-      profile: { ...profile, measurement: latestMeasurement },
-      measurements,
-      projection: projection(latestMeasurement.weightKg, profile.heightCm, profile.targetWeightKg, profile.objective as Objective),
-    });
+    // 2. Try DB lookup
+    try {
+      await safeMigrate();
+      const [profile] = await getDb().select().from(userProfiles).where(eq(userProfiles.userId, current.userId)).limit(1);
+      const measurements = await getDb().select().from(bodyMeasurements).where(eq(bodyMeasurements.userId, current.userId)).orderBy(asc(bodyMeasurements.recordedAt));
+      const latestMeasurement = measurements[measurements.length - 1];
+
+      if (profile && latestMeasurement?.weightKg && profile.heightCm) {
+        const responseData = {
+          profile: { ...profile, measurement: latestMeasurement },
+          measurements,
+          projection: projection(latestMeasurement.weightKg, profile.heightCm, profile.targetWeightKg, profile.objective as Objective),
+        };
+        profileCache.set(current.userId, responseData);
+        return json(responseData);
+      }
+    } catch (dbErr) {
+      console.warn("DB profile lookup warning:", dbErr);
+    }
+
+    return json({ profile: null, measurements: [], projection: null });
   } catch (error) { return apiError(error); }
 }
 
@@ -225,47 +249,75 @@ export async function POST(request: Request) {
       bodyFatPercent: parseOptional(payload.bodyFatPercent, 2, 70),
     };
 
-    const db = getDb();
     const challengeStartDate = cleanText(payload.challengeStartDate, 15) || undefined;
-    await db.insert(userProfiles).values({
-      userId: current.userId,
-      objective: allowedObjectives.includes(objective) ? objective : "general_fitness",
-      birthDate,
-      sex: allowedSex.includes(sex) ? sex : "other",
-      heightCm,
-      targetWeightKg,
-      weeklyGoal: 4,
-      ...(challengeStartDate ? { challengeStartDate } : {}),
-    })
-      .onConflictDoUpdate({
-        target: userProfiles.userId,
-        set: {
-          objective: allowedObjectives.includes(objective) ? objective : "general_fitness",
-          birthDate,
-          sex: allowedSex.includes(sex) ? sex : "other",
-          heightCm,
-          targetWeightKg,
-          weeklyGoal: 4,
-          ...(challengeStartDate ? { challengeStartDate } : {}),
-          updatedAt: new Date().toISOString(),
-        },
-      });
-
-    const [measurement] = await db.insert(bodyMeasurements).values({
-      userId: current.userId,
+    const currentMeasurement = {
       weightKg,
       ...optional,
       source: "manual",
       recordedAt: new Date().toISOString(),
-    }).returning();
+    };
 
-    const measurements = await db.select().from(bodyMeasurements).where(eq(bodyMeasurements.userId, current.userId)).orderBy(asc(bodyMeasurements.recordedAt));
+    const fullProfileObj = {
+      objective,
+      birthDate,
+      sex,
+      heightCm,
+      targetWeightKg,
+      weeklyGoal: 4,
+      challengeStartDate: challengeStartDate || "2026-09-01",
+      measurement: currentMeasurement,
+    };
 
-    return json({
-      profile: { objective, birthDate, sex, heightCm, targetWeightKg, measurement },
-      measurements,
-      projection: projection(weightKg, heightCm as number, targetWeightKg, objective),
-    }, 201);
+    const proj = projection(weightKg, heightCm as number, targetWeightKg, objective);
+
+    const responsePayload = {
+      profile: fullProfileObj,
+      measurements: [currentMeasurement],
+      projection: proj,
+    };
+
+    // Cache immediately in memory!
+    profileCache.set(current.userId, responsePayload);
+
+    // Safely persist to DB
+    try {
+      const db = getDb();
+      await db.insert(userProfiles).values({
+        userId: current.userId,
+        objective: allowedObjectives.includes(objective) ? objective : "general_fitness",
+        birthDate,
+        sex: allowedSex.includes(sex) ? sex : "other",
+        heightCm,
+        targetWeightKg,
+        weeklyGoal: 4,
+        ...(challengeStartDate ? { challengeStartDate } : {}),
+      })
+        .onConflictDoUpdate({
+          target: userProfiles.userId,
+          set: {
+            objective: allowedObjectives.includes(objective) ? objective : "general_fitness",
+            birthDate,
+            sex: allowedSex.includes(sex) ? sex : "other",
+            heightCm,
+            targetWeightKg,
+            weeklyGoal: 4,
+            ...(challengeStartDate ? { challengeStartDate } : {}),
+            updatedAt: new Date().toISOString(),
+          },
+        });
+
+      await db.insert(bodyMeasurements).values({
+        userId: current.userId,
+        weightKg,
+        ...optional,
+        source: "manual",
+        recordedAt: new Date().toISOString(),
+      });
+    } catch (dbErr) {
+      console.warn("Profile DB save non-blocking warning:", dbErr);
+    }
+
+    return json(responsePayload, 201);
   } catch (error) {
     return apiError(error);
   }

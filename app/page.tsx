@@ -1068,6 +1068,19 @@ export default function Home() {
       .me()
       .then(async (current) => {
         setSession(current);
+
+        const localKey = current?.user ? `four_seven_profile_${current.user.name}` : "";
+        let cachedProfile: any = null;
+        if (localKey) {
+          try {
+            const cached = localStorage.getItem(localKey) || localStorage.getItem("four_seven_saved_profile");
+            if (cached) cachedProfile = JSON.parse(cached);
+          } catch {}
+        }
+        if (cachedProfile?.profile) {
+          setFitness(cachedProfile);
+        }
+
         const [feed, profile] = await Promise.all([clientApi.feed(), clientApi.profile()]);
         const finalFeed = feed?.posts && Array.isArray(feed.posts) ? feed.posts : [];
         setFeedPosts(finalFeed);
@@ -1075,7 +1088,18 @@ export default function Home() {
         if (current?.user) {
           syncUserCheckInState(current.user.email, current.user.id, finalFeed);
         }
-        setFitness(profile);
+
+        let finalProfile = profile;
+        if (!finalProfile?.profile && cachedProfile?.profile) {
+          finalProfile = cachedProfile;
+        }
+        if (finalProfile?.profile && localKey) {
+          try {
+            localStorage.setItem(localKey, JSON.stringify(finalProfile));
+            localStorage.setItem("four_seven_saved_profile", JSON.stringify(finalProfile));
+          } catch {}
+        }
+        setFitness(finalProfile);
       })
       .catch(() => setSession(null))
       .finally(() => {
@@ -3680,9 +3704,32 @@ export default function Home() {
           setSession(current);
           setSessionLoading(false);
           setProfileLoading(true);
+
+          const localKey = current?.user ? `four_seven_profile_${current.user.name}` : "";
+          let cachedProfile: any = null;
+          if (localKey) {
+            try {
+              const cached = localStorage.getItem(localKey) || localStorage.getItem("four_seven_saved_profile");
+              if (cached) cachedProfile = JSON.parse(cached);
+            } catch {}
+          }
+          if (cachedProfile?.profile) {
+            setFitness(cachedProfile);
+          }
+
           Promise.all([clientApi.profile(), clientApi.feed()])
             .then(([profile, feed]) => {
-              setFitness(profile);
+              let finalProf = profile;
+              if (!finalProf?.profile && cachedProfile?.profile) {
+                finalProf = cachedProfile;
+              }
+              if (finalProf?.profile && localKey) {
+                try {
+                  localStorage.setItem(localKey, JSON.stringify(finalProf));
+                  localStorage.setItem("four_seven_saved_profile", JSON.stringify(finalProf));
+                } catch {}
+              }
+              setFitness(finalProf);
               const finalFeed = feed?.posts && Array.isArray(feed.posts) ? feed.posts : [];
               setFeedPosts(finalFeed);
               syncUserCheckInState(current.user.email, current.user.id, finalFeed);
@@ -3694,7 +3741,19 @@ export default function Home() {
   }
 
   if (!fitness?.profile) {
-    return <ProfileOnboarding name={session.user.name} onComplete={(result) => setFitness(result)} />;
+    return (
+      <ProfileOnboarding
+        name={session.user.name}
+        onComplete={(result) => {
+          try {
+            const localKey = `four_seven_profile_${session.user.name}`;
+            localStorage.setItem(localKey, JSON.stringify(result));
+            localStorage.setItem("four_seven_saved_profile", JSON.stringify(result));
+          } catch {}
+          setFitness(result);
+        }}
+      />
+    );
   }
 
   const page = inAdminView
