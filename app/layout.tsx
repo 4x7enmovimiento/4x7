@@ -31,14 +31,14 @@ export const metadata: Metadata = {
     description: "Constancia, competencia sana y motivación familiar.",
     images: ["/og.png"],
   },
+  other: {
+    google: "notranslate",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es" className="notranslate" translate="no">
-      <head>
-        <meta name="google" content="notranslate" />
-      </head>
       <body className={geist.variable}>{children}</body>
     </html>
   );

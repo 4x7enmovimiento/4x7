@@ -46,7 +46,10 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Ses
   }, []);
 
   const submit = async (event: FormEvent) => {
-    event.preventDefault();
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     setError("");
     setBusy(true);
     try {
@@ -87,7 +90,7 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Ses
       <div className="auth-benefits"><span>🔥 Rachas</span><span>♡ Muro familiar</span><span>◇ Puntos y retos</span></div>
     </section>
     <section className="auth-panel">
-      <form className="auth-card" onSubmit={submit}>
+      <form className="auth-card" onSubmit={submit} action="javascript:void(0);">
         <div className="auth-mobile-brand">4×7<span /></div>
         <p className="eyebrow">BIENVENIDO A TU EQUIPO</p>
         <h2>{mode === "login" ? "Qué bueno verte otra vez" : "Empiecen su 4×7"}</h2>
