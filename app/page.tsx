@@ -273,17 +273,20 @@ function MainApp() {
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem("four_seven_active_session");
-        if (saved) return JSON.parse(saved);
-      } catch {}
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.user && typeof parsed.user.name === "string" && parsed.token) {
+            return parsed;
+          }
+          localStorage.removeItem("four_seven_active_session");
+        }
+      } catch {
+        localStorage.removeItem("four_seven_active_session");
+      }
     }
     return null;
   });
-  const [sessionLoading, setSessionLoading] = useState(() => {
-    if (typeof window !== "undefined") {
-      return !localStorage.getItem("four_seven_active_session");
-    }
-    return true;
-  });
+  const [sessionLoading, setSessionLoading] = useState(false);
   const [fitness, setFitness] = useState<ProfileResponse | null>(() => {
     return getStoredProfile();
   });
@@ -1949,7 +1952,7 @@ function MainApp() {
 
   // Unified Master Hero Card (Combina Check-in diario + Anillo de Progreso + Días Reales de la Semana)
   const renderHeroCheckInCard = () => {
-    const firstName = session?.user.name.split(" ")[0] || "Compañero";
+    const firstName = session?.user?.name ? session.user.name.split(" ")[0] : "Compañero";
     const gdlInfo = getGdlDateInfo();
     const thisWeekDoneCount = gdlInfo.currentWeekDays.filter(
       (d) => completedCheckInDates.includes(d.dateKey) || (d.isToday && logged)
@@ -3960,10 +3963,10 @@ function MainApp() {
   if (!fitness?.profile) {
     return (
       <ProfileOnboarding
-        name={session.user.name}
+        name={session?.user?.name || "Usuario"}
         onComplete={(result) => {
           try {
-            const localKey = `four_seven_profile_${session.user.name}`;
+            const localKey = `four_seven_profile_${session?.user?.name || "Usuario"}`;
             localStorage.setItem(localKey, JSON.stringify(result));
             localStorage.setItem("four_seven_saved_profile", JSON.stringify(result));
           } catch {}
@@ -4043,22 +4046,22 @@ function MainApp() {
 
         <button className="family-pulse family-code" onClick={copyInvite}>
           <div className="pulse-top">
-            <span>{session.family.name}</span>
+            <span>{familyName}</span>
             <b>COMPARTIR</b>
           </div>
           <div className="pulse-bar">
             <i />
           </div>
           <p>
-            Equipo: <strong>{session.family.name}</strong>
+            Equipo: <strong>{familyName}</strong>
           </p>
         </button>
 
         <div className="profile-card">
           <span className="avatar mint">{initials}</span>
           <span>
-            <b>{session.user.name}</b>
-            <small>{session.user.email}</small>
+            <b>{userName}</b>
+            <small>{session?.user?.email || ""}</small>
           </span>
           <button className="logout-mini" onClick={logout} aria-label="Cerrar sesión">
             ↪
@@ -4094,7 +4097,7 @@ function MainApp() {
               onClick={logout}
               title="Cerrar sesión"
             >
-              <span className="user-initial-dot">{session.user.name.charAt(0).toUpperCase()}</span>
+              <span className="user-initial-dot">{initials.charAt(0) || "U"}</span>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             </button>
 

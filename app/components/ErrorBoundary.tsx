@@ -27,12 +27,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleReset = () => {
     try {
-      localStorage.removeItem("four_seven_saved_profile");
-      localStorage.removeItem("4x7_weight_history");
-      localStorage.removeItem("4x7_body_measurements");
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
     } catch {}
     this.setState({ hasError: false, error: null });
-    window.location.reload();
+    window.location.href = "/";
   };
 
   public render() {
@@ -46,8 +47,8 @@ export class ErrorBoundary extends Component<Props, State> {
             alignItems: "center",
             justifyContent: "center",
             padding: "24px",
-            background: "#f0fdf4",
-            color: "#14532d",
+            background: "#f8fafc",
+            color: "#0f172a",
             fontFamily: "system-ui, -apple-system, sans-serif",
             textAlign: "center",
           }}
@@ -55,21 +56,28 @@ export class ErrorBoundary extends Component<Props, State> {
           <div
             style={{
               background: "#ffffff",
-              borderRadius: "20px",
+              borderRadius: "24px",
               padding: "32px 24px",
               maxWidth: "420px",
               width: "100%",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
-              border: "1px solid #bbf7d0",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+              border: "1px solid #e2e8f0",
             }}
           >
-            <div style={{ fontSize: "42px", marginBottom: "12px" }}>🌿</div>
+            <div style={{ fontSize: "40px", marginBottom: "12px" }}>🌿</div>
             <h2 style={{ fontSize: "20px", fontWeight: 800, margin: "0 0 8px", color: "#166534" }}>
               4×7 En Movimiento
             </h2>
-            <p style={{ fontSize: "14px", color: "#374151", lineHeight: 1.5, margin: "0 0 20px" }}>
-              Tuvimos un breve parpadeo al cargar tu tablero. Presiona el botón para entrar directo a tu espacio.
+            <p style={{ fontSize: "14px", color: "#475569", lineHeight: 1.5, margin: "0 0 16px" }}>
+              Hubo una actualización en el sistema. Presiona el botón para entrar con tu cuenta limpia.
             </p>
+
+            {this.state.error && (
+              <div style={{ textAlign: "left", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", padding: "10px", marginBottom: "16px", fontSize: "11px", color: "#b91c1c", wordBreak: "break-word" }}>
+                <b>Detalle:</b> {this.state.error.message}
+              </div>
+            )}
+
             <button
               type="button"
               onClick={this.handleReset}
@@ -86,7 +94,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 boxShadow: "0 4px 12px rgba(22, 101, 52, 0.25)",
               }}
             >
-              🔄 Recargar y Continuar
+              🔄 Limpiar y Entrar Limpio
             </button>
           </div>
         </main>
