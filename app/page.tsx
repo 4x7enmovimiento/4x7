@@ -212,36 +212,17 @@ const START_DATE_OPTIONS = [
 
 const INITIAL_FAMILY_FEED: FeedPost[] = [];
 
-function getStoredProfile(userName?: string): ProfileResponse | null {
-  if (typeof window === "undefined") return null;
-
-  let resolvedUser = userName || "";
-  if (!resolvedUser) {
-    try {
-      const activeSession = localStorage.getItem("four_seven_active_session");
-      if (activeSession) {
-        const parsed = JSON.parse(activeSession);
-        resolvedUser = parsed?.user?.name || parsed?.user?.email || "";
+function getStoredProfile(userEmail?: string): ProfileResponse | null {
+  if (typeof window === "undefined" || !userEmail) return null;
+  try {
+    const raw = localStorage.getItem(`four_seven_profile_${userEmail.trim().toLowerCase()}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.profile?.heightCm && (parsed?.profile?.measurement?.weightKg || parsed?.measurements?.length)) {
+        return parsed;
       }
-    } catch {}
-  }
-
-  const keys = [
-    resolvedUser ? `four_seven_profile_${resolvedUser}` : "",
-    resolvedUser ? `four_seven_profile_${resolvedUser.split(" ")[0]}` : "",
-    "four_seven_saved_profile",
-  ].filter(Boolean);
-
-  for (const k of keys) {
-    try {
-      const raw = localStorage.getItem(k);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.profile) return parsed;
-      }
-    } catch {}
-  }
-
+    }
+  } catch {}
   return null;
 }
 
@@ -269,12 +250,8 @@ export default function Home() {
     return null;
   });
   const [sessionLoading, setSessionLoading] = useState(false);
-  const [fitness, setFitness] = useState<ProfileResponse | null>(() => {
-    return getStoredProfile();
-  });
-  const [profileLoading, setProfileLoading] = useState(() => {
-    return !getStoredProfile();
-  });
+  const [fitness, setFitness] = useState<ProfileResponse | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>(INITIAL_FAMILY_FEED);
   const [feedLoading, setFeedLoading] = useState(false);
   const [active, setActive] = useState<Section>("Hoy");
@@ -1484,10 +1461,6 @@ export default function Home() {
         setSession(current);
 
         const cachedProfile = getStoredProfile(current?.user?.name);
-        if (cachedProfile?.profile) {
-          setFitness(cachedProfile);
-        }
-
         const [feed, profile] = await Promise.all([clientApi.feed(), clientApi.profile()]);
         const finalFeed = feed?.posts && Array.isArray(feed.posts) ? feed.posts : [];
         setFeedPosts(finalFeed);
@@ -1502,15 +1475,15 @@ export default function Home() {
           syncUserCheckInState(current.user.email, current.user.id, finalFeed);
         }
 
-        const finalProfile = profile?.profile ? profile : cachedProfile;
-        if (finalProfile?.profile) {
-          setFitness(finalProfile);
+        if (profile?.profile?.heightCm) {
+          setFitness(profile);
           try {
-            if (current?.user?.name) {
-              localStorage.setItem(`four_seven_profile_${current.user.name}`, JSON.stringify(finalProfile));
+            if (current?.user?.email) {
+              localStorage.setItem(`four_seven_profile_${current.user.email.toLowerCase()}`, JSON.stringify(profile));
             }
-            localStorage.setItem("four_seven_saved_profile", JSON.stringify(finalProfile));
           } catch {}
+        } else {
+          setFitness(null);
         }
       })
       .catch(() => {
@@ -4237,23 +4210,19 @@ export default function Home() {
           setSession(current);
           setSessionLoading(false);
           setProfileLoading(true);
-
-          const cachedProfile = getStoredProfile(current?.user?.name);
-          if (cachedProfile?.profile) {
-            setFitness(cachedProfile);
-          }
+          setFitness(null);
 
           Promise.all([clientApi.profile(), clientApi.feed()])
             .then(([profile, feed]) => {
-              const finalProf = profile?.profile ? profile : cachedProfile;
-              if (finalProf?.profile) {
+              if (profile?.profile?.heightCm) {
+                setFitness(profile);
                 try {
-                  if (current?.user?.name) {
-                    localStorage.setItem(`four_seven_profile_${current.user.name}`, JSON.stringify(finalProf));
+                  if (current?.user?.email) {
+                    localStorage.setItem(`four_seven_profile_${current.user.email.toLowerCase()}`, JSON.stringify(profile));
                   }
-                  localStorage.setItem("four_seven_saved_profile", JSON.stringify(finalProf));
                 } catch {}
-                setFitness(finalProf);
+              } else {
+                setFitness(null);
               }
               const finalFeed = feed?.posts && Array.isArray(feed.posts) ? feed.posts : [];
               setFeedPosts(finalFeed);
@@ -4267,6 +4236,7 @@ export default function Home() {
             })
             .catch((err) => {
               console.warn("Post-auth sync fallback:", err);
+              setFitness(null);
             })
             .finally(() => setProfileLoading(false));
         }}
