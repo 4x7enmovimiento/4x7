@@ -394,6 +394,33 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   font-weight: 800;
 }
 
+.fb-delete-post-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  padding: 4px 9px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  transition: all 0.15s ease;
+  margin-left: auto;
+  align-self: flex-start;
+}
+
+.fb-delete-post-btn:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.fb-delete-post-btn:active {
+  transform: scale(0.96);
+}
+
 .fb-post-time {
   font-size: 11px;
   color: var(--muted);

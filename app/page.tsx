@@ -1759,7 +1759,23 @@ export default function Home() {
     }
   };
 
+  const handleDeletePost = async (postId: number) => {
+    const confirmed = window.confirm(
+      "¿Deseas eliminar esta publicación del muro familiar?\n\n*Nota: Tu check-in, racha y puntos de hoy NO se borrarán, solo se retirará la publicación del muro."
+    );
+    if (!confirmed) return;
 
+    const previousFeed = feedPosts;
+    setFeedPosts((prev) => prev.filter((p) => p.id !== postId));
+
+    try {
+      const res = await clientApi.deletePost(postId);
+      notify(res?.message || "Publicación eliminada del muro. Tu check-in sigue intacto ✓");
+    } catch (err) {
+      setFeedPosts(previousFeed);
+      notify(err instanceof Error ? err.message : "No pudimos eliminar la publicación");
+    }
+  };
 
   // Custom Challenge Handlers
   const handleCreateChallenge = (e: React.FormEvent) => {
@@ -1904,9 +1920,17 @@ export default function Home() {
     } catch {
       meta = String(post.createdAt || "Reciente");
     }
-    const visualStat = post.distanceMeters
-      ? `${(post.distanceMeters / 1000).toFixed(1)} KM`
-      : `${minutes} MIN`;
+    const isAuthor = Boolean(
+      (session?.user?.id && post.userId === session.user.id) ||
+      (post.userName && currentUserNick && post.userName.toLowerCase() === currentUserNick.toLowerCase()) ||
+      (post.userName && currentUserName && (
+        post.userName.toLowerCase() === currentUserName.toLowerCase() ||
+        currentUserName.toLowerCase().includes(post.userName.toLowerCase()) ||
+        post.userName.toLowerCase().includes(currentUserName.toLowerCase())
+      ))
+    );
+    const isAdmin = session?.user?.role === "admin" || session?.user?.id === 3;
+    const canDelete = isAuthor || isAdmin;
 
     return (
       <article className="fb-post-card" key={post.id}>
@@ -1926,6 +1950,22 @@ export default function Home() {
               </div>
               <span className="fb-post-time">{meta}</span>
             </div>
+            {canDelete && (
+              <button
+                type="button"
+                className="fb-delete-post-btn"
+                onClick={() => handleDeletePost(post.id)}
+                title="Eliminar publicación del muro (tu check-in se mantiene)"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
+                <span>Borrar</span>
+              </button>
+            )}
           </div>
         </div>
 

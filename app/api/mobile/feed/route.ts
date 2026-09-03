@@ -285,3 +285,51 @@ export async function POST(request: Request) {
     return apiError(error);
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const current = await requireMobileUser(request);
+    if (!current) return json({ error: "Sesión no válida." }, 401);
+
+    const url = new URL(request.url);
+    const queryId = url.searchParams.get("postId");
+    let postId = queryId ? parseInt(queryId, 10) : 0;
+
+    if (!postId) {
+      try {
+        const body = await request.json();
+        postId = Number(body?.postId);
+      } catch {}
+    }
+
+    if (!postId || isNaN(postId)) {
+      return json({ error: "ID de publicación no válido." }, 400);
+    }
+
+    const supabase = getSupabase();
+    const { data: post } = await supabase
+      .from("posts")
+      .select("id, user_id, family_id")
+      .eq("id", postId)
+      .maybeSingle();
+
+    if (post) {
+      if (post.user_id !== current.userId && current.role !== "admin") {
+        return json({ error: "Solo puedes eliminar tus propias publicaciones." }, 403);
+      }
+      await supabase.from("post_comments").delete().eq("post_id", postId);
+      await supabase.from("post_likes").delete().eq("post_id", postId);
+      await supabase.from("posts").delete().eq("id", postId);
+    }
+
+    sharedPostsCache.delete(postId);
+
+    return json({
+      success: true,
+      message: "Publicación eliminada del muro. Tu check-in y puntos siguen intactos.",
+    });
+  } catch (error) {
+    return apiError(error);
+  }
+}
+

@@ -138,6 +138,7 @@ export const clientApi = {
     }),
   comments: (postId: number) => request<{ comments: Array<{ id: number; postId: number; userId: number; userName: string; body: string; createdAt: string }> }>(`/api/mobile/feed/${postId}/comments`),
   toggleLike: (postId: number) => request<{ liked: boolean }>(`/api/mobile/feed/${postId}/like`, { method: "POST" }),
+  deletePost: (postId: number) => request<{ success: boolean; message?: string }>(`/api/mobile/feed/${postId}`, { method: "DELETE" }),
   comment: (postId: number, body: string) => request<{ comment: { id: number; postId: number; userId: number; userName: string; body: string; createdAt: string } }>(`/api/mobile/feed/${postId}/comments`, {
     method: "POST",
     body: JSON.stringify({ body }),
