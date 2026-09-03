@@ -167,9 +167,10 @@ export async function GET(request: Request) {
       const allMeasurements = measurements || [];
       const latestMeasurement = allMeasurements[allMeasurements.length - 1];
 
-      if (profile) {
-        const weight = latestMeasurement?.weight_kg || 70;
-        const height = profile.height_cm || 168;
+      // A profile is ONLY considered complete if the user entered height and weight measurements
+      if (profile && profile.height_cm && latestMeasurement?.weight_kg) {
+        const weight = latestMeasurement.weight_kg;
+        const height = profile.height_cm;
         const formattedProfile = {
           objective: profile.objective || "general_fitness",
           birthDate: profile.birth_date,

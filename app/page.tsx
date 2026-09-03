@@ -939,11 +939,16 @@ export default function Home() {
       const mName = m.name.toLowerCase().trim();
       const mNick = (m.nickname || "").toLowerCase().trim();
 
-      return (
-        (cName && (mFull === cName || mName === cName || mFull.includes(cName) || cName.includes(mFull))) ||
-        (cNick && (mNick === cNick || mName === cNick || mFull.includes(cNick))) ||
-        (cEmail && m.phone && m.phone.toLowerCase() === cEmail)
-      );
+      if (cEmail && m.phone && (m.phone.toLowerCase() === cEmail || m.phone.replace(/\D/g, "") === cEmail.replace(/\D/g, ""))) {
+        return true;
+      }
+      if (cName && (mFull === cName || mName === cName)) {
+        return true;
+      }
+      if (cNick && (mNick === cNick || mName === cNick)) {
+        return true;
+      }
+      return false;
     };
 
     // Dynamically add logged in user if they are a newly registered family member
@@ -990,12 +995,10 @@ export default function Home() {
 
     return allMembers.map((m) => {
       const isCurrentUser = Boolean(
-        currentUserName && (
-          m.fullName.toLowerCase() === currentUserName.toLowerCase() ||
-          m.name.toLowerCase() === currentUserName.toLowerCase() ||
-          (m.nickname && currentUserNick && m.nickname.toLowerCase() === currentUserNick.toLowerCase()) ||
-          (session?.user?.email && m.phone && session.user.email.toLowerCase() === m.phone.toLowerCase())
-        )
+        (session?.user?.id && serverStat?.userId && session.user.id === serverStat.userId) ||
+        (session?.user?.email && m.phone && session.user.email.toLowerCase() === m.phone.toLowerCase()) ||
+        (currentUserName && (m.fullName.toLowerCase() === currentUserName.toLowerCase() || m.name.toLowerCase() === currentUserName.toLowerCase())) ||
+        (currentUserNick && m.nickname && m.nickname.toLowerCase() === currentUserNick.toLowerCase())
       );
 
       // Find real posts from this member this week
@@ -2247,15 +2250,7 @@ export default function Home() {
             const isCompleted = member.workouts >= 4;
             const isNear = member.workouts === 3;
             const isPending = member.workouts < 2;
-            const isCurrentUser = Boolean(
-              member.isCurrentUser ||
-              (currentUserName && (
-                member.fullName.toLowerCase() === currentUserName.toLowerCase() ||
-                member.name.toLowerCase() === currentUserName.toLowerCase() ||
-                (member.nickname && currentUserNick && member.nickname.toLowerCase() === currentUserNick.toLowerCase()) ||
-                (session?.user?.email && member.phone && session.user.email.toLowerCase() === member.phone.toLowerCase())
-              ))
-            );
+            const isCurrentUser = Boolean(member.isCurrentUser);
 
             return (
               <div
