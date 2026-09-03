@@ -116,12 +116,23 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Ses
         <label>Contraseña<input required type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Tu contraseña" autoComplete={mode === "login" ? "current-password" : "new-password"} /></label>
         {mode === "register" && (
           <label>
-            Equipo o Familia
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <span>Equipo o Familia</span>
+              <span style={{ fontSize: "10.5px", fontWeight: "800", color: "#166534", background: "#dcfce7", padding: "2px 8px", borderRadius: "999px" }}>
+                🔒 Equipo Oficial
+              </span>
+            </div>
             <input
-              required
-              value={familyName}
-              onChange={(event) => setFamilyName(event.target.value)}
-              placeholder="López y Amigos"
+              readOnly
+              value="López y Amigos"
+              style={{
+                background: "#f1f5f3",
+                color: "#183b2b",
+                fontWeight: "700",
+                cursor: "not-allowed",
+                border: "1.5px solid #d2e4d9",
+              }}
+              title="Equipo oficial predeterminado para el reto familiar"
             />
           </label>
         )}
