@@ -3692,6 +3692,11 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   box-shadow: 0 2px 8px rgba(217, 119, 6, 0.28);
 }
 
+.whatsapp-motivate-btn.animos {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.28);
+}
+
 .whatsapp-motivate-btn.carrilla {
   background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
   box-shadow: 0 2px 8px rgba(225, 29, 72, 0.28);
