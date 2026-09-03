@@ -3430,57 +3430,78 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   font-size: 10px;
 }
 
-/* 4 Check-In step sequence pills */
-.row-center-progress {
+/* 7 Check-In step sequence pills */
+.member-progress-container {
   grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f8faf8;
+  border-radius: 12px;
+  border: 1px solid #e7ede9;
+  margin-top: 6px;
+}
+
+.progress-top-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 10px;
-  background: #f8faf8;
-  border-radius: 12px;
-  margin-top: 4px;
+  gap: 8px;
+}
+
+.progress-meta-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #557062;
+  letter-spacing: -0.1px;
 }
 
 .checkin-pills-sequence {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
   gap: 6px;
   align-items: center;
+  width: 100%;
 }
 
 .step-pill {
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
+  width: 100%;
+  height: 28px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 850;
-  transition: all .15s ease;
+  transition: all .2s ease;
 }
 
 .step-pill.done {
-  background: #10b981;
+  background: linear-gradient(135deg, #10b981, #059669);
   color: white;
-  box-shadow: 0 2px 6px rgb(16 185 129 / 30%);
+  box-shadow: 0 2px 5px rgba(16, 185, 129, 0.28);
 }
 
 .step-pill.done-bonus {
-  background: #f59e0b;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
   color: white;
-  box-shadow: 0 2px 6px rgb(245 158 11 / 35%);
+  box-shadow: 0 2px 5px rgba(245, 158, 11, 0.35);
 }
 
 .step-pill.empty {
-  background: #e7ede9;
-  color: #7b8e83;
-  border: 1px dashed #c0d3c7;
+  background: #ffffff;
+  color: #8c9e94;
+  border: 1.5px solid #d9e4dd;
 }
 
-.step-pill.bonus-pill.empty {
-  border-color: #fde68a;
-  background: #fffbeb;
+.step-pill.bonus-empty {
+  background: #fffdf5;
   color: #b45309;
+  border: 1.5px dashed #fcd34d;
+}
+
+.status-label-badge {
+  flex-shrink: 0;
 }
 
 .status-label-badge span {
@@ -3488,26 +3509,46 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   font-weight: 800;
   padding: 3px 8px;
   border-radius: 6px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .badge-done {
   background: #d1fae5;
   color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.badge-bonus {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
 }
 
 .badge-near {
   background: #ede9fe;
   color: #5b21b6;
+  border: 1px solid #ddd6fe;
 }
 
 .badge-mid {
   background: #fef3c7;
   color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.badge-start {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
 }
 
 .badge-need {
   background: #fee2e2;
   color: #991b1b;
+  border: 1px solid #fecaca;
 }
 
 .row-right-actions {

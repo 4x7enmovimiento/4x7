@@ -2313,7 +2313,28 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="row-center-progress">
+                <div className="member-progress-container">
+                  <div className="progress-top-header">
+                    <span className="progress-meta-label">
+                      {member.workouts >= 4 ? "🌟 Meta 4×7 Cumplida" : "Objetivo semanal (4 a 7 días)"}
+                    </span>
+                    <div className="status-label-badge">
+                      {member.workouts >= 7 ? (
+                        <span className="badge-bonus">🔥 7/7 ¡IMPARABLE!</span>
+                      ) : member.workouts >= 4 ? (
+                        <span className="badge-done">🏆 {member.workouts}/4 ¡META!</span>
+                      ) : member.workouts === 3 ? (
+                        <span className="badge-near">⚡ 3/4 (A 1 día)</span>
+                      ) : member.workouts === 2 ? (
+                        <span className="badge-mid">🟡 2/4 (A 2 días)</span>
+                      ) : member.workouts === 1 ? (
+                        <span className="badge-start">🟢 1/4 (Arrancó)</span>
+                      ) : (
+                        <span className="badge-need">🔴 0/4 (Sin registrar)</span>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="checkin-pills-sequence">
                     {[1, 2, 3, 4, 5, 6, 7].map((stepNum) => {
                       const done = stepNum <= member.workouts;
@@ -2321,28 +2342,13 @@ export default function Home() {
                       return (
                         <div
                           key={stepNum}
-                          className={`step-pill ${done ? (isBonus ? "done-bonus" : "done") : (isBonus ? "bonus-pill empty" : "empty")}`}
+                          className={`step-pill ${done ? (isBonus ? "done-bonus" : "done") : (isBonus ? "bonus-empty" : "empty")}`}
                           title={`Día ${stepNum} ${done ? "completado ✓" : "pendiente"} ${isBonus ? "(Día extra campeón ⭐)" : ""}`}
                         >
-                          {done ? "✓" : stepNum}
+                          {done ? (isBonus ? "★" : "✓") : stepNum}
                         </div>
                       );
                     })}
-                  </div>
-                  <div className="status-label-badge">
-                    {member.workouts >= 7 ? (
-                      <span className="badge-done" style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>🔥 7/7 ¡SEMANA PERFECTA!</span>
-                    ) : member.workouts >= 4 ? (
-                      <span className="badge-done">🏆 {member.workouts}/4 ¡META CUMPLIDA!</span>
-                    ) : member.workouts === 3 ? (
-                      <span className="badge-near">⚡ 3/4 (A 1 día)</span>
-                    ) : member.workouts === 2 ? (
-                      <span className="badge-mid">🟡 2/4 (A 2 días)</span>
-                    ) : member.workouts === 1 ? (
-                      <span className="badge-need">🟢 1/4 (¡Buen arranque!)</span>
-                    ) : (
-                      <span className="badge-need">🔴 0/4 (¡A motivar!)</span>
-                    )}
                   </div>
                 </div>
               </div>
