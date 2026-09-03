@@ -368,14 +368,14 @@ export default function Home() {
   const [completedCheckInDates, setCompletedCheckInDates] = useState<string[]>([]);
   const [logged, setLogged] = useState<boolean>(false);
   const [weeklyWorkoutsCount, setWeeklyWorkoutsCount] = useState<number>(0);
-  const [userBonusPoints, setUserBonusPoints] = useState<number>(50);
+  const [userBonusPoints, setUserBonusPoints] = useState<number>(0);
 
   useEffect(() => {
     try {
       if (typeof window !== "undefined") {
         const saved = localStorage.getItem("four_seven_user_bonus_points");
         if (saved !== null) {
-          setUserBonusPoints(Number(saved) || 50);
+          setUserBonusPoints(Number(saved) || 0);
         }
       }
     } catch {}
@@ -1028,9 +1028,20 @@ export default function Home() {
         ? Math.max(memberUniqueDates.length, completedCheckInDates.length, statWorkouts)
         : Math.max(memberUniqueDates.length, statWorkouts);
       const isDone = currentWorkouts >= 4;
+      const isRegistered = Boolean(
+        serverStat?.hasProfile ||
+        serverStat?.userId ||
+        (familyProfiles && (
+          familyProfiles[m.nickname.toLowerCase()]?.objective ||
+          familyProfiles[m.name.toLowerCase()]?.objective
+        )) ||
+        (isCurrentUser && fitness?.profile)
+      );
+      const profileBonus = isRegistered ? 50 : 0;
+
       const points = serverStat?.points !== undefined
         ? serverStat.points
-        : (currentWorkouts * 100) + (isDone ? 300 : 0) + 50;
+        : ((currentWorkouts * 100) + (isDone ? 300 : 0) + profileBonus);
 
       const hasRecentPost = memberWeekPosts.length > 0 || statWorkouts > 0;
       const lastCheckIn = isCurrentUser

@@ -186,11 +186,13 @@ export async function GET(request: Request) {
           return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
         }))).length;
 
+        const hasProfile = Boolean(prof && (prof.height_cm || prof.weight_kg || prof.target_weight_kg || prof.objective));
+        const profileBonus = hasProfile ? 50 : 0;
+
         const ledgerPoints = pointsByUser.get(u.id);
-        // Base points: 50 welcome bonus + (weekCount * 100) + (meta reached ? 300 : 0)
         const computedPoints = ledgerPoints !== undefined && ledgerPoints > 0
           ? ledgerPoints
-          : (weekCount * 100) + (weekCount >= 4 ? 300 : 0) + 50;
+          : (weekCount * 100) + (weekCount >= 4 ? 300 : 0) + profileBonus;
 
         const lastWorkout = userWorkouts[userWorkouts.length - 1];
 
@@ -202,6 +204,7 @@ export async function GET(request: Request) {
           totalWorkouts: userWorkouts.length,
           completedDates,
           points: computedPoints,
+          hasProfile,
           activity: lastWorkout?.activity_type || "",
           lastCheckinDate: completedDates[completedDates.length - 1] || "",
         };
@@ -212,13 +215,6 @@ export async function GET(request: Request) {
       });
     } catch (e) {
       console.warn("Supabase family stats aggregation error:", e);
-    }
-
-    // Merge with in-memory fallback
-    for (const [key, val] of sharedMemberStatsCache.entries()) {
-      if (!familyStatsObj[key]) {
-        familyStatsObj[key] = val;
-      }
     }
 
     return json({
