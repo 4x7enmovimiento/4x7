@@ -1027,8 +1027,9 @@ export default function Home() {
       const currentWorkouts = isCurrentUser
         ? Math.max(memberUniqueDates.length, completedCheckInDates.length, statWorkouts)
         : Math.max(memberUniqueDates.length, statWorkouts);
-      const isDone = currentWorkouts >= 4;
-      const points = (currentWorkouts * 100) + (isDone ? 300 : 0) + (isCurrentUser ? userBonusPoints : 0);
+      const points = serverStat?.points !== undefined
+        ? serverStat.points
+        : (currentWorkouts * 100) + (isDone ? 300 : 0) + 50;
 
       const hasRecentPost = memberWeekPosts.length > 0 || statWorkouts > 0;
       const lastCheckIn = isCurrentUser

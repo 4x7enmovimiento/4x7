@@ -118,33 +118,107 @@ export async function GET(request: Request) {
       familyProfilesObj[key] = val;
     }
 
-    // Include all registered users from Supabase
+    // Include all registered users & synchronized stats from Supabase
+    const familyStatsObj: Record<string, any> = {};
+
     try {
       const { data: allUsers } = await supabase.from("users").select("id, name, email");
       const { data: allProfiles } = await supabase.from("user_profiles").select("*");
+      const { data: allWorkouts } = await supabase.from("workouts").select("id, user_id, activity_type, started_at, created_at").eq("family_id", current.familyId);
+      const { data: allPoints } = await supabase.from("points_ledger").select("user_id, points");
+
       const profileByUser = new Map((allProfiles || []).map((p: any) => [p.user_id, p]));
+
+      // Group workouts by user
+      const workoutsByUser = new Map<number, any[]>();
+      (allWorkouts || []).forEach((w: any) => {
+        const list = workoutsByUser.get(w.user_id) || [];
+        list.push(w);
+        workoutsByUser.set(w.user_id, list);
+      });
+
+      // Sum points by user
+      const pointsByUser = new Map<number, number>();
+      (allPoints || []).forEach((pt: any) => {
+        const curr = pointsByUser.get(pt.user_id) || 0;
+        pointsByUser.set(pt.user_id, curr + (Number(pt.points) || 0));
+      });
+
+      // Current week bounds (Guadalajara GDL time)
+      const now = new Date();
+      const dayOfWeek = (now.getDay() + 6) % 7; // Monday = 0
+      const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+      monday.setHours(0, 0, 0, 0);
 
       (allUsers || []).forEach((u: any) => {
         const prof = profileByUser.get(u.id);
         const nameParts = (u.name || "").split(" ");
+        const nickname = (prof as any)?.nickname || nameParts[0] || u.name;
+
         const summary = {
           name: nameParts[0] || u.name,
           fullName: u.name,
-          nickname: nameParts[0] || u.name,
+          nickname,
           preferredActivity: "",
           objective: prof?.objective || "general_fitness",
           challengeStartDate: prof?.challenge_start_date || "2026-09-01",
           updatedAt: prof?.updated_at || new Date().toISOString(),
         };
-        familyProfilesObj[u.name.toLowerCase()] = summary;
-        familyProfilesObj[summary.nickname.toLowerCase()] = summary;
-        if (u.email) familyProfilesObj[u.email.toLowerCase()] = summary;
-      });
-    } catch {}
 
-    const familyStatsObj: Record<string, any> = {};
+        familyProfilesObj[u.name.toLowerCase()] = summary;
+        familyProfilesObj[nickname.toLowerCase()] = summary;
+        if (u.email) familyProfilesObj[u.email.toLowerCase()] = summary;
+
+        const userWorkouts = workoutsByUser.get(u.id) || [];
+        const completedDates = Array.from(new Set(userWorkouts.map((w: any) => {
+          const d = new Date(w.started_at || w.created_at);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        })));
+
+        // Week workouts count
+        const weekWorkouts = userWorkouts.filter((w: any) => {
+          const d = new Date(w.started_at || w.created_at);
+          return d >= monday;
+        });
+
+        const weekCount = Array.from(new Set(weekWorkouts.map((w: any) => {
+          const d = new Date(w.started_at || w.created_at);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        }))).length;
+
+        const ledgerPoints = pointsByUser.get(u.id);
+        // Base points: 50 welcome bonus + (weekCount * 100) + (meta reached ? 300 : 0)
+        const computedPoints = ledgerPoints !== undefined && ledgerPoints > 0
+          ? ledgerPoints
+          : (weekCount * 100) + (weekCount >= 4 ? 300 : 0) + 50;
+
+        const lastWorkout = userWorkouts[userWorkouts.length - 1];
+
+        const statEntry = {
+          userId: u.id,
+          nickname,
+          fullName: u.name,
+          workouts: weekCount,
+          totalWorkouts: userWorkouts.length,
+          completedDates,
+          points: computedPoints,
+          activity: lastWorkout?.activity_type || "",
+          lastCheckinDate: completedDates[completedDates.length - 1] || "",
+        };
+
+        familyStatsObj[u.name.toLowerCase()] = statEntry;
+        familyStatsObj[nickname.toLowerCase()] = statEntry;
+        if (u.email) familyStatsObj[u.email.toLowerCase()] = statEntry;
+      });
+    } catch (e) {
+      console.warn("Supabase family stats aggregation error:", e);
+    }
+
+    // Merge with in-memory fallback
     for (const [key, val] of sharedMemberStatsCache.entries()) {
-      familyStatsObj[key] = val;
+      if (!familyStatsObj[key]) {
+        familyStatsObj[key] = val;
+      }
     }
 
     return json({
