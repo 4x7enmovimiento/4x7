@@ -367,15 +367,19 @@ export default function Home() {
 
   const [completedCheckInDates, setCompletedCheckInDates] = useState<string[]>([]);
   const [logged, setLogged] = useState<boolean>(false);
-  const [userBonusPoints, setUserBonusPoints] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      try {
+  const [userBonusPoints, setUserBonusPoints] = useState<number>(50);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined") {
         const saved = localStorage.getItem("four_seven_user_bonus_points");
-        if (saved !== null) return Number(saved) || 0;
-      } catch {}
-    }
-    return 50; // 50 puntos de bienvenida por completar perfil y registro
-  });
+        if (saved !== null) {
+          setUserBonusPoints(Number(saved) || 50);
+        }
+      }
+    } catch {}
+  }, []);
+
   const [toast, setToast] = useState("");
   const [showPointsModal, setShowPointsModal] = useState(false);
   const [showNewChallengeModal, setShowNewChallengeModal] = useState(false);
@@ -1053,7 +1057,7 @@ export default function Home() {
         }
       }
 
-      if (!realActivity) {
+      if (!realActivity && typeof window !== "undefined") {
         // 2. Check cached profile in localStorage
         try {
           const cached =
