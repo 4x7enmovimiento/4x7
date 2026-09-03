@@ -1163,6 +1163,8 @@ export default function Home() {
       .map((m) => ({
         name: m.nickname || m.name,
         rawName: m.name,
+        fullName: m.fullName,
+        isCurrentUser: Boolean(m.isCurrentUser),
         points: m.points,
         initials: (m.nickname || m.name).charAt(0).toUpperCase(),
         color: m.color,
@@ -1768,8 +1770,8 @@ export default function Home() {
     e.preventDefault();
     if (!newChallengeTitle.trim()) return;
 
-    const rawName = session?.user.name.split(" ")[0] || "Pedro";
-    const creatorDisplayName = currentUserName === "Pedro" || rawName === "Pedro" ? "Pedcaz" : rawName;
+    const rawName = session?.user.name ? session.user.name.split(" ")[0] : "Usuario";
+    const creatorDisplayName = currentUserNick || rawName;
     const finalTargets = newChallengeTargets.length ? newChallengeTargets : ["Toda la Familia"];
     const targetsDisplayStr = finalTargets.includes("Toda la Familia")
       ? "Toda la Familia 🌟"
@@ -1846,8 +1848,8 @@ export default function Home() {
   };
 
   const handleCompleteChallenge = (id: number) => {
-    const rawName = session?.user.name.split(" ")[0] || "Pedro";
-    const userName = currentUserName === "Pedro" || rawName === "Pedro" ? "Pedcaz" : rawName;
+    const rawName = session?.user.name ? session.user.name.split(" ")[0] : "Usuario";
+    const userName = currentUserNick || rawName;
     const ch = customChallenges.find((c) => c.id === id);
     if (!ch) return;
 
@@ -2639,7 +2641,7 @@ export default function Home() {
       </div>
       <ol className="leaderboard">
         {familyScores.map((member, index) => (
-          <li key={member.name} className={member.rawName === "Pedro" || member.name === "Pedcaz" ? "you" : ""}>
+          <li key={member.name} className={member.isCurrentUser ? "you" : ""}>
             <span className="rank">{index + 1}</span>
             <span className={`avatar small ${member.color}`}>{member.initials}</span>
             <span className="member">
@@ -3564,13 +3566,13 @@ export default function Home() {
               </button>
             </div>
             {familyScores.map((member, index) => (
-              <div key={member.name} className={member.rawName === currentUserName || member.name === "Pedcaz" ? "you" : ""}>
+              <div key={member.name} className={member.isCurrentUser ? "you" : ""}>
                 <b className="rank">{index + 1}</b>
                 <span className={`avatar ${member.color}`}>{member.initials}</span>
                 <p>
                   <strong>
                     {member.name}
-                    {member.rawName === currentUserName || member.name === "Pedcaz" ? " · Tú" : ""}
+                    {member.isCurrentUser ? " · Tú" : ""}
                   </strong>
                   <small>{member.workouts}/4 entrenamientos de la semana</small>
                 </p>
