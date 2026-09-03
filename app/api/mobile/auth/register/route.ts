@@ -95,6 +95,7 @@ export async function POST(request: Request) {
         family_id: familyId,
         user_id: userId,
         role: "member",
+        nickname: nickname,
       });
     } catch (e) {
       console.error("Supabase family link error:", e);
