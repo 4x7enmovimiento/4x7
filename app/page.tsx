@@ -55,11 +55,11 @@ const titleCopy: Record<Section, [string, string]> = {
 };
 
 const activityOptions = [
-  { name: "Fuerza", icon: "💪", time: 35, cal: 190 },
+  { name: "Gimnasio", icon: "🏋️‍♂️", time: 45, cal: 220 },
   { name: "Cardio", icon: "🏃", time: 30, cal: 240 },
-  { name: "Caminata", icon: "🚶", time: 30, cal: 120 },
-  { name: "Movilidad", icon: "🧘", time: 20, cal: 90 },
+  { name: "Bicicleta", icon: "🚴", time: 40, cal: 250 },
   { name: "Deporte", icon: "⚽", time: 45, cal: 280 },
+  { name: "Funcional", icon: "⚡", time: 35, cal: 210 },
 ];
 
 function Glyph({ label }: { label: string }) {
@@ -364,7 +364,7 @@ export default function Home() {
   const [showNewChallengeModal, setShowNewChallengeModal] = useState(false);
 
   // Check-In Form State
-  const [selectedActivity, setSelectedActivity] = useState("Fuerza");
+  const [selectedActivity, setSelectedActivity] = useState("Gimnasio");
   const [checkInNote, setCheckInNote] = useState("");
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   const [evidencePreview, setEvidencePreview] = useState<string | null>(null);
@@ -2219,13 +2219,6 @@ export default function Home() {
                       : `Llevas ${thisWeekDoneCount} de 4 días obligatorios. Te faltan ${Math.max(0, 4 - thisWeekDoneCount)} días antes del domingo.`}
                   </p>
                 </div>
-                <div className="checkin-streak-pill">
-                  <span>🔥</span>
-                  <div>
-                    <b>Racha activa</b>
-                    <small>6 semanas</small>
-                  </div>
-                </div>
               </div>
 
               {/* 1. Quick Activity Selector */}
@@ -2239,7 +2232,6 @@ export default function Home() {
                   >
                     <span className="pill-icon">{act.icon}</span>
                     <span className="pill-name">{act.name}</span>
-                    <span className="pill-time">{act.time}m</span>
                   </button>
                 ))}
               </div>
@@ -2366,9 +2358,8 @@ export default function Home() {
                 );
               })}
             </div>
-            <div className="streak-line" style={{ margin: 0, fontSize: "11px", color: "rgba(255,255,255,0.75)" }}>
-              <span>🔥 Racha activa</span>
-              <span className="best" style={{ color: "rgba(255,255,255,0.5)" }}>· Objetivo: 4 de 7 días</span>
+            <div className="streak-line" style={{ margin: 0, fontSize: "11.5px", color: "rgba(255,255,255,0.78)", fontWeight: 600 }}>
+              <span>🎯 Meta semanal: 4 a 7 días de entrenamiento</span>
             </div>
           </div>
         </div>
