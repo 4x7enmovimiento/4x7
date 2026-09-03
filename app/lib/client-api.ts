@@ -163,7 +163,20 @@ export const clientApi = {
   }),
   getPrize: () => request<{ prize: { title: string; description: string; imageUrl: string; month: string; minWeeklyCheckIns: number } }>("/api/mobile/admin?action=prize"),
   adminListUsers: (pin: string) => request<{
-    users: Array<{ id: number; name: string; email: string; createdAt: string; workoutCount: number; eligibleForPrize: boolean }>;
+    users: Array<{
+      id: number;
+      name: string;
+      nickname?: string;
+      email: string;
+      createdAt: string;
+      objective?: string;
+      challengeStartDate?: string;
+      heightCm?: number | null;
+      weightKg?: number | null;
+      targetWeightKg?: number | null;
+      workoutCount: number;
+      eligibleForPrize: boolean;
+    }>;
     prize: { title: string; description: string; imageUrl: string; month: string };
   }>("/api/mobile/admin", {
     method: "POST",
@@ -176,6 +189,19 @@ export const clientApi = {
   adminDeleteUser: (pin: string, targetUserId: number) => request<{ ok: boolean; message: string }>("/api/mobile/admin", {
     method: "POST",
     body: JSON.stringify({ pin, action: "delete_user", targetUserId }),
+  }),
+  adminUpdateUserData: (pin: string, targetUserId: number, data: {
+    name?: string;
+    nickname?: string;
+    email?: string;
+    objective?: string;
+    challengeStartDate?: string;
+    heightCm?: number | null;
+    targetWeightKg?: number | null;
+    weightKg?: number | null;
+  }) => request<{ ok: boolean; message: string }>("/api/mobile/admin", {
+    method: "POST",
+    body: JSON.stringify({ pin, action: "update_user_data", targetUserId, ...data }),
   }),
   adminSavePrize: (pin: string, data: { title: string; description: string; imageUrl: string; month?: string }) => request<{
     ok: boolean;

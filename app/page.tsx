@@ -672,6 +672,17 @@ export default function Home() {
   const [prizeMonthEdit, setPrizeMonthEdit] = useState(monthlyPrize.month);
   const [selectedUserForPassword, setSelectedUserForPassword] = useState<{ id: number; name: string } | null>(null);
   const [newPasswordVal, setNewPasswordVal] = useState("");
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<{
+    id: number;
+    name: string;
+    nickname: string;
+    email: string;
+    objective: string;
+    challengeStartDate: string;
+    heightCm: number | string;
+    weightKg: number | string;
+    targetWeightKg: number | string;
+  } | null>(null);
   const [logoClickCount, setLogoClickCount] = useState(0);
 
   const handleLogoClick = () => {
@@ -790,8 +801,33 @@ export default function Home() {
       await clientApi.adminDeleteUser("123456", userId);
       setAdminUsers((prev) => prev.filter((u) => u.id !== userId));
       notify(`🗑️ Usuario ${userName} eliminado.`);
+      await loadFeed(true);
     } catch (cause) {
       notify(cause instanceof Error ? cause.message : "Error al eliminar usuario");
+    }
+  };
+
+  const handleUpdateUserDataSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUserForEdit) return;
+    try {
+      await clientApi.adminUpdateUserData("123456", selectedUserForEdit.id, {
+        name: selectedUserForEdit.name,
+        nickname: selectedUserForEdit.nickname,
+        email: selectedUserForEdit.email,
+        objective: selectedUserForEdit.objective,
+        challengeStartDate: selectedUserForEdit.challengeStartDate,
+        heightCm: selectedUserForEdit.heightCm ? Number(selectedUserForEdit.heightCm) : null,
+        weightKg: selectedUserForEdit.weightKg ? Number(selectedUserForEdit.weightKg) : null,
+        targetWeightKg: selectedUserForEdit.targetWeightKg ? Number(selectedUserForEdit.targetWeightKg) : null,
+      });
+      notify(`✓ Datos de ${selectedUserForEdit.name} actualizados en Supabase.`);
+      setSelectedUserForEdit(null);
+      const res = await clientApi.adminListUsers("123456");
+      if (res.users?.length) setAdminUsers(res.users);
+      await loadFeed(true);
+    } catch (cause) {
+      notify(cause instanceof Error ? cause.message : "Error al actualizar datos");
     }
   };
 
@@ -3858,12 +3894,46 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="user-card-actions">
+                  <div className="user-card-actions" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      className="admin-action-btn edit"
+                      style={{
+                        background: "#e0f2fe",
+                        color: "#0369a1",
+                        border: "1px solid #bae6fd",
+                        borderRadius: "8px",
+                        padding: "6px 12px",
+                        fontSize: "12px",
+                        fontWeight: "750",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                      onClick={() => {
+                        setSelectedUserForEdit({
+                          id: u.id,
+                          name: u.name,
+                          nickname: (u as any).nickname || u.name.split(" ")[0],
+                          email: u.email,
+                          objective: (u as any).objective || "general_fitness",
+                          challengeStartDate: (u as any).challengeStartDate || "2026-09-01",
+                          heightCm: (u as any).heightCm || "",
+                          weightKg: (u as any).weightKg || "",
+                          targetWeightKg: (u as any).targetWeightKg || "",
+                        });
+                        setSelectedUserForPassword(null);
+                      }}
+                    >
+                      ✏️ Editar Datos
+                    </button>
                     <button
                       type="button"
                       className="admin-action-btn reset"
                       onClick={() => {
                         setSelectedUserForPassword({ id: u.id, name: u.name });
+                        setSelectedUserForEdit(null);
                         setNewPasswordVal("familia123");
                       }}
                     >
@@ -3886,6 +3956,139 @@ export default function Home() {
               ))}
             </div>
 
+            {/* Modal / Card to Edit User Registration Data & Profile */}
+            {selectedUserForEdit && (
+              <div className="reset-pass-pro-modal-box" style={{ marginTop: "24px", border: "1.5px solid #38bdf8", background: "#f0f9ff" }}>
+                <div className="reset-pass-top">
+                  <div>
+                    <h4 style={{ color: "#0369a1", fontSize: "16px", fontWeight: "800" }}>
+                      ✏️ Editar Datos de Registro: <u>{selectedUserForEdit.name}</u>
+                    </h4>
+                    <p style={{ color: "#0c4a6e" }}>Modifica cualquier dato capturado durante el registro o perfil de inicio.</p>
+                  </div>
+                  <button type="button" className="close-mini-btn" onClick={() => setSelectedUserForEdit(null)}>✕</button>
+                </div>
+
+                <form onSubmit={handleUpdateUserDataSubmit} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginTop: "14px" }}>
+                  <label className="pro-label">
+                    <span>Nombre Completo</span>
+                    <input
+                      type="text"
+                      required
+                      className="pro-input"
+                      value={selectedUserForEdit.name}
+                      onChange={(e) => setSelectedUserForEdit({ ...selectedUserForEdit, name: e.target.value })}
+                    />
+                  </label>
+
+                  <label className="pro-label">
+                    <span>Apodo / Nickname</span>
+                    <input
+                      type="text"
+                      required
+                      className="pro-input"
+                      value={selectedUserForEdit.nickname}
+                      onChange={(e) => setSelectedUserForEdit({ ...selectedUserForEdit, nickname: e.target.value })}
+                    />
+                  </label>
+
+                  <label className="pro-label">
+                    <span>Correo Electrónico</span>
+                    <input
+                      type="email"
+                      required
+                      className="pro-input"
+                      value={selectedUserForEdit.email}
+                      onChange={(e) => setSelectedUserForEdit({ ...selectedUserForEdit, email: e.target.value })}
+                    />
+                  </label>
+
+                  <label className="pro-label">
+                    <span>Inicio de Reto</span>
+                    <select
+                      className="pro-input"
+                      value={selectedUserForEdit.challengeStartDate}
+                      onChange={(e) => setSelectedUserForEdit({ ...selectedUserForEdit, challengeStartDate: e.target.value })}
+                    >
+                      {START_DATE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="pro-label">
+                    <span>Objetivo</span>
+                    <select
+                      className="pro-input"
+                      value={selectedUserForEdit.objective}
+                      onChange={(e) => setSelectedUserForEdit({ ...selectedUserForEdit, objective: e.target.value })}
+                    >
+                      <option value="lose_fat">Bajar peso o grasa</option>
+                      <option value="gain_muscle">Subir masa muscular</option>
+                      <option value="maintain">Mantenerme en forma</option>
+                      <option value="general_fitness">Sentirme mejor y activo</option>
+                    </select>
+                  </label>
+
+                  <label className="pro-label">
+                    <span>Estatura (cm)</span>
+                    <input
+                      type="number"
+                      min="100"
+                      max="250"
+                      placeholder="ej. 170"
+                      className="pro-input"
+                      value={selectedUserForEdit.heightCm}
+                      onChange={(e) => setSelectedUserForEdit({ ...selectedUserForEdit, heightCm: e.target.value })}
+                    />
+                  </label>
+
+                  <label className="pro-label">
+                    <span>Peso Inicial / Actual (kg)</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="30"
+                      max="300"
+                      placeholder="ej. 75.5"
+                      className="pro-input"
+                      value={selectedUserForEdit.weightKg}
+                      onChange={(e) => setSelectedUserForEdit({ ...selectedUserForEdit, weightKg: e.target.value })}
+                    />
+                  </label>
+
+                  <label className="pro-label">
+                    <span>Peso Meta (kg)</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="30"
+                      max="300"
+                      placeholder="ej. 68.0"
+                      className="pro-input"
+                      value={selectedUserForEdit.targetWeightKg}
+                      onChange={(e) => setSelectedUserForEdit({ ...selectedUserForEdit, targetWeightKg: e.target.value })}
+                    />
+                  </label>
+
+                  <div style={{ gridColumn: "1 / -1", display: "flex", gap: "10px", marginTop: "8px", justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      className="secondary-action-btn"
+                      onClick={() => setSelectedUserForEdit(null)}
+                    >
+                      Cancelar
+                    </button>
+                    <button type="submit" className="primary-button" style={{ background: "#0284c7" }}>
+                      ✓ Guardar Cambios en Supabase
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
             {/* Sub-card to reset password */}
             {selectedUserForPassword && (
               <div className="reset-pass-pro-modal-box" style={{ marginTop: "20px" }}>
@@ -3901,7 +4104,7 @@ export default function Home() {
                     <input
                       type="text"
                       required
-                      minLength={6}
+                      minLength={4}
                       className="pro-input"
                       style={{ flex: 1, minWidth: "200px" }}
                       value={newPasswordVal}
