@@ -1920,6 +1920,9 @@ export default function Home() {
     } catch {
       meta = String(post.createdAt || "Reciente");
     }
+    const visualStat = post.distanceMeters
+      ? `${(Number(post.distanceMeters) / 1000).toFixed(1)} KM`
+      : `${minutes} MIN`;
     const authorName = String(post.userName || "Familiar");
     const authorInitial = (authorName.charAt(0) || "F").toUpperCase();
     const isAuthor = Boolean(
