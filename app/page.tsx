@@ -4203,6 +4203,38 @@ export default function Home() {
     );
   }
 
+  const userName = session?.user?.name || "Usuario";
+  const familyName = session?.family?.name || "López y Amigos";
+
+  const currentTitle = inAdminView
+    ? "Panel de Control Administrador"
+    : active === "Hoy"
+    ? `Buenas tardes, ${userName.split(" ")[0]}`
+    : titleCopy[active][1];
+
+  const initials = userName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+  const copyInvite = async () => {
+    const link = typeof window !== "undefined" ? window.location.origin : "https://4x7.vercel.app";
+    await navigator.clipboard?.writeText(`¡Únete a nuestro reto familiar 4×7 en ${familyName}! Regístrate aquí: ${link}`);
+    notify(`Enlace de invitación a ${familyName} copiado 📋`);
+  };
+
+  const logout = async () => {
+    await clientApi.logout().catch(() => undefined);
+    setSession(null);
+    setLogged(false);
+    setWeeklyWorkoutsCount(0);
+    setCompletedCheckInDates([]);
+    setFeedPosts(INITIAL_FAMILY_FEED);
+    setActive("Hoy");
+  };
+
   if (!session) {
     return (
       <AuthScreen
@@ -4286,38 +4318,6 @@ export default function Home() {
     : active === "Mis Récords"
     ? renderRecords()
     : renderProgress();
-
-  const userName = session?.user?.name || "Usuario";
-  const familyName = session?.family?.name || "López y Amigos";
-
-  const currentTitle = inAdminView
-    ? "Panel de Control Administrador"
-    : active === "Hoy"
-    ? `Buenas tardes, ${userName.split(" ")[0]}`
-    : titleCopy[active][1];
-
-  const initials = userName
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-
-  const copyInvite = async () => {
-    const link = typeof window !== "undefined" ? window.location.origin : "https://4x7.vercel.app";
-    await navigator.clipboard?.writeText(`¡Únete a nuestro reto familiar 4×7 en ${familyName}! Regístrate aquí: ${link}`);
-    notify(`Enlace de invitación a ${familyName} copiado 📋`);
-  };
-
-  const logout = async () => {
-    await clientApi.logout().catch(() => undefined);
-    setSession(null);
-    setLogged(false);
-    setWeeklyWorkoutsCount(0);
-    setCompletedCheckInDates([]);
-    setFeedPosts(INITIAL_FAMILY_FEED);
-    setActive("Hoy");
-  };
 
   return (
     <main className="app-shell">
