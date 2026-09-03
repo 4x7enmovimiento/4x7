@@ -2317,34 +2317,69 @@ export default function Home() {
                         <span className="relation-tag">({member.relation})</span>
                       )}
                     </div>
-                    <span className="activity-line-sub">
-                      {member.activity ? (
-                        <>
-                          <b style={{ color: "var(--ink)", fontWeight: 700 }}>{member.activity}</b> · <small>{member.lastCheckIn}</small>
-                        </>
-                      ) : (
-                        <small style={{ color: "#71897d" }}>
-                          {member.workouts > 0 ? member.lastCheckIn : "Sin deporte registrado aún"}
-                        </small>
-                      )}
-                      {isCurrentUser && (
+                    {member.activity ? (
+                      <span className="activity-line-sub">
+                        <b style={{ color: "var(--ink)", fontWeight: 700 }}>{member.activity}</b>
+                        {member.lastCheckIn ? <> · <small>{member.lastCheckIn}</small></> : null}
+                        {isCurrentUser && (
+                          <button
+                            type="button"
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              cursor: "pointer",
+                              padding: "0 4px",
+                              fontSize: "12px",
+                              opacity: 0.8,
+                            }}
+                            onClick={() => setEditingActivityMember({ name: member.nickname || member.name, currentActivity: member.activity || "" })}
+                            title="Cambiar deporte/disciplina"
+                          >
+                            ✏️
+                          </button>
+                        )}
+                      </span>
+                    ) : member.workouts > 0 && member.lastCheckIn ? (
+                      <span className="activity-line-sub">
+                        <small style={{ color: "#71897d" }}>{member.lastCheckIn}</small>
+                        {isCurrentUser && (
+                          <button
+                            type="button"
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              cursor: "pointer",
+                              padding: "0 4px",
+                              fontSize: "12px",
+                              opacity: 0.8,
+                            }}
+                            onClick={() => setEditingActivityMember({ name: member.nickname || member.name, currentActivity: member.activity || "" })}
+                            title="Cambiar deporte/disciplina"
+                          >
+                            ✏️
+                          </button>
+                        )}
+                      </span>
+                    ) : isCurrentUser ? (
+                      <span className="activity-line-sub">
                         <button
                           type="button"
                           style={{
                             background: "transparent",
                             border: "none",
                             cursor: "pointer",
-                            padding: "0 4px",
+                            padding: "0",
                             fontSize: "12px",
-                            opacity: 0.8,
+                            color: "var(--green)",
+                            fontWeight: 700,
                           }}
                           onClick={() => setEditingActivityMember({ name: member.nickname || member.name, currentActivity: member.activity || "" })}
-                          title="Cambiar o elegir deporte/disciplina"
+                          title="Elegir deporte/disciplina"
                         >
-                          ✏️
+                          ＋ Elegir deporte
                         </button>
-                      )}
-                    </span>
+                      </span>
+                    ) : null}
                   </div>
                 </div>
 
@@ -2609,7 +2644,6 @@ export default function Home() {
             <span className={`avatar small ${member.color}`}>{member.initials}</span>
             <span className="member">
               <b>{member.name}</b>
-              <small>{member.trend} pts</small>
             </span>
             <strong>{member.points}</strong>
           </li>
