@@ -29,9 +29,6 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const current = await requireMobileUser(request);
-    if (!current) return json({ error: "Sesión no válida." }, 401);
-
     const payload = await request.json() as Record<string, unknown>;
     const pin = cleanText(payload.pin, 10);
     const action = cleanText(payload.action, 50);
@@ -41,6 +38,7 @@ export async function POST(request: Request) {
       return json({ error: "PIN de administrador incorrecto." }, 403);
     }
 
+    const current = await requireMobileUser(request).catch(() => null);
     const supabase = getSupabase();
 
     // 1. List all users with complete profile & measurement data

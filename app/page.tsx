@@ -720,8 +720,14 @@ export default function Home() {
         if (nextPin === "123456") {
           setShowPinModal(false);
           setInAdminView(true);
+          setAdminTab("users");
+          setAdminLoading(true);
           notify("👑 Modo Administrador desbloqueado");
           window.scrollTo({ top: 0, behavior: "smooth" });
+          clientApi.adminListUsers("123456").then((res) => {
+            if (res.users?.length) setAdminUsers(res.users);
+            if (res.prize) setMonthlyPrize({ minWeeklyCheckIns: 4, ...res.prize });
+          }).catch(() => {}).finally(() => setAdminLoading(false));
         } else {
           setPinError("PIN incorrecto. Intenta con 123456");
         }
@@ -738,11 +744,12 @@ export default function Home() {
     setPinError("");
     setShowPinModal(false);
     setInAdminView(true);
+    setAdminTab("users");
     setAdminLoading(true);
     notify("👑 Modo Administrador desbloqueado");
     window.scrollTo({ top: 0, behavior: "smooth" });
     try {
-      const res = await clientApi.adminListUsers(adminPinInput);
+      const res = await clientApi.adminListUsers("123456");
       if (res.users?.length) setAdminUsers(res.users);
       if (res.prize) setMonthlyPrize({ minWeeklyCheckIns: 4, ...res.prize });
     } catch {
@@ -4365,6 +4372,38 @@ export default function Home() {
             <h1>{currentTitle}</h1>
           </div>
           <div className="top-actions-cluster">
+            {/* 0. Direct Admin Button */}
+            <button
+              type="button"
+              className="top-pill-btn admin-direct-btn"
+              style={{
+                background: inAdminView ? "#f59e0b" : "#fef3c7",
+                color: inAdminView ? "#ffffff" : "#92400e",
+                border: "1.5px solid #fde68a",
+                fontWeight: "800",
+                fontSize: "12px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "6px 12px",
+                borderRadius: "999px",
+                cursor: "pointer",
+              }}
+              onClick={() => {
+                if (inAdminView) {
+                  setInAdminView(false);
+                } else {
+                  setAdminPinInput("");
+                  setPinError("");
+                  setShowPinModal(true);
+                }
+              }}
+              title="Panel de Administrador"
+            >
+              <span>👑</span>
+              <span>{inAdminView ? "Salir Admin" : "Admin"}</span>
+            </button>
+
             {/* 1. Reglas & Sistema de Puntos */}
             <button
               type="button"
