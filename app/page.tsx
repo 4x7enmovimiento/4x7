@@ -1180,9 +1180,31 @@ export default function Home() {
     let options: string[] = [];
 
     if (mode === "animos") {
-      if (member.workouts >= 4) {
+      if (member.workouts >= 7) {
         options = [
-          `👑🏆 ¡MÁQUINA TOTAL @${nick}! Cumplió sus 4 de 4 y está en la cima. ¡Puro ejemplo e inspiración familiar! 🎉🔥`,
+          `🦸‍♂️👑 ¡MODO DIOS / 7 DE 7 PERFECTO @${nick}! Semana impecable sin fallar un solo día. ¡Superhéroe legendario del 4×7! 🔥🏆🎉`,
+          `🔥⚡ ¡FUEGO TOTAL @${nick}! 7/7 días entrenados, estás echando lumbre. ¡Corona dorada y respeto de toda la familia! 🥇🙌`,
+          `💎🌟 ¡INVICTO E INSUPERABLE @${nick}! 7 de 7 completados. ¡Ni los Vengadores tienen tanta disciplina y poder! 🦸‍♂️💥`,
+          `🚀🏆 ¡GLORIA ABSOLUTA @${nick}! 7 de 7 en el marcador. ¡Qué nivel de fiera, rompiste la escala del reto familiar! 👏🔥`,
+          `⚡👑 ¡EL REY DEL 4×7 @${nick}! 7 días de fuego puro. ¡Inspiración total para toda la dinastía! 🌟💪`,
+        ];
+      } else if (member.workouts === 6) {
+        options = [
+          `🦸‍♂️⚡ ¡TITÁN INDOMABLE @${nick}! 6 de 7 días entrenados. ¡Superhéroe en llamas a 24 horas de la perfección absoluta! 🚀🔥`,
+          `🔥💥 ¡ESTÁS EN LLAMAS @${nick}! 6/7 completados. ¡Nivel Saiyajin con fuego en el reto familiar, qué bárbaro! 🥋💪`,
+          `💎🙌 ¡Casi la semana perfecta @${nick}! 6 días al pie del cañón con fuego en las venas. ¡Auténtica leyenda 4×7! 👑✨`,
+          `⚡🚀 ¡Poder desatado @${nick}! 6 check-ins. ¡A un solo entrenamiento de conquistar la semana entera invicto! 🔥👊`,
+        ];
+      } else if (member.workouts === 5) {
+        options = [
+          `🦸‍♂️🔥 ¡NIVEL SUPERHÉROE @${nick}! 5 de 7 entrenamientos. ¡Superaste la meta de 4 y vas encendido en fuego puro! ⚡💥`,
+          `🔥🚀 ¡MODO BESTIA ACTIVADO @${nick}! 5 días sudando la camiseta. ¿Quién frena a esta máquina de fuego? 🏋️‍♂️✨`,
+          `⚡💎 ¡5/7 para @${nick}! Ya no es disciplina, ¡es superpoder puro! Inspirando con fuego a toda la familia 🦸‍♀️🔥`,
+          `💥👑 ¡Con el fuego adentro @${nick}! 5 entrenamientos completados. ¡Dejando la vara en las nubes! 🌟💪`,
+        ];
+      } else if (member.workouts === 4) {
+        options = [
+          `👑🏆 ¡META CUMPLIDA @${nick}! Cumplió sus 4 de 4 y está en la cima. ¡Puro ejemplo e inspiración familiar! 🎉🔥`,
           `🌟✨ ¡Qué orgullo @${nick}! 4 check-ins con disciplina de campeón. ¡Boleto en mano y racha blindada! 🎟️💪`,
           `🚀🥇 ¡Imparable @${nick}! Meta semanal cumplida al 100%. ¡A seguir disfrutando del movimiento y la salud! 👏⚡`,
           `💎🙌 ¡Pura constancia @${nick}! Inspirando a todo el equipo 4×7 con tus 4 entrenamientos. ¡A celebrar! 🏆✨`,
@@ -1224,7 +1246,26 @@ export default function Home() {
       }
     } else {
       // Carrilla
-      if (member.workouts >= 4) {
+      if (member.workouts >= 7) {
+        options = [
+          `🦸‍♂️🔥 ¡7 DE 7! @${nick} se cree Superman o Goku en llamas. ¡Semana perfecta y nos mandó a todos por los tacos! 😂🌮👑`,
+          `🔥🚀 ¡7/7 INVICTO @${nick}! Ya apáguenlo que viene echando lumbre, ¡abúsivo total jugando en otra liga! 🤣🥇👏`,
+          `👑🍕 ¡Hagan reverencia ante @${nick}! 7 días seguidos entrenando. ¡El domingo comes gratis y con derecho a burlarte de todos! 😂🎉🔥`,
+          `⚡🏆 @${nick} en 7/7 modo superhéroe... ¡Déjanos algo de aire al resto de los mortales que nos dejas en ridículo! 🤣👊🔥`,
+        ];
+      } else if (member.workouts === 6) {
+        options = [
+          `⚡🔥 ¡Alguien apague a @${nick} que viene echando fuego! 6 de 7 entrenamientos. ¡Puro show de superhéroe presumido! 😂🦸‍♂️💥`,
+          `👀🚨 ¡Paren a esa máquina! @${nick} lleva 6/7 y nos está humillando a todos sin piedad en el grupo 🤣👊🔥`,
+          `💎🚀 @${nick} a un día de la semana perfecta (6/7). ¡Pásale la receta a los que siguen en ceros por favor! 😂👏`,
+        ];
+      } else if (member.workouts === 5) {
+        options = [
+          `🦸‍♂️🔥 @${nick} ya en 5/7 presumiendo que es superhéroe... ¡Bájale dos rayitas que nos haces ver mal a todos! 😂👏💪`,
+          `🔥👀 @${nick} en modo bestia echando lumbre con 5 días. ¡Ya ni la muela, pura envidia de la buena! 🤣🏋️‍♂️`,
+          `🌮👑 5 de 7 para @${nick}... ¡Intocable! El domingo te sientas como rey a ver quién paga la taquiza 😂🌮🔥`,
+        ];
+      } else if (member.workouts === 4) {
         options = [
           `👑🏆 ¡INTOCABLE! @${nick} metió sus 4 de 4 y se salvó de pagar tacos. ¡A disfrutar viendo sufrir al resto! 😂🎉🔥`,
           `💎🚀 @${nick} imparable con 4/4 días listos. ¡Boleto en mano y cero tacos de castigo! 😎💪`,
@@ -2481,7 +2522,17 @@ export default function Home() {
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
                         </svg>
-                        <span>{member.workouts >= 4 ? "Felicitar 🎉" : "Ánimos ⚡"}</span>
+                        <span>
+                          {member.workouts >= 7
+                            ? "¡7/7 Fuego! 🔥"
+                            : member.workouts === 6
+                            ? "Leyenda ⚡"
+                            : member.workouts === 5
+                            ? "Superhéroe 🦸‍♂️"
+                            : member.workouts === 4
+                            ? "Felicitar 🎉"
+                            : "Ánimos ⚡"}
+                        </span>
                       </button>
 
                       <button
@@ -2502,13 +2553,23 @@ export default function Home() {
                 <div className="member-progress-container">
                   <div className="progress-top-header">
                     <span className="progress-meta-label">
-                      {member.workouts >= 4 ? "🌟 Meta 4×7 Cumplida" : "Objetivo semanal (4 a 7 días)"}
+                      {member.workouts >= 7
+                        ? "🔥 7 de 7 · Modo Dios Cumplido"
+                        : member.workouts >= 5
+                        ? "🦸‍♂️ Fuego Extra 4×7"
+                        : member.workouts >= 4
+                        ? "🌟 Meta 4×7 Cumplida"
+                        : "Objetivo semanal (4 a 7 días)"}
                     </span>
                     <div className="status-label-badge">
                       {member.workouts >= 7 ? (
-                        <span className="badge-bonus">🔥 7/7 ¡IMPARABLE!</span>
-                      ) : member.workouts >= 4 ? (
-                        <span className="badge-done">🏆 {member.workouts}/4 ¡META!</span>
+                        <span className="badge-bonus">🔥 7/7 ¡MODO DIOS!</span>
+                      ) : member.workouts === 6 ? (
+                        <span className="badge-bonus" style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#fff" }}>⚡ 6/7 ¡LEYENDA!</span>
+                      ) : member.workouts === 5 ? (
+                        <span className="badge-bonus" style={{ background: "linear-gradient(135deg, #ec4899, #be185d)", color: "#fff" }}>🦸‍♂️ 5/7 ¡SUPERHÉROE!</span>
+                      ) : member.workouts === 4 ? (
+                        <span className="badge-done">🏆 4/4 ¡META!</span>
                       ) : member.workouts === 3 ? (
                         <span className="badge-near">⚡ 3/4 (A 1 día)</span>
                       ) : member.workouts === 2 ? (
