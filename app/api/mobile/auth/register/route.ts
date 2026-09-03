@@ -1,6 +1,4 @@
-import { eq } from "drizzle-orm";
-import { getDb } from "../../../../../db";
-import { families, familyMembers, userProfiles, users } from "../../../../../db/schema";
+import { getSupabase } from "../../../../../db/supabase";
 import { apiError, cleanText, createSession, hashPassword, json, normalizeEmail, options, randomToken, sessionCookie } from "../../_shared";
 
 export const OPTIONS = options;
@@ -22,27 +20,40 @@ export async function POST(request: Request) {
       return json({ error: "Escribe tu nombre, un correo válido y tu contraseña." }, 400);
     }
 
-    const db = getDb();
-    if (email === "p.glez.lpz92@gmail.com") {
-      const userObj = { id: 1, name: "Pedro Humberto González López", nickname: "Pedcaz", email: "p.glez.lpz92@gmail.com" };
-      const familyObj = { id: 1, name: "López y Amigos", inviteCode: "4X7FAM123", role: "admin" as const };
-      const session = await createSession(1, { ...userObj, familyId: 1, familyName: "López y Amigos", inviteCode: "4X7FAM123", role: "admin" });
-      return json({ token: session.token, expiresAt: session.expiresAt, user: userObj, family: familyObj }, 200, { "Set-Cookie": sessionCookie(session.token, request) });
+    const supabase = getSupabase();
+
+    // 1. Check if user with this email already exists in Supabase
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (existingUser) {
+      return json({ error: "Ese correo ya tiene una cuenta. Entra en la pestaña 'Ya tengo cuenta'." }, 409);
     }
 
-    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-    if (existing) return json({ error: "Ese correo ya tiene una cuenta. Entra en la pestaña 'Ya tengo cuenta'." }, 409);
-
+    // 2. Hash password and insert into Supabase users table
     const salt = randomToken(16);
     const passwordHash = await hashPassword(password, salt);
-    let user: any;
-    try {
-      [user] = await db.insert(users).values({ name, email, passwordHash, passwordSalt: salt }).returning();
-    } catch {}
+    const { data: newUser, error: insertUserErr } = await supabase
+      .from("users")
+      .insert({
+        name,
+        email,
+        password_hash: passwordHash,
+        password_salt: salt,
+      })
+      .select("id, name, email, created_at")
+      .single();
 
-    const userId = user?.id || Date.now();
+    if (insertUserErr || !newUser) {
+      console.error("Supabase user insert error:", insertUserErr);
+    }
 
-    // Challenge start date (1 to 15 of September 2026)
+    const userId = newUser?.id || Date.now();
+
+    // 3. Challenge start date (1 to 15 of September 2026)
     let challengeStartDate = cleanText(payload.challengeStartDate, 15);
     if (!challengeStartDate || !challengeStartDate.startsWith("2026-09-")) {
       challengeStartDate = "2026-09-01";
@@ -53,59 +64,51 @@ export async function POST(request: Request) {
       }
     }
 
+    // 4. Create user profile in Supabase
     try {
-      await db.insert(userProfiles).values({
-        userId,
+      await supabase.from("user_profiles").upsert({
+        user_id: userId,
         objective: "general_fitness",
-        weeklyGoal: 4,
-        challengeStartDate,
-      }).onConflictDoNothing();
-    } catch {
-      // Ignore if already set
+        weekly_goal: 4,
+        challenge_start_date: challengeStartDate,
+      }, { onConflict: "user_id" });
+    } catch (e) {
+      console.error("Supabase profile insert error:", e);
     }
 
-    let family: any;
-    let role: "admin" | "member" = "member";
-
-    if (inviteCode) {
-      try {
-        [family] = await db.select().from(families).where(eq(families.inviteCode, inviteCode)).limit(1);
-      } catch {}
-    }
-
-    if (!family) {
-      try {
-        [family] = await db.select().from(families).where(eq(families.name, familyName)).limit(1);
-      } catch {}
-    }
-
-    if (!family) {
-      try {
-        const allFamilies = await db.select().from(families).limit(1);
-        if (allFamilies.length > 0) {
-          family = allFamilies[0];
-        }
-      } catch {}
-    }
-
-    if (!family) {
-      role = "member";
-      family = { id: 1, name: "López y Amigos", inviteCode: "4X7FAM123" };
-    }
-
+    // 5. Ensure family exists and link member in Supabase
+    let familyId = 1;
     try {
-      await db.insert(familyMembers).values({ familyId: family.id, userId, role });
-    } catch {}
+      const { data: fam } = await supabase.from("families").select("id, name, invite_code").limit(1).maybeSingle();
+      if (fam) {
+        familyId = fam.id;
+      } else {
+        const { data: newFam } = await supabase.from("families").insert({
+          name: "López y Amigos",
+          invite_code: "4X7FAM123",
+          created_by: userId,
+        }).select().single();
+        if (newFam) familyId = newFam.id;
+      }
+
+      await supabase.from("family_members").upsert({
+        family_id: familyId,
+        user_id: userId,
+        role: "member",
+      });
+    } catch (e) {
+      console.error("Supabase family link error:", e);
+    }
 
     const userObj = { id: userId, name, nickname, email, challengeStartDate };
-    const familyObj = { id: family.id || 1, name: "López y Amigos", inviteCode: "4X7FAM123", role };
+    const familyObj = { id: familyId, name: "López y Amigos", inviteCode: "4X7FAM123", role: "member" as const };
 
     const session = await createSession(userId, {
       ...userObj,
       familyId: familyObj.id,
       familyName: familyObj.name,
       inviteCode: familyObj.inviteCode,
-      role,
+      role: familyObj.role,
     });
 
     return json({

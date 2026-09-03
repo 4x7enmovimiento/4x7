@@ -1,6 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
-import { getDb } from "../../../../db";
-import { postComments, postLikes, posts, users, workouts } from "../../../../db/schema";
+import { getSupabase } from "../../../../db/supabase";
 import {
   apiError,
   cleanText,
@@ -45,39 +43,64 @@ export async function GET(request: Request) {
         }
       } catch {}
     }
+    const supabase = getSupabase();
     let dbPosts: any[] = [];
     try {
-      const rows = await getDb()
-        .select({
-          id: posts.id,
-          userId: posts.userId,
-          userName: users.name,
-          caption: posts.caption,
-          evidenceKey: posts.evidenceKey,
-          createdAt: posts.createdAt,
-          activityType: workouts.activityType,
-          durationSeconds: workouts.durationSeconds,
-          distanceMeters: workouts.distanceMeters,
-          steps: workouts.steps,
-          calories: workouts.calories,
-          likes: sql<number>`(select count(*) from ${postLikes} where ${postLikes.postId} = ${posts.id})`,
-          comments: sql<number>`(select count(*) from ${postComments} where ${postComments.postId} = ${posts.id})`,
-          likedByMe: sql<number>`(select count(*) from ${postLikes} where ${postLikes.postId} = ${posts.id} and ${postLikes.userId} = ${current.userId})`,
-        })
-        .from(posts)
-        .innerJoin(users, eq(posts.userId, users.id))
-        .leftJoin(workouts, eq(posts.workoutId, workouts.id))
-        .where(eq(posts.familyId, current.familyId))
-        .orderBy(desc(posts.createdAt))
+      const { data: postsData } = await supabase
+        .from("posts")
+        .select(`
+          id,
+          user_id,
+          caption,
+          evidence_key,
+          created_at,
+          users (name),
+          workouts (activity_type, duration_seconds, distance_meters, steps, calories)
+        `)
+        .eq("family_id", current.familyId)
+        .order("created_at", { ascending: false })
         .limit(50);
 
-      dbPosts = rows.map((row) => ({
-        ...row,
-        likedByMe: Boolean(row.likedByMe),
-        evidenceUrl: row.evidenceKey ? `/api/mobile/evidence/${row.evidenceKey}` : null,
-      }));
+      if (postsData && postsData.length > 0) {
+        const postIds = postsData.map((p: any) => p.id);
+        const { data: likesData } = await supabase.from("post_likes").select("post_id, user_id").in("post_id", postIds);
+        const { data: commentsData } = await supabase.from("post_comments").select("post_id").in("post_id", postIds);
+
+        const likesByPost = new Map<number, number[]>();
+        (likesData || []).forEach((l: any) => {
+          const list = likesByPost.get(l.post_id) || [];
+          list.push(l.user_id);
+          likesByPost.set(l.post_id, list);
+        });
+
+        const commentsCountByPost = new Map<number, number>();
+        (commentsData || []).forEach((c: any) => {
+          commentsCountByPost.set(c.post_id, (commentsCountByPost.get(c.post_id) || 0) + 1);
+        });
+
+        dbPosts = postsData.map((row: any) => {
+          const userLikes = likesByPost.get(row.id) || [];
+          return {
+            id: row.id,
+            userId: row.user_id,
+            userName: row.users?.name || "Familiar",
+            caption: row.caption,
+            evidenceKey: row.evidence_key,
+            evidenceUrl: row.evidence_key ? `/api/mobile/evidence/${row.evidence_key}` : null,
+            createdAt: row.created_at,
+            activityType: row.workouts?.activity_type || null,
+            durationSeconds: row.workouts?.duration_seconds || null,
+            distanceMeters: row.workouts?.distance_meters || null,
+            steps: row.workouts?.steps || null,
+            calories: row.workouts?.calories || null,
+            likes: userLikes.length,
+            comments: commentsCountByPost.get(row.id) || 0,
+            likedByMe: userLikes.includes(current.userId),
+          };
+        });
+      }
     } catch (dbErr) {
-      console.warn("DB feed query non-blocking fallback:", dbErr);
+      console.warn("Supabase feed query fallback:", dbErr);
     }
 
     let postsList: any[] = dbPosts;
@@ -94,6 +117,30 @@ export async function GET(request: Request) {
     for (const [key, val] of familyProfilesCache.entries()) {
       familyProfilesObj[key] = val;
     }
+
+    // Include all registered users from Supabase
+    try {
+      const { data: allUsers } = await supabase.from("users").select("id, name, email");
+      const { data: allProfiles } = await supabase.from("user_profiles").select("*");
+      const profileByUser = new Map((allProfiles || []).map((p: any) => [p.user_id, p]));
+
+      (allUsers || []).forEach((u: any) => {
+        const prof = profileByUser.get(u.id);
+        const nameParts = (u.name || "").split(" ");
+        const summary = {
+          name: nameParts[0] || u.name,
+          fullName: u.name,
+          nickname: nameParts[0] || u.name,
+          preferredActivity: "",
+          objective: prof?.objective || "general_fitness",
+          challengeStartDate: prof?.challenge_start_date || "2026-09-01",
+          updatedAt: prof?.updated_at || new Date().toISOString(),
+        };
+        familyProfilesObj[u.name.toLowerCase()] = summary;
+        familyProfilesObj[summary.nickname.toLowerCase()] = summary;
+        if (u.email) familyProfilesObj[u.email.toLowerCase()] = summary;
+      });
+    } catch {}
 
     const familyStatsObj: Record<string, any> = {};
     for (const [key, val] of sharedMemberStatsCache.entries()) {

@@ -1,6 +1,4 @@
-import { asc, desc, eq } from "drizzle-orm";
-import { getDb, safeMigrate } from "../../../../db";
-import { bodyMeasurements, userProfiles } from "../../../../db/schema";
+import { getSupabase } from "../../../../db/supabase";
 import { apiError, cleanText, familyProfilesCache, json, options, requireMobileUser } from "../_shared";
 
 export const OPTIONS = options;
@@ -151,27 +149,62 @@ export async function GET(request: Request) {
       return json(cached);
     }
 
-    // 2. Try DB lookup
+    // 2. Try Supabase lookup
     try {
-      await safeMigrate();
-      const [profile] = await getDb().select().from(userProfiles).where(eq(userProfiles.userId, current.userId)).limit(1);
-      const measurements = await getDb().select().from(bodyMeasurements).where(eq(bodyMeasurements.userId, current.userId)).orderBy(asc(bodyMeasurements.recordedAt));
-      const latestMeasurement = measurements[measurements.length - 1];
+      const supabase = getSupabase();
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("user_id", current.userId)
+        .maybeSingle();
 
-      if (profile && latestMeasurement?.weightKg && profile.heightCm) {
+      const { data: measurements } = await supabase
+        .from("body_measurements")
+        .select("*")
+        .eq("user_id", current.userId)
+        .order("recorded_at", { ascending: true });
+
+      const allMeasurements = measurements || [];
+      const latestMeasurement = allMeasurements[allMeasurements.length - 1];
+
+      if (profile && latestMeasurement?.weight_kg && profile.height_cm) {
+        const formattedProfile = {
+          objective: profile.objective,
+          birthDate: profile.birth_date,
+          sex: profile.sex,
+          heightCm: profile.height_cm,
+          targetWeightKg: profile.target_weight_kg,
+          weeklyGoal: profile.weekly_goal,
+          challengeStartDate: profile.challenge_start_date,
+          measurement: {
+            weightKg: latestMeasurement.weight_kg,
+            waistCm: latestMeasurement.waist_cm,
+            chestCm: latestMeasurement.chest_cm,
+            hipCm: latestMeasurement.hip_cm,
+            armCm: latestMeasurement.arm_cm,
+            thighCm: latestMeasurement.thigh_cm,
+            calfCm: latestMeasurement.calf_cm,
+            neckCm: latestMeasurement.neck_cm,
+            bodyFatPercent: latestMeasurement.body_fat_percent,
+            recordedAt: latestMeasurement.recorded_at,
+          },
+        };
+
         const responseData = {
-          profile: { ...profile, measurement: latestMeasurement },
-          measurements,
-          projection: projection(latestMeasurement.weightKg, profile.heightCm, profile.targetWeightKg, profile.objective as Objective),
+          profile: formattedProfile,
+          measurements: allMeasurements.map((m: any) => ({
+            weightKg: m.weight_kg,
+            waistCm: m.waist_cm,
+            recordedAt: m.recorded_at,
+          })),
+          projection: projection(latestMeasurement.weight_kg, profile.height_cm, profile.target_weight_kg, profile.objective as Objective),
         };
         profileCache.set(current.userId, responseData);
         return json(responseData);
       }
     } catch (dbErr) {
-      console.warn("DB profile lookup warning:", dbErr);
+      console.warn("Supabase profile lookup warning:", dbErr);
     }
-
-
 
     return json({ profile: null, measurements: [], projection: null });
   } catch (error) { return apiError(error); }
@@ -181,7 +214,6 @@ export async function POST(request: Request) {
   try {
     const current = await requireMobileUser(request);
     if (!current) return json({ error: "Sesión no válida." }, 401);
-    await safeMigrate();
     const payload = await request.json() as Record<string, unknown>;
 
     // Case 1: Just logging a new periodic measurement (e.g. from the Progress screen)
@@ -190,22 +222,21 @@ export async function POST(request: Request) {
       const waistCm = numberInRange(payload.waistCm, 25, 250);
       if (Number.isNaN(weightKg)) return json({ error: "Ingresa un peso válido en kilogramos." }, 400);
 
-      const db = getDb();
-      const [measurement] = await db.insert(bodyMeasurements).values({
-        userId: current.userId,
-        weightKg,
-        waistCm: Number.isNaN(waistCm) ? null : waistCm,
-        source: "manual",
-        recordedAt: new Date().toISOString(),
-      }).returning();
+      const supabase = getSupabase();
+      const { data: measurement } = await supabase.from("body_measurements").insert({
+        user_id: current.userId,
+        weight_kg: weightKg,
+        waist_cm: Number.isNaN(waistCm) ? null : waistCm,
+        recorded_at: new Date().toISOString(),
+      }).select().single();
 
-      const [profile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, current.userId)).limit(1);
-      const measurements = await db.select().from(bodyMeasurements).where(eq(bodyMeasurements.userId, current.userId)).orderBy(asc(bodyMeasurements.recordedAt));
+      const { data: profile } = await supabase.from("user_profiles").select("*").eq("user_id", current.userId).maybeSingle();
+      const { data: measurements } = await supabase.from("body_measurements").select("*").eq("user_id", current.userId).order("recorded_at", { ascending: true });
 
       return json({
         profile: { ...profile, measurement },
-        measurements,
-        projection: profile?.heightCm ? projection(weightKg, profile.heightCm, profile.targetWeightKg, profile.objective as Objective) : null,
+        measurements: measurements || [],
+        projection: profile?.height_cm ? projection(weightKg, profile.height_cm, profile.target_weight_kg, profile.objective as Objective) : null,
       }, 201);
     }
 
@@ -298,42 +329,36 @@ export async function POST(request: Request) {
       familyProfilesCache.set(current.email.toLowerCase(), summary);
     }
 
-    // Safely persist to DB
+    // Persist to Supabase
     try {
-      const db = getDb();
-      await db.insert(userProfiles).values({
-        userId: current.userId,
+      const supabase = getSupabase();
+      await supabase.from("user_profiles").upsert({
+        user_id: current.userId,
         objective: allowedObjectives.includes(objective) ? objective : "general_fitness",
-        birthDate,
+        birth_date: birthDate,
         sex: allowedSex.includes(sex) ? sex : "other",
-        heightCm,
-        targetWeightKg,
-        weeklyGoal: 4,
-        ...(challengeStartDate ? { challengeStartDate } : {}),
-      })
-        .onConflictDoUpdate({
-          target: userProfiles.userId,
-          set: {
-            objective: allowedObjectives.includes(objective) ? objective : "general_fitness",
-            birthDate,
-            sex: allowedSex.includes(sex) ? sex : "other",
-            heightCm,
-            targetWeightKg,
-            weeklyGoal: 4,
-            ...(challengeStartDate ? { challengeStartDate } : {}),
-            updatedAt: new Date().toISOString(),
-          },
-        });
+        height_cm: heightCm,
+        target_weight_kg: targetWeightKg,
+        weekly_goal: 4,
+        challenge_start_date: challengeStartDate || "2026-09-01",
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
 
-      await db.insert(bodyMeasurements).values({
-        userId: current.userId,
-        weightKg,
-        ...optional,
-        source: "manual",
-        recordedAt: new Date().toISOString(),
+      await supabase.from("body_measurements").insert({
+        user_id: current.userId,
+        weight_kg: weightKg,
+        waist_cm: optional.waistCm,
+        chest_cm: optional.chestCm,
+        hip_cm: optional.hipCm,
+        arm_cm: optional.armCm,
+        thigh_cm: optional.thighCm,
+        calf_cm: optional.calfCm,
+        neck_cm: optional.neckCm,
+        body_fat_percent: optional.bodyFatPercent,
+        recorded_at: new Date().toISOString(),
       });
     } catch (dbErr) {
-      console.warn("Profile DB save non-blocking warning:", dbErr);
+      console.warn("Supabase profile save warning:", dbErr);
     }
 
     return json(responsePayload, 201);

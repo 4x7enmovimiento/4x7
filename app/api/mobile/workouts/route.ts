@@ -1,6 +1,4 @@
-import { desc, eq } from "drizzle-orm";
-import { getDb } from "../../../../db";
-import { pointsLedger, posts, users, workouts } from "../../../../db/schema";
+import { getSupabase } from "../../../../db/supabase";
 import { apiError, cleanText, json, options, requireMobileUser, SharedFeedPost, sharedMemberStatsCache, SharedMemberStats, sharedPostsCache } from "../_shared";
 
 export const OPTIONS = options;
@@ -9,29 +7,31 @@ export async function GET(request: Request) {
   try {
     const current = await requireMobileUser(request);
     if (!current) return json({ error: "Sesión no válida." }, 401);
-    const rows = await getDb()
-      .select({
-        id: workouts.id,
-        userId: workouts.userId,
-        userName: users.name,
-        activityType: workouts.activityType,
-        startedAt: workouts.startedAt,
-        endedAt: workouts.endedAt,
-        durationSeconds: workouts.durationSeconds,
-        distanceMeters: workouts.distanceMeters,
-        steps: workouts.steps,
-        calories: workouts.calories,
-        evidenceKey: workouts.evidenceKey,
-      })
-      .from(workouts)
-      .innerJoin(users, eq(workouts.userId, users.id))
-      .where(eq(workouts.familyId, current.familyId))
-      .orderBy(desc(workouts.startedAt))
+    
+    const supabase = getSupabase();
+    const { data: rows } = await supabase
+      .from("workouts")
+      .select("id, user_id, activity_type, started_at, ended_at, duration_seconds, distance_meters, steps, calories, evidence_key, users(name)")
+      .eq("family_id", current.familyId)
+      .order("started_at", { ascending: false })
       .limit(50);
-    return json({ workouts: rows.map((row) => ({
-      ...row,
-      evidenceUrl: row.evidenceKey ? `/api/mobile/evidence/${row.evidenceKey}` : null,
-    })) });
+
+    const formatted = (rows || []).map((row: any) => ({
+      id: row.id,
+      userId: row.user_id,
+      userName: row.users?.name || "Familiar",
+      activityType: row.activity_type,
+      startedAt: row.started_at,
+      endedAt: row.ended_at,
+      durationSeconds: row.duration_seconds,
+      distanceMeters: row.distance_meters,
+      steps: row.steps,
+      calories: row.calories,
+      evidenceKey: row.evidence_key,
+      evidenceUrl: row.evidence_key ? `/api/mobile/evidence/${row.evidence_key}` : null,
+    }));
+
+    return json({ workouts: formatted });
   } catch (error) {
     return apiError(error);
   }
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       evidenceKey,
     };
 
-    const nick = current.name.includes("Pedro") ? "Pedcaz" : current.name.includes("Judith") ? "JuuGlez" : current.name.split(" ")[0];
+    const nick = (current as any).nickname || (current.name.includes("Pedro") ? "Pedcaz" : current.name.includes("Judith") ? "JuuGlez" : current.name.split(" ")[0]);
 
     const feedPost: SharedFeedPost = {
       id: workoutId,
@@ -122,35 +122,41 @@ export async function POST(request: Request) {
     sharedMemberStatsCache.set(current.name.toLowerCase(), updatedStats);
     sharedMemberStatsCache.set(current.email.toLowerCase(), updatedStats);
 
+    // Persist to Supabase
     try {
-      await getDb().insert(workouts).values({
-        userId: current.userId,
-        familyId: current.familyId,
-        activityType,
-        startedAt,
-        endedAt,
-        durationSeconds,
-        distanceMeters,
+      const supabase = getSupabase();
+      const { data: insertedWorkout } = await supabase.from("workouts").insert({
+        user_id: current.userId,
+        family_id: current.familyId,
+        activity_type: activityType,
+        started_at: startedAt,
+        ended_at: endedAt,
+        duration_seconds: durationSeconds,
+        distance_meters: distanceMeters,
         steps,
         calories,
-        evidenceKey,
-      });
-      await getDb().insert(posts).values({
-        familyId: current.familyId,
-        userId: current.userId,
-        workoutId: workout.id,
+        evidence_key: evidenceKey,
+      }).select().single();
+
+      const workoutRecordId = insertedWorkout?.id || workoutId;
+
+      await supabase.from("posts").insert({
+        family_id: current.familyId,
+        user_id: current.userId,
+        workout_id: workoutRecordId,
         caption,
-        evidenceKey,
+        evidence_key: evidenceKey,
       });
-      await getDb().insert(pointsLedger).values({
-        familyId: current.familyId,
-        userId: current.userId,
+
+      await supabase.from("points_ledger").insert({
+        family_id: current.familyId,
+        user_id: current.userId,
         points: 100,
         reason: "Entrenamiento completado",
-        sourceType: "workout",
-        sourceId: workout.id,
       });
-    } catch {}
+    } catch (err) {
+      console.warn("Supabase workout save warning:", err);
+    }
 
     return json({ workout }, 201);
   } catch (error) {
