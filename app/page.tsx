@@ -250,6 +250,7 @@ export default function Home() {
     return null;
   });
   const [sessionLoading, setSessionLoading] = useState(false);
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
   const [fitness, setFitness] = useState<ProfileResponse | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>(INITIAL_FAMILY_FEED);
@@ -1491,6 +1492,7 @@ export default function Home() {
         setFitness(null);
       })
       .finally(() => {
+        setInitialCheckDone(true);
         setSessionLoading(false);
         setProfileLoading(false);
       });
@@ -4184,7 +4186,7 @@ export default function Home() {
     );
   };
 
-  if (!mounted || sessionLoading || (session && !fitness?.profile && profileLoading)) {
+  if (!mounted || !initialCheckDone || sessionLoading || (session && !fitness?.profile && profileLoading)) {
     return (
       <main className="app-loading">
         <div className="loading-card">
@@ -4192,7 +4194,7 @@ export default function Home() {
             <span>4×7</span>
             <span>⚡</span>
           </div>
-          <p className="loading-subtitle">Sincronizando datos de tu equipo…</p>
+          <p className="loading-subtitle">Cargando datos de tu equipo…</p>
           <div className="loading-dots-bar">
             <span />
             <span />
