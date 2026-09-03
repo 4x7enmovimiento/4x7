@@ -3964,14 +3964,21 @@ export default function Home() {
     );
   };
 
-  if (!mounted || sessionLoading || (session && profileLoading)) {
+  if (!mounted || sessionLoading || (session && !fitness?.profile && profileLoading)) {
     return (
       <main className="app-loading">
-        <div className="auth-brand">
-          <span>4×7</span>
-          <i />
+        <div className="loading-card">
+          <div className="loading-brand-pill">
+            <span>4×7</span>
+            <span>⚡</span>
+          </div>
+          <p className="loading-subtitle">Sincronizando datos de tu equipo…</p>
+          <div className="loading-dots-bar">
+            <span />
+            <span />
+            <span />
+          </div>
         </div>
-        <p>Preparando el espacio de tu familia…</p>
       </main>
     );
   }
