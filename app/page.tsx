@@ -1513,8 +1513,9 @@ export default function Home() {
       reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
-          const MAX_WIDTH = 1400;
-          const MAX_HEIGHT = 1400;
+          // 1080px is optimal resolution for mobile retina screens while keeping byte size minimal
+          const MAX_WIDTH = 1080;
+          const MAX_HEIGHT = 1080;
           let width = img.width;
           let height = img.height;
 
@@ -1539,20 +1540,37 @@ export default function Home() {
             return;
           }
           ctx.drawImage(img, 0, 0, width, height);
+
+          // Try WebP first for extreme bandwidth efficiency, fallback to JPEG
           canvas.toBlob(
             (blob) => {
-              if (blob) {
-                const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
-                  type: "image/jpeg",
+              if (blob && blob.size > 0 && blob.size < file.size) {
+                const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".webp"), {
+                  type: "image/webp",
                   lastModified: Date.now(),
                 });
                 resolve(compressedFile);
               } else {
-                resolve(file);
+                // Fallback to high-efficiency JPEG
+                canvas.toBlob(
+                  (jpegBlob) => {
+                    if (jpegBlob) {
+                      const compressedFile = new File([jpegBlob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+                        type: "image/jpeg",
+                        lastModified: Date.now(),
+                      });
+                      resolve(compressedFile);
+                    } else {
+                      resolve(file);
+                    }
+                  },
+                  "image/jpeg",
+                  0.76
+                );
               }
             },
-            "image/jpeg",
-            0.85
+            "image/webp",
+            0.76
           );
         };
         img.onerror = () => resolve(file);
@@ -1566,12 +1584,15 @@ export default function Home() {
   const handlePhotoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const rawFile = event.target.files?.[0];
     if (rawFile) {
-      notify("Optimizando foto para el muro… 📸");
+      notify("Comprimiendo y optimizando foto… 📸");
       const file = await compressImageFile(rawFile);
       setEvidenceFile(file);
       const url = URL.createObjectURL(file);
       setEvidencePreview(url);
-      notify("Foto de evidencia cargada 📸");
+      const originalMb = (rawFile.size / (1024 * 1024)).toFixed(1);
+      const compressedKb = (file.size / 1024).toFixed(0);
+      const pct = Math.max(0, Math.round((1 - file.size / rawFile.size) * 100));
+      notify(`⚡ Foto optimizada: ${originalMb} MB ➔ ${compressedKb} KB (-${pct}% de datos)`);
     }
   };
 
