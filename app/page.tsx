@@ -1465,24 +1465,9 @@ export default function Home() {
           } catch {}
         }
       })
-      .catch(async () => {
-        const cachedProfile = getStoredProfile();
-        if (cachedProfile?.profile) {
-          setFitness(cachedProfile);
-        }
-        try {
-          const savedEmail = localStorage.getItem("four_seven_saved_email");
-          const savedPass = localStorage.getItem("four_seven_saved_password");
-          if (savedEmail && savedPass) {
-            const reLoggedIn = await clientApi.login(savedEmail, savedPass);
-            setSession(reLoggedIn);
-            return;
-          }
-        } catch {}
-
-        if (!localStorage.getItem("four_seven_active_session")) {
-          setSession(null);
-        }
+      .catch(() => {
+        setSession(null);
+        setFitness(null);
       })
       .finally(() => {
         setSessionLoading(false);
@@ -4064,6 +4049,7 @@ export default function Home() {
     return (
       <ProfileOnboarding
         name={session?.user?.name || "Usuario"}
+        onLogout={logout}
         onComplete={(result) => {
           try {
             const localKey = `four_seven_profile_${session?.user?.name || "Usuario"}`;

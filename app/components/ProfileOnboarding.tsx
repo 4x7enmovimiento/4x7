@@ -83,7 +83,15 @@ const START_DATE_OPTIONS = [
   { value: "2026-09-15", label: "15 de Septiembre (Martes · Fecha límite de arranque 🇲🇽)" },
 ];
 
-export function ProfileOnboarding({ name, onComplete }: { name: string; onComplete: (result: ProfileResponse) => void }) {
+export function ProfileOnboarding({
+  name,
+  onComplete,
+  onLogout,
+}: {
+  name: string;
+  onComplete: (result: ProfileResponse) => void;
+  onLogout?: () => void;
+}) {
   const [step, setStep] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -649,9 +657,29 @@ export function ProfileOnboarding({ name, onComplete }: { name: string; onComple
   return (
     <main className="onboarding-page">
       <section className="onboarding-shell">
-        <header className="onboarding-head">
+        <header className="onboarding-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", width: "100%" }}>
           <div className="auth-brand"><span>4×7</span><i /></div>
           <div><span>PASO {step} DE 4</span><div><i style={{ width: progress }} /></div></div>
+          {onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              style={{
+                background: "#fef2f2",
+                color: "#b91c1c",
+                border: "1.5px solid #fecaca",
+                borderRadius: "999px",
+                padding: "4px 10px",
+                fontSize: "11px",
+                fontWeight: "750",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+              title="Volver a la pantalla de inicio de sesión"
+            >
+              Salir / Entrar con otra cuenta ✕
+            </button>
+          )}
         </header>
 
         <form
