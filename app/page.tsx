@@ -1144,7 +1144,7 @@ export default function Home() {
         fullName: m.fullName,
         isCurrentUser: Boolean(m.isCurrentUser),
         points: m.points,
-        initials: (m.nickname || m.name).charAt(0).toUpperCase(),
+        initials: (m.nickname || m.name || "F").charAt(0).toUpperCase(),
         color: m.color,
         trend: m.workouts >= 4 ? "+140" : m.workouts === 3 ? "+80" : "+40",
         workouts: m.workouts,
@@ -1920,29 +1920,31 @@ export default function Home() {
     } catch {
       meta = String(post.createdAt || "Reciente");
     }
+    const authorName = String(post.userName || "Familiar");
+    const authorInitial = (authorName.charAt(0) || "F").toUpperCase();
     const isAuthor = Boolean(
       (session?.user?.id && post.userId === session.user.id) ||
-      (post.userName && currentUserNick && post.userName.toLowerCase() === currentUserNick.toLowerCase()) ||
-      (post.userName && currentUserName && (
-        post.userName.toLowerCase() === currentUserName.toLowerCase() ||
-        currentUserName.toLowerCase().includes(post.userName.toLowerCase()) ||
-        post.userName.toLowerCase().includes(currentUserName.toLowerCase())
+      (currentUserNick && authorName.toLowerCase() === currentUserNick.toLowerCase()) ||
+      (currentUserName && (
+        authorName.toLowerCase() === currentUserName.toLowerCase() ||
+        currentUserName.toLowerCase().includes(authorName.toLowerCase()) ||
+        authorName.toLowerCase().includes(currentUserName.toLowerCase())
       ))
     );
-    const isAdmin = session?.user?.role === "admin" || session?.user?.id === 3;
+    const isAdmin = Boolean((session?.user as any)?.role === "admin" || session?.user?.id === 3);
     const canDelete = isAuthor || isAdmin;
 
     return (
-      <article className="fb-post-card" key={post.id}>
+      <article className="fb-post-card" key={post.id || Math.random()}>
         {/* 1. Header estilo Red Social */}
         <div className="fb-post-header">
           <div className="fb-author-row">
-            <span className={`avatar ${post.userName === "Pedro" ? "mint" : post.userName === "Ana" ? "coral" : post.userName === "Sofi" ? "lilac" : "sun"}`}>
-              {post.userName.charAt(0).toUpperCase()}
+            <span className={`avatar ${authorName === "Pedro" || authorName === "Pedcaz" ? "mint" : authorName === "Ana" ? "coral" : authorName === "Sofi" ? "lilac" : "sun"}`}>
+              {authorInitial}
             </span>
             <div className="fb-author-info">
               <div className="fb-name-row">
-                <b>{post.userName}</b>
+                <b>{authorName}</b>
                 <span className="fb-checkin-badge">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   Check-In 4×7
@@ -2066,7 +2068,7 @@ export default function Home() {
             {/* Input para agregar comentario */}
             <div className="fb-comment-input-row">
               <span className="avatar tiny mint">
-                {session?.user.name.charAt(0).toUpperCase() || "P"}
+                {(session?.user?.name || "Usuario").charAt(0).toUpperCase()}
               </span>
               <div className="fb-input-wrapper">
                 <input
