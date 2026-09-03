@@ -246,6 +246,11 @@ function getStoredProfile(userName?: string): ProfileResponse | null {
 }
 
 export default function Home() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [session, setSession] = useState<Session | null>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -3954,7 +3959,7 @@ export default function Home() {
     );
   };
 
-  if (sessionLoading || (session && profileLoading)) {
+  if (!mounted || sessionLoading || (session && profileLoading)) {
     return (
       <main className="app-loading">
         <div className="auth-brand">
