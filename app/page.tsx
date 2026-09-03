@@ -930,17 +930,27 @@ export default function Home() {
 
     const allMembers = [...rawMembers];
 
+    const isMemberMatch = (m: typeof rawMembers[0], checkName: string, checkNick: string, checkEmail?: string) => {
+      const cName = checkName.toLowerCase().trim();
+      const cNick = checkNick.toLowerCase().trim();
+      const cEmail = (checkEmail || "").toLowerCase().trim();
+
+      const mFull = m.fullName.toLowerCase().trim();
+      const mName = m.name.toLowerCase().trim();
+      const mNick = (m.nickname || "").toLowerCase().trim();
+
+      return (
+        (cName && (mFull === cName || mName === cName || mFull.includes(cName) || cName.includes(mFull))) ||
+        (cNick && (mNick === cNick || mName === cNick || mFull.includes(cNick))) ||
+        (cEmail && m.phone && m.phone.toLowerCase() === cEmail)
+      );
+    };
+
     // Dynamically add logged in user if they are a newly registered family member
     if (session?.user?.name) {
       const uFullName = session.user.name.trim();
       const uNick = ((session.user as any).nickname || uFullName.split(" ")[0]).trim();
-      const exists = allMembers.some(
-        (m) =>
-          m.fullName.toLowerCase() === uFullName.toLowerCase() ||
-          m.name.toLowerCase() === uFullName.toLowerCase() ||
-          (m.nickname && uNick && m.nickname.toLowerCase() === uNick.toLowerCase()) ||
-          (session.user.email && m.phone && session.user.email.toLowerCase() === m.phone.toLowerCase())
-      );
+      const exists = allMembers.some((m) => isMemberMatch(m, uFullName, uNick, session.user.email));
       if (!exists) {
         allMembers.push({
           name: uFullName.split(" ")[0],
@@ -956,14 +966,12 @@ export default function Home() {
 
     // Also include any newly registered users from familyProfiles synced from server
     if (familyProfiles && typeof familyProfiles === "object") {
-      const seen = new Set(allMembers.map((m) => (m.nickname || m.name || "").toLowerCase()));
       for (const key of Object.keys(familyProfiles)) {
         const prof = familyProfiles[key];
         if (prof && prof.fullName) {
           const nick = prof.nickname || prof.name || prof.fullName.split(" ")[0];
-          if (!seen.has(nick.toLowerCase()) && !seen.has(prof.fullName.toLowerCase())) {
-            seen.add(nick.toLowerCase());
-            seen.add(prof.fullName.toLowerCase());
+          const exists = allMembers.some((m) => isMemberMatch(m, prof.fullName, nick, key.includes("@") ? key : undefined));
+          if (!exists) {
             allMembers.push({
               name: prof.name || prof.fullName.split(" ")[0],
               fullName: prof.fullName,

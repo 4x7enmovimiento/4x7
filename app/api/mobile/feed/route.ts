@@ -150,10 +150,26 @@ export async function GET(request: Request) {
       const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
       monday.setHours(0, 0, 0, 0);
 
+      const officialNickMap: Record<string, string> = {
+        "p.glez.lpz92@gmail.com": "Pedcaz",
+        "emilyalejandra01@gmail.com": "JuuGlez",
+        "hackyan4@gmail.com": "Baby",
+        "marbelen.chaz@gmail.com": "Mabel",
+        "edgar.lopez8983@alumnos.udg.mx": "Wero LM",
+        "lucymatdan@gmail.com": "Lucy",
+        "valhumrh@gmail.com": "CristinaFit",
+        "chzivan@gmail.com": "Ivanovich",
+        "estefanylome@gmail.com": "EstefanyLM",
+        "eloalvarez.e@gmail.com": "Ely",
+        "emmanuellopez3911@gmail.com": "Emanuelle",
+        "viridiana.ca@icloud.com": "Virinovich",
+      };
+
       (allUsers || []).forEach((u: any) => {
         const prof = profileByUser.get(u.id);
         const nameParts = (u.name || "").split(" ");
-        const nickname = (prof as any)?.nickname || nameParts[0] || u.name;
+        const officialNick = u.email ? officialNickMap[u.email.toLowerCase()] : null;
+        const nickname = (prof as any)?.nickname || officialNick || nameParts[0] || u.name;
 
         const summary = {
           name: nameParts[0] || u.name,
