@@ -256,7 +256,7 @@ export function ProfileOnboarding({
   };
 
   if (step === 5 && result?.projection) {
-    const firstName = name.split(" ")[0];
+    const firstName = (name || "Usuario").split(" ")[0];
     const currentWeight = Number(data.weightKg) || 70;
     const height = Number(data.heightCm) || 168;
     const targetWeight = Number(data.targetWeightKg) || (data.objective === "lose_fat" ? Number((currentWeight * 0.9).toFixed(1)) : currentWeight);
@@ -694,7 +694,7 @@ export function ProfileOnboarding({
         >
           {step === 1 && (
             <div className="onboarding-step">
-              <p className="eyebrow">HOLA, {name.split(" ")[0].toUpperCase()}</p>
+              <p className="eyebrow">HOLA, {(name || "USUARIO").split(" ")[0].toUpperCase()}</p>
               <h1>Conozcamos tu punto de partida</h1>
               <p>Estos datos permiten calcular tu IMC y proyectar tu tiempo estimado a la meta.</p>
               <div className="onboarding-fields">
