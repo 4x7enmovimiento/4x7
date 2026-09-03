@@ -15,6 +15,7 @@ export async function POST(request: Request) {
     const inviteCode = cleanText(payload.inviteCode, 12).toUpperCase();
 
     const nickname = cleanText(payload.nickname, 40) || name.split(" ")[0];
+    const phone = cleanText(payload.phone, 30);
 
     if (name.length < 2 || !email.includes("@") || password.length < 4) {
       return json({ error: "Escribe tu nombre, un correo válido y tu contraseña." }, 400);
@@ -68,6 +69,7 @@ export async function POST(request: Request) {
     try {
       await supabase.from("user_profiles").upsert({
         user_id: userId,
+        nickname: nickname,
         objective: "general_fitness",
         weekly_goal: 4,
         challenge_start_date: challengeStartDate,
@@ -96,12 +98,13 @@ export async function POST(request: Request) {
         user_id: userId,
         role: "member",
         nickname: nickname,
+        phone: phone || null,
       });
     } catch (e) {
       console.error("Supabase family link error:", e);
     }
 
-    const userObj = { id: userId, name, nickname, email, challengeStartDate };
+    const userObj = { id: userId, name, nickname, email, phone: phone || "", challengeStartDate };
     const familyObj = { id: familyId, name: "López y Amigos", inviteCode: "4X7FAM123", role: "member" as const };
 
     const session = await createSession(userId, {

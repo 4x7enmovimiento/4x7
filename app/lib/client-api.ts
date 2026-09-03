@@ -1,5 +1,5 @@
 export type Session = {
-  user: { id: number; name: string; email: string };
+  user: { id: number; name: string; nickname?: string; email: string; phone?: string };
   family: { id: number; name: string; inviteCode: string; role: "admin" | "member" };
 };
 
@@ -104,7 +104,16 @@ export const clientApi = {
     }
     return res;
   },
-  register: async (data: { name: string; email: string; password: string; familyName?: string; inviteCode?: string; challengeStartDate?: string }) => {
+  register: async (data: {
+    name: string;
+    nickname?: string;
+    phone?: string;
+    email: string;
+    password: string;
+    familyName?: string;
+    inviteCode?: string;
+    challengeStartDate?: string;
+  }) => {
     const res = await request<Session>("/api/mobile/auth/register", {
       method: "POST",
       body: JSON.stringify(data),
