@@ -125,7 +125,8 @@ export async function POST(request: Request) {
     // Persist to Supabase
     try {
       const supabase = getSupabase();
-      const { data: insertedWorkout } = await supabase.from("workouts").insert({
+      const photoUrl = evidenceKey ? `/api/mobile/evidence/${evidenceKey}` : null;
+      const { data: insertedWorkout, error: wErr } = await supabase.from("workouts").insert({
         user_id: current.userId,
         family_id: current.familyId,
         activity_type: activityType,
@@ -135,18 +136,27 @@ export async function POST(request: Request) {
         distance_meters: distanceMeters,
         steps,
         calories,
-        evidence_key: evidenceKey,
+        evidence_url: photoUrl,
       }).select().single();
 
-      const workoutRecordId = insertedWorkout?.id || workoutId;
+      if (wErr) {
+        console.error("Supabase workout insert error:", wErr);
+      }
 
-      await supabase.from("posts").insert({
+      const workoutRecordId = insertedWorkout?.id || null;
+
+      const { error: pErr } = await supabase.from("posts").insert({
         family_id: current.familyId,
         user_id: current.userId,
         workout_id: workoutRecordId,
+        activity_type: activityType,
         caption,
-        evidence_key: evidenceKey,
+        evidence_url: photoUrl,
       });
+
+      if (pErr) {
+        console.error("Supabase post insert error:", pErr);
+      }
 
       await supabase.from("points_ledger").insert({
         family_id: current.familyId,

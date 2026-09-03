@@ -17,16 +17,29 @@ export async function POST(request: Request) {
 
     const extension = photo.type === "image/png" ? "png" : photo.type === "image/webp" ? "webp" : "jpg";
     const key = `${current.familyId}/${current.userId}/${Date.now()}-${randomToken(6)}.${extension}`;
+    const buffer = Buffer.from(await photo.arrayBuffer());
+
+    try {
+      const { getSupabase } = await import("../../../../db/supabase");
+      const supabase = getSupabase();
+      await supabase.storage.from("evidence").upload(key, buffer, {
+        contentType: photo.type,
+        upsert: true,
+      });
+    } catch (storageErr) {
+      console.warn("Supabase storage upload error, fallback to memory:", storageErr);
+    }
 
     if (env.EVIDENCE) {
-      await env.EVIDENCE.put(key, photo.stream(), {
-        httpMetadata: { contentType: photo.type, cacheControl: "private, max-age=3600" },
-        customMetadata: { familyId: String(current.familyId), userId: String(current.userId) },
-      });
-    } else {
-      const buffer = await photo.arrayBuffer();
-      evidenceStore.set(key, { buffer, contentType: photo.type });
+      try {
+        await env.EVIDENCE.put(key, buffer, {
+          httpMetadata: { contentType: photo.type, cacheControl: "private, max-age=3600" },
+          customMetadata: { familyId: String(current.familyId), userId: String(current.userId) },
+        });
+      } catch {}
     }
+
+    evidenceStore.set(key, { buffer, contentType: photo.type });
 
     return json({ evidenceKey: key, evidenceUrl: `/api/mobile/evidence/${key}` }, 201);
   } catch (error) {
