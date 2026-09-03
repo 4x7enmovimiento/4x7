@@ -362,8 +362,15 @@ export default function Home() {
 
   const [completedCheckInDates, setCompletedCheckInDates] = useState<string[]>([]);
   const [logged, setLogged] = useState<boolean>(false);
-  const [weeklyWorkoutsCount, setWeeklyWorkoutsCount] = useState<number>(0);
-  const [userBonusPoints, setUserBonusPoints] = useState<number>(0);
+  const [userBonusPoints, setUserBonusPoints] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("four_seven_user_bonus_points");
+        if (saved !== null) return Number(saved) || 0;
+      } catch {}
+    }
+    return 50; // 50 puntos de bienvenida por completar perfil y registro
+  });
   const [toast, setToast] = useState("");
   const [showPointsModal, setShowPointsModal] = useState(false);
   const [showNewChallengeModal, setShowNewChallengeModal] = useState(false);
@@ -4024,7 +4031,9 @@ export default function Home() {
             const localKey = `four_seven_profile_${session?.user?.name || "Usuario"}`;
             localStorage.setItem(localKey, JSON.stringify(result));
             localStorage.setItem("four_seven_saved_profile", JSON.stringify(result));
+            localStorage.setItem("four_seven_user_bonus_points", "50");
           } catch {}
+          setUserBonusPoints(50);
           setFitness(result);
         }}
       />
