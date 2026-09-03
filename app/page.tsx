@@ -994,6 +994,13 @@ export default function Home() {
     const gdl = getGdlDateInfo();
 
     return allMembers.map((m) => {
+      // 1. Check shared stats from server for this member!
+      const serverStat =
+        familyStats[m.nickname.toLowerCase()] ||
+        familyStats[m.name.toLowerCase()] ||
+        familyStats[m.fullName.toLowerCase()] ||
+        familyStats[m.phone];
+
       const isCurrentUser = Boolean(
         (session?.user?.id && serverStat?.userId && session.user.id === serverStat.userId) ||
         (session?.user?.email && m.phone && session.user.email.toLowerCase() === m.phone.toLowerCase()) ||
@@ -1014,13 +1021,6 @@ export default function Home() {
         const pKey = `${postDate.getFullYear()}-${String(postDate.getMonth() + 1).padStart(2, "0")}-${String(postDate.getDate()).padStart(2, "0")}`;
         return gdl.currentWeekDays.some((d) => d.dateKey === pKey);
       });
-
-      // 1. Check shared stats from server for this member!
-      const serverStat =
-        familyStats[m.nickname.toLowerCase()] ||
-        familyStats[m.name.toLowerCase()] ||
-        familyStats[m.fullName.toLowerCase()] ||
-        familyStats[m.phone];
 
       const statWorkouts = serverStat?.workouts || 0;
       const statDates: string[] = serverStat?.completedDates || [];
