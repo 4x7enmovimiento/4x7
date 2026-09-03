@@ -118,7 +118,7 @@ export function ProfileOnboarding({
   });
 
   const set = (key: string, value: string) => setData((current) => ({ ...current, [key]: value }));
-  const selectedObjective = objectives.find((item) => item.id === data.objective)!;
+  const selectedObjective = objectives.find((item) => item.id === data.objective) || objectives[0];
   const targetRequired = data.objective === "lose_fat" || data.objective === "gain_muscle";
   const progress = useMemo(() => `${Math.min(step, 4) * 25}%`, [step]);
 
