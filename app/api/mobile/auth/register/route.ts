@@ -50,9 +50,10 @@ export async function POST(request: Request) {
 
     if (insertUserErr || !newUser) {
       console.error("Supabase user insert error:", insertUserErr);
+      return json({ error: "No se pudo registrar la cuenta en Supabase: " + (insertUserErr?.message || "Error al insertar.") }, 500);
     }
 
-    const userId = newUser?.id || Date.now();
+    const userId = newUser.id;
 
     // 3. Challenge start date (1 to 15 of September 2026)
     let challengeStartDate = cleanText(payload.challengeStartDate, 15);
