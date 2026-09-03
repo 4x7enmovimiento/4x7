@@ -4372,38 +4372,6 @@ export default function Home() {
             <h1>{currentTitle}</h1>
           </div>
           <div className="top-actions-cluster">
-            {/* 0. Direct Admin Button */}
-            <button
-              type="button"
-              className="top-pill-btn admin-direct-btn"
-              style={{
-                background: inAdminView ? "#f59e0b" : "#fef3c7",
-                color: inAdminView ? "#ffffff" : "#92400e",
-                border: "1.5px solid #fde68a",
-                fontWeight: "800",
-                fontSize: "12px",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                padding: "6px 12px",
-                borderRadius: "999px",
-                cursor: "pointer",
-              }}
-              onClick={() => {
-                if (inAdminView) {
-                  setInAdminView(false);
-                } else {
-                  setAdminPinInput("");
-                  setPinError("");
-                  setShowPinModal(true);
-                }
-              }}
-              title="Panel de Administrador"
-            >
-              <span>👑</span>
-              <span>{inAdminView ? "Salir Admin" : "Admin"}</span>
-            </button>
-
             {/* 1. Reglas & Sistema de Puntos */}
             <button
               type="button"
