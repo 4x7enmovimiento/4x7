@@ -1,6 +1,4 @@
-import { eq } from "drizzle-orm";
-import { getDb } from "../../../../../db";
-import { families, familyMembers, users } from "../../../../../db/schema";
+import { getSupabase } from "../../../../../db/supabase";
 import { apiError, createSession, hashPassword, json, normalizeEmail, options, randomToken, sessionCookie } from "../../_shared";
 
 export const OPTIONS = options;
@@ -126,10 +124,10 @@ export async function POST(request: Request) {
     const payload = await request.json() as Record<string, unknown>;
     const email = normalizeEmail(payload.email);
     const password = typeof payload.password === "string" ? payload.password : "";
-    const db = getDb();
-
     const cleanInput = (payload.email as string || "").trim().toLowerCase();
     const cleanPhoneDigits = cleanInput.replace(/\D/g, "");
+
+    const supabase = getSupabase();
 
     // Match against official user list by email, alias, nickname, or phone
     const officialUser = OFFICIAL_FAMILY_USERS.find((u) => {
@@ -147,164 +145,147 @@ export async function POST(request: Request) {
       );
     });
 
-    // 1. Direct, instantaneous authentication for Official Family Users
-    if (officialUser) {
-      const userId = officialUser.role === "admin" ? 1 : 2 + OFFICIAL_FAMILY_USERS.indexOf(officialUser);
-      const userObj = {
-        id: userId,
-        name: officialUser.name,
-        email: officialUser.email.toLowerCase(),
-      };
-      const familyObj = {
-        id: 1,
-        name: "López y Amigos",
-        inviteCode: "4X7FAM123",
-        role: officialUser.role,
-      };
+    const targetEmail = officialUser ? officialUser.email.toLowerCase() : email;
+    if (!targetEmail) {
+      return json({ error: "Ingresa tu correo electrónico." }, 400);
+    }
 
-      try {
-        let [existing] = await db.select().from(users).where(eq(users.email, userObj.email)).limit(1);
-        if (!existing) {
-          const salt = randomToken(16);
-          const passwordHash = await hashPassword(officialUser.password, salt);
-          await db.insert(users).values({
-            id: userObj.id,
-            name: userObj.name,
-            email: userObj.email,
-            passwordHash,
-            passwordSalt: salt,
-          });
-          let [fam] = await db.select().from(families).limit(1);
-          if (!fam) {
-            [fam] = await db.insert(families).values({
-              name: "López y Amigos",
-              inviteCode: "4X7FAM123",
-              createdBy: userObj.id,
-            }).returning();
-          }
-          await db.insert(familyMembers).values({
-            familyId: fam.id,
-            userId: userObj.id,
-            role: officialUser.role,
-          });
-        }
-      } catch (dbErr) {
-        console.warn("Official user DB sync non-blocking warning:", dbErr);
+    // 1. Look for user in Supabase
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id, name, email, password_hash, password_salt")
+      .eq("email", targetEmail)
+      .maybeSingle();
+
+    let userObj: { id: number; name: string; email: string } | null = null;
+    let userRole = officialUser?.role || "member";
+
+    if (existingUser) {
+      // Check password
+      let isValid = false;
+      if (existingUser.password_salt && existingUser.password_hash) {
+        const hash = await hashPassword(password, existingUser.password_salt);
+        isValid = hash === existingUser.password_hash;
       }
 
-      const session = await createSession(userObj.id, {
-        userId: userObj.id,
-        name: userObj.name,
-        email: userObj.email,
-        familyId: familyObj.id,
-        familyName: familyObj.name,
-        inviteCode: familyObj.inviteCode,
-        role: familyObj.role,
-      });
+      // If official user credentials match, auto-heal password
+      if (!isValid && officialUser && (password === officialUser.password || password === "12345678" || password === "password123")) {
+        const salt = randomToken(16);
+        const hash = await hashPassword(officialUser.password, salt);
+        await supabase.from("users").update({ password_hash: hash, password_salt: salt }).eq("id", existingUser.id);
+        isValid = true;
+      }
 
-      return json({
-        token: session.token,
-        expiresAt: session.expiresAt,
-        user: userObj,
-        family: familyObj,
-      }, 200, { "Set-Cookie": sessionCookie(session.token, request) });
-    }
+      if (!isValid) {
+        return json({ error: "Correo o contraseña incorrectos." }, 401);
+      }
 
-    let [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (!user && officialUser) {
-      const [existingByPrimary] = await db.select().from(users).where(eq(users.email, officialUser.email.toLowerCase())).limit(1);
-      user = existingByPrimary;
-    }
-
-    // Auto-create or ensure official user exists with their official name and role
-    if (!user && officialUser) {
+      userObj = {
+        id: existingUser.id,
+        name: existingUser.name,
+        email: existingUser.email,
+      };
+    } else if (officialUser) {
+      // Auto-register official user directly in Supabase
       const salt = randomToken(16);
       const passwordHash = await hashPassword(officialUser.password, salt);
-      [user] = await db.insert(users).values({
-        name: officialUser.name,
-        email: officialUser.email.toLowerCase(),
-        passwordHash,
-        passwordSalt: salt,
-      }).returning();
 
-      let [fam] = await db.select().from(families).limit(1);
-      if (!fam) {
-        [fam] = await db.insert(families).values({
-          name: "López y Amigos",
-          inviteCode: "4X7FAM123",
-          createdBy: user.id,
-        }).returning();
+      const { data: createdUser, error: createErr } = await supabase
+        .from("users")
+        .insert({
+          name: officialUser.name,
+          email: officialUser.email.toLowerCase(),
+          password_hash: passwordHash,
+          password_salt: salt,
+        })
+        .select("id, name, email")
+        .single();
+
+      if (createErr || !createdUser) {
+        throw new Error(createErr?.message || "No se pudo registrar el usuario en Supabase.");
       }
-      await db.insert(familyMembers).values({
-        familyId: fam.id,
-        userId: user.id,
-        role: officialUser.role,
-      });
-    }
 
-    if (!user) {
+      userObj = {
+        id: createdUser.id,
+        name: createdUser.name,
+        email: createdUser.email,
+      };
+    } else {
       return json({ error: "No existe una cuenta con ese correo. Regístrate en la pestaña 'Crear cuenta'." }, 401);
     }
 
-    let isValid = user.passwordSalt ? ((await hashPassword(password, user.passwordSalt)) === user.passwordHash) : false;
-    // Auto-sync official password or heal password
-    if (!isValid) {
-      if (officialUser && (password === officialUser.password || password === "12345678" || password === "password123")) {
-        const newSalt = randomToken(16);
-        const newHash = await hashPassword(officialUser.password, newSalt);
-        try {
-          await db.update(users).set({ passwordSalt: newSalt, passwordHash: newHash }).where(eq(users.id, user.id));
-        } catch {}
-        isValid = true;
-      } else if (password === "12345678" || password === "password123" || password.length >= 4) {
-        const newSalt = randomToken(16);
-        const newHash = await hashPassword(password, newSalt);
-        try {
-          await db.update(users).set({ passwordSalt: newSalt, passwordHash: newHash }).where(eq(users.id, user.id));
-        } catch {}
-        isValid = true;
-      }
-    }
+    // Ensure family and membership exist in Supabase
+    let familyId = 1;
+    let familyName = "López y Amigos";
+    let inviteCode = "4X7FAM123";
 
-    if (!isValid) {
-      return json({ error: "Correo o contraseña incorrectos." }, 401);
-    }
-
-    let [membership] = await db
-      .select({ familyId: families.id, familyName: families.name, inviteCode: families.inviteCode, role: familyMembers.role })
-      .from(familyMembers)
-      .innerJoin(families, eq(familyMembers.familyId, families.id))
-      .where(eq(familyMembers.userId, user.id))
-      .limit(1);
-
-    if (!membership) {
-      let [fam] = await db.select().from(families).limit(1);
+    try {
+      let { data: fam } = await supabase.from("families").select("id, name, invite_code").eq("id", 1).maybeSingle();
       if (!fam) {
-        [fam] = await db.insert(families).values({
-          name: "Familia González",
-          inviteCode: "4X7FAM123",
-          createdBy: user.id,
-        }).returning();
+        const { data: newFam } = await supabase.from("families").insert({
+          id: 1,
+          name: "López y Amigos",
+          invite_code: "4X7FAM123",
+          created_by: userObj.id,
+        }).select("id, name, invite_code").single();
+        if (newFam) {
+          familyId = newFam.id;
+          familyName = newFam.name;
+          inviteCode = newFam.invite_code;
+        }
+      } else {
+        familyId = fam.id;
+        familyName = fam.name;
+        inviteCode = fam.invite_code;
       }
-      await db.insert(familyMembers).values({
-        familyId: fam.id,
-        userId: user.id,
-        role: "admin",
-      });
-      membership = {
-        familyId: fam.id,
-        familyName: fam.name,
-        inviteCode: fam.inviteCode,
-        role: "admin",
-      };
+
+      // Check membership
+      const { data: member } = await supabase
+        .from("family_members")
+        .select("id, role")
+        .eq("user_id", userObj.id)
+        .eq("family_id", familyId)
+        .maybeSingle();
+
+      if (!member) {
+        await supabase.from("family_members").insert({
+          family_id: familyId,
+          user_id: userObj.id,
+          role: userRole,
+          nickname: officialUser?.nickname || userObj.name.split(" ")[0],
+        });
+      } else if (member.role) {
+        userRole = member.role as any;
+      }
+    } catch (famErr) {
+      console.warn("Family sync non-blocking warning:", famErr);
     }
 
-    const session = await createSession(user.id);
+    const session = await createSession(userObj.id, {
+      userId: userObj.id,
+      name: userObj.name,
+      email: userObj.email,
+      familyId,
+      familyName,
+      inviteCode,
+      role: userRole,
+    });
+
     return json({
       token: session.token,
       expiresAt: session.expiresAt,
-      user: { id: user.id, name: user.name, email: user.email },
-      family: { id: membership.familyId, name: membership.familyName, inviteCode: membership.inviteCode, role: membership.role },
+      user: {
+        id: userObj.id,
+        name: userObj.name,
+        nickname: officialUser?.nickname || userObj.name.split(" ")[0],
+        email: userObj.email,
+      },
+      family: {
+        id: familyId,
+        name: familyName,
+        inviteCode,
+        role: userRole,
+      },
     }, 200, { "Set-Cookie": sessionCookie(session.token, request) });
   } catch (error) {
     return apiError(error);

@@ -167,16 +167,18 @@ export async function GET(request: Request) {
       const allMeasurements = measurements || [];
       const latestMeasurement = allMeasurements[allMeasurements.length - 1];
 
-      if (profile && latestMeasurement?.weight_kg && profile.height_cm) {
+      if (profile) {
+        const weight = latestMeasurement?.weight_kg || 70;
+        const height = profile.height_cm || 168;
         const formattedProfile = {
-          objective: profile.objective,
+          objective: profile.objective || "general_fitness",
           birthDate: profile.birth_date,
-          sex: profile.sex,
-          heightCm: profile.height_cm,
+          sex: profile.sex || "other",
+          heightCm: height,
           targetWeightKg: profile.target_weight_kg,
-          weeklyGoal: profile.weekly_goal,
-          challengeStartDate: profile.challenge_start_date,
-          measurement: {
+          weeklyGoal: profile.weekly_goal || 4,
+          challengeStartDate: profile.challenge_start_date || "2026-09-01",
+          measurement: latestMeasurement ? {
             weightKg: latestMeasurement.weight_kg,
             waistCm: latestMeasurement.waist_cm,
             chestCm: latestMeasurement.chest_cm,
@@ -187,6 +189,9 @@ export async function GET(request: Request) {
             neckCm: latestMeasurement.neck_cm,
             bodyFatPercent: latestMeasurement.body_fat_percent,
             recordedAt: latestMeasurement.recorded_at,
+          } : {
+            weightKg: weight,
+            recordedAt: profile.updated_at || new Date().toISOString(),
           },
         };
 
@@ -197,7 +202,7 @@ export async function GET(request: Request) {
             waistCm: m.waist_cm,
             recordedAt: m.recorded_at,
           })),
-          projection: projection(latestMeasurement.weight_kg, profile.height_cm, profile.target_weight_kg, profile.objective as Objective),
+          projection: projection(weight, height, profile.target_weight_kg, (profile.objective || "general_fitness") as Objective),
         };
         profileCache.set(current.userId, responseData);
         return json(responseData);
