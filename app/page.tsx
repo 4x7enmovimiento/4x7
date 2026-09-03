@@ -367,6 +367,7 @@ export default function Home() {
 
   const [completedCheckInDates, setCompletedCheckInDates] = useState<string[]>([]);
   const [logged, setLogged] = useState<boolean>(false);
+  const [weeklyWorkoutsCount, setWeeklyWorkoutsCount] = useState<number>(0);
   const [userBonusPoints, setUserBonusPoints] = useState<number>(50);
 
   useEffect(() => {
