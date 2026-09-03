@@ -24,6 +24,7 @@ const START_DATE_OPTIONS = [
 export function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Session) => void }) {
   const [mode, setMode] = useState<"login" | "register">("register");
   const [name, setName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [familyName, setFamilyName] = useState("López y Amigos");
@@ -57,6 +58,7 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Ses
         ? await clientApi.login(email, password)
         : await clientApi.register({
           name,
+          nickname: nickname.trim() || name.split(" ")[0],
           email,
           password,
           familyName: familyName.trim() || "López y Amigos",
@@ -98,7 +100,18 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Ses
           <button type="button" className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setError(""); }}>Crear cuenta</button>
           <button type="button" className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setError(""); }}>Ya tengo cuenta</button>
         </div>
-        {mode === "register" && <label>Tu nombre<input required minLength={2} value={name} onChange={(event) => setName(event.target.value)} placeholder="Pedro" autoComplete="name" /></label>}
+        {mode === "register" && (
+          <>
+            <label>
+              Nombre completo
+              <input required minLength={2} value={name} onChange={(event) => setName(event.target.value)} placeholder="ej. Pedro Humberto González López" autoComplete="name" />
+            </label>
+            <label>
+              Nickname / Apodo en la Liga
+              <input required minLength={2} value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="ej. Pedcaz, JuuGlez, Wero, etc." />
+            </label>
+          </>
+        )}
         <label>Correo o Usuario<input required type="text" inputMode="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="p.glez.lpz92@gmail.com o Pedcaz" autoComplete="username" /></label>
         <label>Contraseña<input required type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Tu contraseña" autoComplete={mode === "login" ? "current-password" : "new-password"} /></label>
         {mode === "register" && (

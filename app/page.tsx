@@ -892,7 +892,8 @@ export default function Home() {
   const [phoneEditMember, setPhoneEditMember] = useState<{ name: string; phone: string } | null>(null);
   const [editPhoneValue, setEditPhoneValue] = useState("");
 
-  const currentUserName = session?.user?.name || "Pedro";
+  const currentUserName = (session?.user?.name || "").trim();
+  const currentUserNick = ((session?.user as any)?.nickname || (currentUserName ? currentUserName.split(" ")[0] : "")).trim();
 
   const familyCheckInData = useMemo(() => {
     const rawMembers = [
@@ -910,13 +911,67 @@ export default function Home() {
       { name: "Viridiana", fullName: "Viridiana Contreras", nickname: "Virinovich", relation: "", initials: "V", color: "coral", phone: "523322729289" },
     ];
 
+    const allMembers = [...rawMembers];
+
+    // Dynamically add logged in user if they are a newly registered family member
+    if (session?.user?.name) {
+      const uFullName = session.user.name.trim();
+      const uNick = ((session.user as any).nickname || uFullName.split(" ")[0]).trim();
+      const exists = allMembers.some(
+        (m) =>
+          m.fullName.toLowerCase() === uFullName.toLowerCase() ||
+          m.name.toLowerCase() === uFullName.toLowerCase() ||
+          (m.nickname && uNick && m.nickname.toLowerCase() === uNick.toLowerCase()) ||
+          (session.user.email && m.phone && session.user.email.toLowerCase() === m.phone.toLowerCase())
+      );
+      if (!exists) {
+        allMembers.push({
+          name: uFullName.split(" ")[0],
+          fullName: uFullName,
+          nickname: uNick,
+          relation: "Familia",
+          initials: (uNick || uFullName).charAt(0).toUpperCase(),
+          color: "mint",
+          phone: session.user.email || "",
+        });
+      }
+    }
+
+    // Also include any newly registered users from familyProfiles synced from server
+    if (familyProfiles && typeof familyProfiles === "object") {
+      const seen = new Set(allMembers.map((m) => (m.nickname || m.name || "").toLowerCase()));
+      for (const key of Object.keys(familyProfiles)) {
+        const prof = familyProfiles[key];
+        if (prof && prof.fullName) {
+          const nick = prof.nickname || prof.name || prof.fullName.split(" ")[0];
+          if (!seen.has(nick.toLowerCase()) && !seen.has(prof.fullName.toLowerCase())) {
+            seen.add(nick.toLowerCase());
+            seen.add(prof.fullName.toLowerCase());
+            allMembers.push({
+              name: prof.name || prof.fullName.split(" ")[0],
+              fullName: prof.fullName,
+              nickname: nick,
+              relation: "Familia",
+              initials: (nick || prof.name || "F").charAt(0).toUpperCase(),
+              color: "sun",
+              phone: key.includes("@") ? key : "",
+            });
+          }
+        }
+      }
+    }
+
     const gdl = getGdlDateInfo();
 
-    return rawMembers.map((m) => {
-      const isCurrentUser =
-        currentUserName.toLowerCase().includes(m.name.toLowerCase()) ||
-        m.fullName.toLowerCase().includes(currentUserName.toLowerCase()) ||
-        currentUserName.toLowerCase().includes(m.nickname.toLowerCase());
+    return allMembers.map((m) => {
+      const isCurrentUser = Boolean(
+        currentUserName && (
+          m.fullName.toLowerCase() === currentUserName.toLowerCase() ||
+          m.name.toLowerCase() === currentUserName.toLowerCase() ||
+          (m.nickname && currentUserNick && m.nickname.toLowerCase() === currentUserNick.toLowerCase()) ||
+          (session?.user?.email && m.phone && session.user.email.toLowerCase() === m.phone.toLowerCase())
+        )
+      );
 
       // Find real posts from this member this week
       const memberWeekPosts = feedPosts.filter((p) => {
@@ -2169,12 +2224,20 @@ export default function Home() {
             const isCompleted = member.workouts >= 4;
             const isNear = member.workouts === 3;
             const isPending = member.workouts < 2;
-            const isCurrentUser = member.name === "Pedro" || (session?.user?.name && member.fullName?.toLowerCase().includes(session.user.name.toLowerCase()));
+            const isCurrentUser = Boolean(
+              member.isCurrentUser ||
+              (currentUserName && (
+                member.fullName.toLowerCase() === currentUserName.toLowerCase() ||
+                member.name.toLowerCase() === currentUserName.toLowerCase() ||
+                (member.nickname && currentUserNick && member.nickname.toLowerCase() === currentUserNick.toLowerCase()) ||
+                (session?.user?.email && member.phone && session.user.email.toLowerCase() === member.phone.toLowerCase())
+              ))
+            );
 
             return (
               <div
-                key={member.name}
-                className={`family-member-row-card ${isCompleted ? "status-completed" : isNear ? "status-near" : isPending ? "status-pending" : "status-progress"} ${member.name === "Pedro" ? "is-you" : ""}`}
+                key={member.nickname || member.fullName || member.name}
+                className={`family-member-row-card ${isCompleted ? "status-completed" : isNear ? "status-near" : isPending ? "status-pending" : "status-progress"} ${isCurrentUser ? "is-you" : ""}`}
               >
                 <div className="row-left-user">
                   <div className={`avatar-ring-box ${isCompleted ? "gold-ring" : ""}`}>
@@ -2188,7 +2251,7 @@ export default function Home() {
                       <b style={{ fontSize: "15px", fontWeight: 800, color: "var(--ink)" }}>
                         {member.nickname || member.name}
                       </b>
-                      {member.name === "Pedro" && <span className="you-chip">TÚ</span>}
+                      {isCurrentUser && <span className="you-chip">TÚ</span>}
                       {member.relation && member.relation !== "Familia" && (
                         <span className="relation-tag">({member.relation})</span>
                       )}
@@ -2203,7 +2266,7 @@ export default function Home() {
                           {member.workouts > 0 ? member.lastCheckIn : "Sin deporte registrado aún"}
                         </small>
                       )}
-                      {(isCurrentUser || session?.user?.name?.toLowerCase().includes("pedro")) && (
+                      {isCurrentUser && (
                         <button
                           type="button"
                           style={{
@@ -2225,7 +2288,7 @@ export default function Home() {
                 </div>
 
                 <div className="row-right-actions">
-                  {member.name !== "Pedro" && (
+                  {!isCurrentUser && (
                     <button
                       type="button"
                       className={`whatsapp-motivate-btn ${isCompleted ? "completed" : isNear ? "near" : member.workouts === 2 ? "mid" : member.activity ? "completed" : "carrilla"}`}
