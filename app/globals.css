@@ -484,12 +484,15 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 }
 
 .fb-post-visual-banner {
-  height: 190px;
+  min-height: 190px;
+  padding: 24px 16px;
   position: relative;
   overflow: hidden;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 12px;
 }
 
 .fb-banner-label {
@@ -501,6 +504,50 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   background: rgb(255 255 255 / 75%);
   border-radius: 999px;
   backdrop-filter: blur(8px);
+}
+
+.fb-attach-photo-banner-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #ffffff;
+  color: #166534;
+  border: 1.5px solid #86efac;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  z-index: 2;
+}
+
+.fb-attach-photo-banner-btn:hover {
+  background: #f0fdf4;
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 6px 18px rgba(22, 101, 52, 0.22);
+}
+
+.hero-add-photo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.hero-add-photo-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: #ffffff;
+  transform: translateY(-1px);
 }
 
 .fb-photo-stat-badge {

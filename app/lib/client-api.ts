@@ -148,6 +148,17 @@ export const clientApi = {
   comments: (postId: number) => request<{ comments: Array<{ id: number; postId: number; userId: number; userName: string; body: string; createdAt: string }> }>(`/api/mobile/feed/${postId}/comments`),
   toggleLike: (postId: number) => request<{ liked: boolean }>(`/api/mobile/feed/${postId}/like`, { method: "POST" }),
   deletePost: (postId: number) => request<{ success: boolean; message?: string }>(`/api/mobile/feed/${postId}`, { method: "DELETE" }),
+  attachPostPhoto: async (postId: number, photo: File) => {
+    const form = new FormData();
+    form.append("photo", photo);
+    const uploadRes = await request<{ evidenceKey: string; evidenceUrl: string }>("/api/mobile/evidence", { method: "POST", body: form });
+    if (!uploadRes?.evidenceUrl) throw new Error("No se pudo subir la foto.");
+    const patchRes = await request<{ success: boolean; evidenceUrl: string; message?: string }>(`/api/mobile/feed/${postId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ evidenceUrl: uploadRes.evidenceUrl }),
+    });
+    return { ...patchRes, evidenceUrl: uploadRes.evidenceUrl };
+  },
   comment: (postId: number, body: string) => request<{ comment: { id: number; postId: number; userId: number; userName: string; body: string; createdAt: string } }>(`/api/mobile/feed/${postId}/comments`, {
     method: "POST",
     body: JSON.stringify({ body }),

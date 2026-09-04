@@ -371,6 +371,7 @@ export default function Home() {
   const [savingWorkout, setSavingWorkout] = useState(false);
   const [showAdditionalCheckIn, setShowAdditionalCheckIn] = useState(false);
   const [editingActivityMember, setEditingActivityMember] = useState<{ name: string; currentActivity: string } | null>(null);
+  const [uploadingPhotoPostId, setUploadingPhotoPostId] = useState<number | null>(null);
 
   const ALL_DISCIPLINES = [
     { id: "gimnasio", name: "Gimnasio / Pesas 🏋️‍♂️" },
@@ -1861,6 +1862,36 @@ export default function Home() {
     }
   };
 
+  const handleAttachPhoto = async (postId: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFile = event.target.files?.[0];
+    if (!rawFile) return;
+    event.target.value = "";
+
+    setUploadingPhotoPostId(postId);
+    notify("📸 Optimizando foto de evidencia...");
+
+    try {
+      // 1. Compresión en el celular para no gastar ancho de banda
+      const compressedFile = await compressImageFile(rawFile);
+      notify("☁️ Subiendo foto a tu check-in...");
+
+      // 2. Guardar en Supabase Storage y enlazar a posts + workouts
+      const res = await clientApi.attachPostPhoto(postId, compressedFile);
+
+      if (res?.evidenceUrl) {
+        setFeedPosts((prev) =>
+          prev.map((p) => (p.id === postId ? { ...p, evidenceUrl: res.evidenceUrl } : p))
+        );
+        notify("🎉 ¡Foto agregada con éxito a tu check-in!");
+      }
+    } catch (err: any) {
+      console.error("Error al agregar foto al check-in:", err);
+      notify(err?.message || "No se pudo subir la foto. Intenta de nuevo.");
+    } finally {
+      setUploadingPhotoPostId(null);
+    }
+  };
+
   // Custom Challenge Handlers
   const handleCreateChallenge = (e: React.FormEvent) => {
     e.preventDefault();
@@ -2081,6 +2112,23 @@ export default function Home() {
         ) : (
           <div className={`fb-post-visual-banner visual-${(post.id % 3) + 1}`}>
             <span className="fb-banner-label">{post.activityType?.toUpperCase() || "ENTRENAMIENTO 4×7"}</span>
+            {canDelete && (
+              <label className="fb-attach-photo-banner-btn" title="Agregar foto de evidencia a este check-in">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+                <span>{uploadingPhotoPostId === post.id ? "Subiendo foto..." : "＋ Agregar foto de evidencia"}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: "none" }}
+                  disabled={uploadingPhotoPostId === post.id}
+                  onChange={(e) => handleAttachPhoto(post.id, e)}
+                />
+              </label>
+            )}
             <span className="fb-photo-stat-badge">{visualStat}</span>
           </div>
         )}
@@ -2114,6 +2162,23 @@ export default function Home() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <b>Comentar</b>
           </button>
+          {canDelete && !post.evidenceUrl && (
+            <label className="fb-action-btn" title="Agregar foto de evidencia" style={{ cursor: "pointer" }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+              <b>{uploadingPhotoPostId === post.id ? "Subiendo…" : "Foto 📷"}</b>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: "none" }}
+                disabled={uploadingPhotoPostId === post.id}
+                onChange={(e) => handleAttachPhoto(post.id, e)}
+              />
+            </label>
+          )}
           <button
             type="button"
             className="fb-action-btn"
@@ -2190,16 +2255,50 @@ export default function Home() {
     ).length;
     const nextReward = getWorkoutReward(thisWeekDoneCount + 1);
 
+    const myTodayPostWithoutPhoto = feedPosts.find((p) => {
+      const isMyPost = Boolean(
+        (session?.user?.id && p.userId === session.user.id) ||
+        (currentUserNick && p.userName?.toLowerCase() === currentUserNick.toLowerCase()) ||
+        (currentUserName && (
+          p.userName?.toLowerCase() === currentUserName.toLowerCase() ||
+          currentUserName.toLowerCase().includes(p.userName?.toLowerCase() || "") ||
+          (p.userName?.toLowerCase() || "").includes(currentUserName.toLowerCase())
+        ))
+      );
+      return isMyPost && !p.evidenceUrl;
+    });
+
     return (
       <section className="unified-hero-card">
         {/* Top Section: Check-In State */}
         <div className="unified-top-section">
           {logged ? (
-            <div className="checkin-success-compact" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "2px 0 0" }}>
-              <div className="success-icon-badge" style={{ width: "38px", height: "38px", fontSize: "19px", flexShrink: 0 }}>🏆</div>
-              <h2 style={{ color: "#ffffff", fontSize: "21px", margin: 0, fontWeight: "800", letterSpacing: "-0.03em" }}>
-                ¡Entrenamiento de hoy completado, {firstName}!
-              </h2>
+            <div className="checkin-success-compact" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", padding: "2px 0 0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div className="success-icon-badge" style={{ width: "38px", height: "38px", fontSize: "19px", flexShrink: 0 }}>🏆</div>
+                <div>
+                  <h2 style={{ color: "#ffffff", fontSize: "20px", margin: 0, fontWeight: "800", letterSpacing: "-0.03em" }}>
+                    ¡Entrenamiento de hoy completado, {firstName}!
+                  </h2>
+                  <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.75)" }}>
+                    {myTodayPostWithoutPhoto ? "Check-in guardado · Puedes subir tu foto para el muro:" : "Check-in y puntos registrados con éxito."}
+                  </span>
+                </div>
+              </div>
+              {myTodayPostWithoutPhoto && (
+                <label className="hero-add-photo-btn" title="Agregar foto de evidencia al check-in de hoy">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  <span>{uploadingPhotoPostId === myTodayPostWithoutPhoto.id ? "Subiendo foto..." : "＋ Agregar foto a tu check-in"}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    style={{ display: "none" }}
+                    disabled={uploadingPhotoPostId === myTodayPostWithoutPhoto.id}
+                    onChange={(e) => handleAttachPhoto(myTodayPostWithoutPhoto.id, e)}
+                  />
+                </label>
+              )}
             </div>
           ) : (
             <div>
