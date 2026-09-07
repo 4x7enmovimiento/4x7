@@ -1044,22 +1044,29 @@ export default function Home() {
         return gdl.currentWeekDays.some((d) => d.dateKey === pKey);
       });
 
-      const statWorkouts = serverStat?.workouts || 0;
-      const statDates: string[] = serverStat?.completedDates || [];
-
-      const memberUniqueDates = Array.from(
-        new Set([
-          ...memberWeekPosts.map((p) => {
-            const postDate = new Date(p.createdAt!);
-            return `${postDate.getFullYear()}-${String(postDate.getMonth() + 1).padStart(2, "0")}-${String(postDate.getDate()).padStart(2, "0")}`;
-          }),
-          ...statDates,
-        ])
+      // Strict current week completed dates from server
+      const serverWeekDates: string[] = (serverStat?.currentWeekDates || []).filter((d: string) =>
+        gdl.currentWeekDays.some((wd) => wd.dateKey === d)
       );
 
+      const memberWeekPostDates = memberWeekPosts.map((p) => {
+        const postDate = new Date(p.createdAt!);
+        return `${postDate.getFullYear()}-${String(postDate.getMonth() + 1).padStart(2, "0")}-${String(postDate.getDate()).padStart(2, "0")}`;
+      });
+
+      const memberUniqueWeekDates = Array.from(
+        new Set([...memberWeekPostDates, ...serverWeekDates])
+      );
+
+      // Clean current week workouts: strictly resets every Monday
+      const currentUserWeekDone = completedCheckInDates.filter((d) =>
+        gdl.currentWeekDays.some((wd) => wd.dateKey === d)
+      ).length;
+
       const currentWorkouts = isCurrentUser
-        ? Math.max(memberUniqueDates.length, completedCheckInDates.length, statWorkouts)
-        : Math.max(memberUniqueDates.length, statWorkouts);
+        ? Math.max(memberUniqueWeekDates.length, currentUserWeekDone)
+        : (serverStat?.workouts !== undefined ? serverStat.workouts : memberUniqueWeekDates.length);
+
       const isDone = currentWorkouts >= 4;
       const isRegistered = Boolean(
         serverStat?.hasProfile ||
@@ -1076,10 +1083,18 @@ export default function Home() {
         ? serverStat.points
         : ((currentWorkouts * 100) + (isDone ? 300 : 0) + profileBonus);
 
-      const hasRecentPost = memberWeekPosts.length > 0 || statWorkouts > 0;
+      // Did this member check in today?
+      const memberHasCheckInToday = isCurrentUser
+        ? logged
+        : (memberWeekPosts.some((p) => {
+            const postDate = new Date(p.createdAt!);
+            const pKey = `${postDate.getFullYear()}-${String(postDate.getMonth() + 1).padStart(2, "0")}-${String(postDate.getDate()).padStart(2, "0")}`;
+            return pKey === gdl.todayKey;
+          }) || (serverStat?.currentWeekDates || []).includes(gdl.todayKey));
+
       const lastCheckIn = isCurrentUser
-        ? (logged ? "Hoy (Reciente)" : "Pendiente hoy")
-        : (hasRecentPost ? "Hoy (Completado)" : "Sin check-in aún");
+        ? (logged ? "Hoy (Completado)" : "Pendiente hoy")
+        : (memberHasCheckInToday ? "Hoy (Completado)" : currentWorkouts > 0 ? "Esta semana activo" : "Sin check-in aún");
 
       // Determine real selected activity without inventing fake data
       let realActivity = "";
@@ -1128,6 +1143,8 @@ export default function Home() {
         ...m,
         activity: realActivity,
         workouts: currentWorkouts,
+        weeklyHistory: serverStat?.weeklyHistory || [],
+        totalWorkouts: serverStat?.totalWorkouts || serverStat?.completedDates?.length || currentWorkouts,
         lastCheckIn,
         points,
         completedDays: Array.from({ length: 7 }, (_, i) => i < currentWorkouts),
@@ -2687,6 +2704,37 @@ export default function Home() {
                       );
                     })}
                   </div>
+
+                  {/* Historial Semanal (Semana por Semana) */}
+                  {Array.isArray(member.weeklyHistory) && member.weeklyHistory.length > 0 && (
+                    <div className="member-history-section">
+                      <div className="member-history-header">
+                        <span className="history-kicker">🗓️ Historial por semanas:</span>
+                        {member.totalWorkouts > 0 && (
+                          <span className="history-total-tag">
+                            Total en el Reto: <b>{member.totalWorkouts} {member.totalWorkouts === 1 ? "día" : "días"}</b>
+                          </span>
+                        )}
+                      </div>
+                      <div className="member-history-pills-row">
+                        {member.weeklyHistory.map((wh: any) => {
+                          const isDone = wh.count >= 4;
+                          const hasWorkouts = wh.count > 0;
+                          return (
+                            <div
+                              key={wh.weekId}
+                              className={`history-week-pill ${wh.isCurrent ? "current" : ""} ${isDone ? "completed" : hasWorkouts ? "active" : "empty"}`}
+                              title={`${wh.label} (${wh.range}): ${wh.count} días completados ${isDone ? "· ¡Meta 4×7 cumplida! 🏆" : ""}`}
+                            >
+                              <span className="wh-label">{wh.label.replace("Semana ", "Sem ")}</span>
+                              <span className="wh-count">{wh.count}/4 {isDone ? "🏆" : "días"}</span>
+                              {wh.isCurrent && <span className="wh-current-tag">Actual</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );

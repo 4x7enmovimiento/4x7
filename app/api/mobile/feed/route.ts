@@ -144,11 +144,50 @@ export async function GET(request: Request) {
         pointsByUser.set(pt.user_id, curr + (Number(pt.points) || 0));
       });
 
-      // Current week bounds (Guadalajara GDL time)
-      const now = new Date();
-      const dayOfWeek = (now.getDay() + 6) % 7; // Monday = 0
-      const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
-      monday.setHours(0, 0, 0, 0);
+      // Guadalajara / Mexico City Date & Current Week Bounds
+      const toGdlDate = (raw: string | Date): string => {
+        try {
+          const d = typeof raw === "string" ? new Date(raw) : raw;
+          const parts = new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/Mexico_City",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).formatToParts(d);
+          const y = parts.find((p) => p.type === "year")?.value;
+          const m = parts.find((p) => p.type === "month")?.value;
+          const day = parts.find((p) => p.type === "day")?.value;
+          return `${y}-${m}-${day}`;
+        } catch {
+          return new Date(raw).toISOString().split("T")[0];
+        }
+      };
+
+      const nowGdlParts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Mexico_City",
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+      }).formatToParts(new Date());
+
+      const gdlYear = parseInt(nowGdlParts.find((p) => p.type === "year")?.value || "2026", 10);
+      const gdlMonth = parseInt(nowGdlParts.find((p) => p.type === "month")?.value || "9", 10) - 1;
+      const gdlDay = parseInt(nowGdlParts.find((p) => p.type === "day")?.value || "7", 10);
+
+      const gdlToday = new Date(gdlYear, gdlMonth, gdlDay);
+      const dayOfWeek = (gdlToday.getDay() + 6) % 7; // Monday = 0, Sunday = 6
+      const currentMonday = new Date(gdlYear, gdlMonth, gdlDay - dayOfWeek);
+      const currentMondayKey = `${currentMonday.getFullYear()}-${String(currentMonday.getMonth() + 1).padStart(2, "0")}-${String(currentMonday.getDate()).padStart(2, "0")}`;
+      const currentSunday = new Date(currentMonday.getFullYear(), currentMonday.getMonth(), currentMonday.getDate() + 6);
+      const currentSundayKey = `${currentSunday.getFullYear()}-${String(currentSunday.getMonth() + 1).padStart(2, "0")}-${String(currentSunday.getDate()).padStart(2, "0")}`;
+
+      const WEEKS = [
+        { id: "week1", label: "Semana 1", range: "1 - 6 Sep", start: "2026-09-01", end: "2026-09-06" },
+        { id: "week2", label: "Semana 2", range: "7 - 13 Sep", start: "2026-09-07", end: "2026-09-13" },
+        { id: "week3", label: "Semana 3", range: "14 - 20 Sep", start: "2026-09-14", end: "2026-09-20" },
+        { id: "week4", label: "Semana 4", range: "21 - 27 Sep", start: "2026-09-21", end: "2026-09-27" },
+        { id: "week5", label: "Semana 5", range: "28 - 30 Sep", start: "2026-09-28", end: "2026-09-30" },
+      ];
 
       const officialNickMap: Record<string, string> = {
         "p.glez.lpz92@gmail.com": "Pedcaz",
@@ -186,21 +225,30 @@ export async function GET(request: Request) {
         if (u.email) familyProfilesObj[u.email.toLowerCase()] = summary;
 
         const userWorkouts = workoutsByUser.get(u.id) || [];
-        const completedDates = Array.from(new Set(userWorkouts.map((w: any) => {
-          const d = new Date(w.started_at || w.created_at);
-          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        })));
+        const allCompletedDates = Array.from(
+          new Set(userWorkouts.map((w: any) => toGdlDate(w.started_at || w.created_at)))
+        );
 
-        // Week workouts count
-        const weekWorkouts = userWorkouts.filter((w: any) => {
-          const d = new Date(w.started_at || w.created_at);
-          return d >= monday;
+        // Strict current week workouts (Monday 00:00 to Sunday 23:59 GDL)
+        const currentWeekDates = allCompletedDates.filter(
+          (dateKey) => dateKey >= currentMondayKey && dateKey <= currentSundayKey
+        );
+        const weekCount = currentWeekDates.length;
+
+        // Compute week-by-week history
+        const weeklyHistory = WEEKS.map((w) => {
+          const datesInWeek = allCompletedDates.filter((k) => k >= w.start && k <= w.end);
+          const isCurrent = w.start <= currentMondayKey && currentMondayKey <= w.end;
+          return {
+            weekId: w.id,
+            label: w.label,
+            range: w.range,
+            count: datesInWeek.length,
+            dates: datesInWeek,
+            completed: datesInWeek.length >= 4,
+            isCurrent,
+          };
         });
-
-        const weekCount = Array.from(new Set(weekWorkouts.map((w: any) => {
-          const d = new Date(w.started_at || w.created_at);
-          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        }))).length;
 
         const hasProfile = Boolean(prof && (prof.height_cm || prof.weight_kg || prof.target_weight_kg || prof.objective));
         const profileBonus = hasProfile ? 50 : 0;
@@ -208,7 +256,7 @@ export async function GET(request: Request) {
         const ledgerPoints = pointsByUser.get(u.id);
         const computedPoints = ledgerPoints !== undefined && ledgerPoints > 0
           ? ledgerPoints
-          : (weekCount * 100) + (weekCount >= 4 ? 300 : 0) + profileBonus;
+          : (allCompletedDates.length * 100) + (weekCount >= 4 ? 300 : 0) + profileBonus;
 
         const lastWorkout = userWorkouts[userWorkouts.length - 1];
 
@@ -216,13 +264,14 @@ export async function GET(request: Request) {
           userId: u.id,
           nickname,
           fullName: u.name,
-          workouts: weekCount,
-          totalWorkouts: userWorkouts.length,
-          completedDates,
+          workouts: weekCount, // STRICT CURRENT WEEK COUNT (Resets every Monday)
+          currentWeekDates, // ONLY THIS WEEK DATES
+          completedDates: allCompletedDates, // ALL TIME DATES
+          weeklyHistory, // WEEK-BY-WEEK HISTORY BREAKDOWN
           points: computedPoints,
           hasProfile,
           activity: lastWorkout?.activity_type || "",
-          lastCheckinDate: completedDates[completedDates.length - 1] || "",
+          lastCheckinDate: allCompletedDates[allCompletedDates.length - 1] || "",
         };
 
         familyStatsObj[u.name.toLowerCase()] = statEntry;
