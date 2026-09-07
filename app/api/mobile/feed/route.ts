@@ -204,6 +204,18 @@ export async function GET(request: Request) {
         "viridiana.ca@icloud.com": "Virinovich",
       };
 
+      function computeWeekPoints(count: number): number {
+        let pts = 0;
+        for (let d = 1; d <= count; d++) {
+          if (d <= 3) pts += 100;
+          else if (d === 4) pts += 300;
+          else if (d === 5) pts += 250;
+          else if (d === 6) pts += 350;
+          else if (d >= 7) pts += 500;
+        }
+        return pts;
+      }
+
       (allUsers || []).forEach((u: any) => {
         const prof = profileByUser.get(u.id);
         const nameParts = (u.name || "").split(" ");
@@ -235,16 +247,18 @@ export async function GET(request: Request) {
         );
         const weekCount = currentWeekDates.length;
 
-        // Compute week-by-week history
+        // Compute week-by-week history with workouts count and points per week
         const weeklyHistory = WEEKS.map((w) => {
           const datesInWeek = allCompletedDates.filter((k) => k >= w.start && k <= w.end);
           const isCurrent = w.start <= currentMondayKey && currentMondayKey <= w.end;
+          const weekPts = computeWeekPoints(datesInWeek.length);
           return {
             weekId: w.id,
             label: w.label,
             range: w.range,
             count: datesInWeek.length,
             dates: datesInWeek,
+            points: weekPts,
             completed: datesInWeek.length >= 4,
             isCurrent,
           };
@@ -253,10 +267,9 @@ export async function GET(request: Request) {
         const hasProfile = Boolean(prof && (prof.height_cm || prof.weight_kg || prof.target_weight_kg || prof.objective));
         const profileBonus = hasProfile ? 50 : 0;
 
-        const ledgerPoints = pointsByUser.get(u.id);
-        const computedPoints = ledgerPoints !== undefined && ledgerPoints > 0
-          ? ledgerPoints
-          : (allCompletedDates.length * 100) + (weekCount >= 4 ? 300 : 0) + profileBonus;
+        // Weekly points strictly resets every Monday
+        const currentWeekPoints = computeWeekPoints(weekCount);
+        const totalHistoricalPoints = weeklyHistory.reduce((acc, wh) => acc + wh.points, 0) + profileBonus;
 
         const lastWorkout = userWorkouts[userWorkouts.length - 1];
 
@@ -268,7 +281,9 @@ export async function GET(request: Request) {
           currentWeekDates, // ONLY THIS WEEK DATES
           completedDates: allCompletedDates, // ALL TIME DATES
           weeklyHistory, // WEEK-BY-WEEK HISTORY BREAKDOWN
-          points: computedPoints,
+          points: currentWeekPoints, // STRICT WEEKLY POINTS (Resets every Monday)
+          weeklyPoints: currentWeekPoints,
+          totalPoints: totalHistoricalPoints, // ALL-TIME CHALLENGE POINTS
           hasProfile,
           activity: lastWorkout?.activity_type || "",
           lastCheckinDate: allCompletedDates[allCompletedDates.length - 1] || "",

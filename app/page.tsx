@@ -1079,9 +1079,26 @@ export default function Home() {
       );
       const profileBonus = isRegistered ? 50 : 0;
 
+      // Progressive weekly points: strictly resets every Monday
+      const computeWeeklyPts = (count: number) => {
+        let pts = 0;
+        for (let d = 1; d <= count; d++) {
+          if (d <= 3) pts += 100;
+          else if (d === 4) pts += 300;
+          else if (d === 5) pts += 250;
+          else if (d === 6) pts += 350;
+          else if (d >= 7) pts += 500;
+        }
+        return pts;
+      };
+
       const points = serverStat?.points !== undefined
         ? serverStat.points
-        : ((currentWorkouts * 100) + (isDone ? 300 : 0) + profileBonus);
+        : computeWeeklyPts(currentWorkouts);
+
+      const totalPoints = serverStat?.totalPoints !== undefined
+        ? serverStat.totalPoints
+        : (points + profileBonus);
 
       // Did this member check in today?
       const memberHasCheckInToday = isCurrentUser
@@ -1146,14 +1163,15 @@ export default function Home() {
         weeklyHistory: serverStat?.weeklyHistory || [],
         totalWorkouts: serverStat?.totalWorkouts || serverStat?.completedDates?.length || currentWorkouts,
         lastCheckIn,
-        points,
+        points, // STRICT WEEKLY POINTS (Resets every Monday)
+        totalPoints, // ALL-TIME CHALLENGE POINTS
         completedDays: Array.from({ length: 7 }, (_, i) => i < currentWorkouts),
         status: currentWorkouts >= 4 ? "completed" : currentWorkouts >= 2 ? "progress" : "pending",
       };
     });
   }, [currentUserName, logged, weeklyWorkoutsCount, completedCheckInDates, userBonusPoints, feedPosts, fitness, familyProfiles, familyStats, getGdlDateInfo]);
 
-  // Family dynamic points calculation
+  // Family dynamic points calculation (Ranked by weekly points)
   const familyScores = useMemo(() => {
     return familyCheckInData
       .map((m) => ({
@@ -1161,7 +1179,8 @@ export default function Home() {
         rawName: m.name,
         fullName: m.fullName,
         isCurrentUser: Boolean(m.isCurrentUser),
-        points: m.points,
+        points: m.points, // Puntos de la semana en curso
+        totalPoints: m.totalPoints, // Gran total acumulado del reto
         initials: (m.nickname || m.name || "F").charAt(0).toUpperCase(),
         color: m.color,
         trend: m.workouts >= 4 ? "+140" : m.workouts === 3 ? "+80" : "+40",
@@ -2712,7 +2731,7 @@ export default function Home() {
                         <span className="history-kicker">🗓️ Historial por semanas:</span>
                         {member.totalWorkouts > 0 && (
                           <span className="history-total-tag">
-                            Total en el Reto: <b>{member.totalWorkouts} {member.totalWorkouts === 1 ? "día" : "días"}</b>
+                            Total Reto: <b>{member.totalWorkouts} {member.totalWorkouts === 1 ? "día" : "días"}</b> · <b>{member.totalPoints || 0} pts</b>
                           </span>
                         )}
                       </div>
@@ -2724,10 +2743,11 @@ export default function Home() {
                             <div
                               key={wh.weekId}
                               className={`history-week-pill ${wh.isCurrent ? "current" : ""} ${isDone ? "completed" : hasWorkouts ? "active" : "empty"}`}
-                              title={`${wh.label} (${wh.range}): ${wh.count} días completados ${isDone ? "· ¡Meta 4×7 cumplida! 🏆" : ""}`}
+                              title={`${wh.label} (${wh.range}): ${wh.count} días (${wh.points || 0} pts) ${isDone ? "· ¡Meta 4×7 cumplida! 🏆" : ""}`}
                             >
                               <span className="wh-label">{wh.label.replace("Semana ", "Sem ")}</span>
                               <span className="wh-count">{wh.count}/4 {isDone ? "🏆" : "días"}</span>
+                              <span className="wh-pts">· {wh.points || 0} pts</span>
                               {wh.isCurrent && <span className="wh-current-tag">Actual</span>}
                             </div>
                           );
@@ -2922,9 +2942,9 @@ export default function Home() {
         </button>
       </div>
       <div className="family-total">
-        <span>Puntos acumulados en familia</span>
+        <span>Puntos de esta semana en familia</span>
         <strong>{totalPoints.toLocaleString("es-MX")}</strong>
-        <small>+740 esta semana</small>
+        <small>Se reinicia cada lunes a las 00:00</small>
       </div>
       <ol className="leaderboard">
         {familyScores.map((member, index) => (
@@ -3809,9 +3829,9 @@ export default function Home() {
       <section className="module-page">
         <div className="league-hero">
           <div>
-            <p className="eyebrow">PUNTOS TOTALES EN FAMILIA</p>
+            <p className="eyebrow">PUNTOS DE ESTA SEMANA EN FAMILIA</p>
             <strong>{totalPoints.toLocaleString("es-MX")}</strong>
-            <span>+740 esta semana</span>
+            <span>Semana en curso (Lunes a Domingo)</span>
           </div>
           <div className="podium">
             <div>
@@ -3861,7 +3881,7 @@ export default function Home() {
                     {member.name}
                     {member.isCurrentUser ? " · Tú" : ""}
                   </strong>
-                  <small>{member.workouts}/4 entrenamientos de la semana</small>
+                  <small>{member.workouts}/4 días esta semana · Total Reto: {member.totalPoints || 0} pts</small>
                 </p>
                 <em>{member.points} pts</em>
               </div>
