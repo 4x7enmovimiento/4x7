@@ -3478,30 +3478,42 @@ export default function Home() {
       const recognition = new SpeechRec();
       speechRecognitionRef.current = recognition;
       recognition.lang = "es-MX";
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      recognition.continuous = true;
+      recognition.interimResults = true;
       recognition.maxAlternatives = 1;
 
       recognition.onstart = () => {
         setIsListening(true);
-        notify("🎙️ Escuchando... habla tu duda");
-        // Auto-apagado de seguridad tras 8 segundos de silencio para no dejar el micro encendido
+        notify("🎙️ Escuchando... habla tu duda completa");
+        // Límite de seguridad máximo de 25 segundos
         if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
         speechTimeoutRef.current = setTimeout(() => {
           stopVoiceRecognition();
-        }, 8000);
+        }, 25000);
       };
 
       recognition.onresult = (event: any) => {
-        const transcript = event.results?.[0]?.[0]?.transcript;
-        if (transcript) {
-          setCoachInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        let fullTranscript = "";
+        for (let i = 0; i < event.results.length; i++) {
+          const item = event.results[i]?.[0]?.transcript;
+          if (item) fullTranscript += item + " ";
         }
-        stopVoiceRecognition(); // Apagar inmediatamente el micrófono al recibir la voz
+        const trimmed = fullTranscript.trim();
+        if (trimmed) {
+          setCoachInput(trimmed);
+
+          // Reiniciar contador de silencio: da 3.5 segundos de pausa natural antes de finalizar
+          if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
+          speechTimeoutRef.current = setTimeout(() => {
+            stopVoiceRecognition();
+          }, 3500);
+        }
       };
 
-      recognition.onerror = () => {
-        stopVoiceRecognition();
+      recognition.onerror = (e: any) => {
+        if (e?.error !== "no-speech") {
+          stopVoiceRecognition();
+        }
       };
 
       recognition.onend = () => {
