@@ -3370,6 +3370,78 @@ export default function Home() {
     speakText("sample-voice-preview", sampleText);
   };
 
+  const renderCoachFormattedMessage = (raw: string) => {
+    const lines = raw.split("\n");
+    const elements: React.ReactNode[] = [];
+    let currentBullets: string[] = [];
+
+    const flushBullets = (key: string) => {
+      if (currentBullets.length > 0) {
+        elements.push(
+          <ul key={key} className="coach-rich-bullet-list">
+            {currentBullets.map((b, bIdx) => (
+              <li key={bIdx} dangerouslySetInnerHTML={{ __html: formatInline(b) }} />
+            ))}
+          </ul>
+        );
+        currentBullets = [];
+      }
+    };
+
+    const formatInline = (text: string) => {
+      return text
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.*?)\*/g, "<em>$1</em>")
+        .replace(/`([^`]+)`/g, "<code>$1</code>");
+    };
+
+    lines.forEach((line, idx) => {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        flushBullets(`flush-${idx}`);
+        return;
+      }
+
+      // Headings ### or ####
+      if (trimmed.startsWith("###")) {
+        flushBullets(`h-${idx}`);
+        const content = trimmed.replace(/^#+\s*/, "");
+        elements.push(
+          <h5 key={`h-${idx}`} className="coach-rich-h5" dangerouslySetInnerHTML={{ __html: formatInline(content) }} />
+        );
+        return;
+      }
+
+      // Bullet items: * or - or •
+      if (/^[-*•]\s+/.test(trimmed)) {
+        currentBullets.push(trimmed.replace(/^[-*•]\s+/, ""));
+        return;
+      }
+
+      // Numbered steps: 1. or 2.
+      if (/^\d+\.\s+/.test(trimmed)) {
+        flushBullets(`step-${idx}`);
+        const stepNum = trimmed.match(/^(\d+)\./)?.[1] || "";
+        const stepContent = trimmed.replace(/^\d+\.\s+/, "");
+        elements.push(
+          <div key={`step-${idx}`} className="coach-rich-step">
+            <span className="coach-step-badge">{stepNum}</span>
+            <div className="coach-step-text" dangerouslySetInnerHTML={{ __html: formatInline(stepContent) }} />
+          </div>
+        );
+        return;
+      }
+
+      flushBullets(`p-${idx}`);
+      elements.push(
+        <p key={`p-${idx}`} className="coach-paragraph" dangerouslySetInnerHTML={{ __html: formatInline(trimmed) }} />
+      );
+    });
+
+    flushBullets("final");
+    return elements;
+  };
+
   const startVoiceRecognition = () => {
     if (typeof window === "undefined") return;
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -3964,11 +4036,7 @@ export default function Home() {
                   )}
                   <div className={`coach-msg-bubble ${isCoach ? "bubble-coach" : "bubble-user"}`}>
                     <div className="coach-msg-body">
-                      {msg.text.split("\n\n").map((para, pIdx) => (
-                        <p key={pIdx} className="coach-paragraph">
-                          {para}
-                        </p>
-                      ))}
+                      {renderCoachFormattedMessage(msg.text)}
                     </div>
 
                     <div className="coach-msg-footer">

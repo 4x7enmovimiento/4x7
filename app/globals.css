@@ -4995,7 +4995,7 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   border: 1px solid #e7eee9;
   border-radius: 16px;
   padding: 16px;
-  max-height: 380px;
+  max-height: 480px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -5006,7 +5006,7 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  max-width: 92%;
+  max-width: 95%;
 }
 
 .coach-msg-row.from-coach {
@@ -5033,9 +5033,9 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 
 .coach-msg-bubble {
   border-radius: 16px;
-  padding: 12px 14px;
+  padding: 13px 15px;
   font-size: 13.5px;
-  line-height: 1.5;
+  line-height: 1.55;
   position: relative;
   word-break: break-word;
 }
@@ -5048,10 +5048,20 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
+.bubble-coach strong {
+  color: #0f4833;
+  font-weight: 750;
+}
+
 .bubble-user {
   background: #14583f;
   color: #ffffff;
   border-bottom-right-radius: 4px;
+}
+
+.bubble-user strong {
+  color: #ffffff;
+  font-weight: 750;
 }
 
 .coach-paragraph {
@@ -5060,6 +5070,61 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 
 .coach-paragraph + .coach-paragraph {
   margin-top: 8px;
+}
+
+.coach-rich-h5 {
+  margin: 12px 0 6px 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #134e37;
+  letter-spacing: -0.2px;
+}
+
+.coach-rich-h5:first-child {
+  margin-top: 0;
+}
+
+.coach-rich-bullet-list {
+  margin: 6px 0 8px 0;
+  padding-left: 18px;
+  list-style-type: disc;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.coach-rich-bullet-list li {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #243b31;
+}
+
+.coach-rich-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 6px 0;
+}
+
+.coach-step-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #e8f5ee;
+  color: #166343;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.coach-step-text {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .coach-msg-footer {
