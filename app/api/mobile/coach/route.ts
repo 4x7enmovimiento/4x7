@@ -76,25 +76,24 @@ export async function POST(request: Request) {
         ? "Mantener peso y mejorar salud cardiovascular"
         : "Salud general y constancia 4×7";
 
-    const systemPrompt = `Eres el Coach Deportivo y Nutricionista Oficial del reto "4×7" en México.
-Tu atleta te consulta desde su celular y tu respuesta se leerá en voz alta con el sintetizador de voz.
+    const systemPrompt = `Eres un coach deportivo y preparador físico personal de alto nivel, hablando con ${userName} en México para el reto 4×7.
+Responde de manera 100% natural, fluida y conversacional, exactamente como lo hace ChatGPT en una charla directa, inteligente y humana.
 
-DATOS DEL ATLETA:
+PERFIL DEL ATLETA:
 - Nombre: ${userName}
 - Peso: ${currentWeight} ${typeof currentWeight === "number" ? "kg" : ""}
 - Estatura: ${heightCm} ${typeof heightCm === "number" ? "cm" : ""}
 - Meta: ${targetWeight} ${typeof targetWeight === "number" ? "kg" : ""}
 - Objetivo: ${objective}
-- Disciplina reciente: ${recentActivities.join(", ") || "Entrenamiento 4×7"}
+- Entrenamientos recientes: ${recentActivities.join(", ") || "Reto 4×7"}
 
-ESTILO DE RESPUESTA (TÉRMINO MEDIO: NI MUY LARGO NI MUY CORTO):
-1. LONGITUD PERFECTA: Alrededor de 120 a 160 palabras en total. Debe sentirse completa y profesional, pero amena y rápida de leer o escuchar.
-2. ESTRUCTURA DINÁMICA:
-   - Saludo cercano y motivador reconociendo el esfuerzo de ${userName}.
-   - Explicación breve (1 o 2 líneas) de lo que pasa en su cuerpo (ej. fatiga o recuperación muscular).
-   - De 3 a 4 recomendaciones en viñetas (•) claras y bien explicadas con acciones exactas (alimentos prácticos de México, hidratación, estiramientos específicos con segundos, o descanso).
-   - Frase de cierre con energía y motivación para el reto 4×7.
-3. TONO: Experto, fresco, enérgico y muy cercano.`;
+PAUTAS DE ESTILO (NATURAL, HUMANO Y SIN PLANTILLAS):
+1. CERO ESTRUCTURAS ROBÓTICAS: Prohibido sonar como un bot que siempre repite la misma fórmula de "saludo con nombre + mini explicación + 3 viñetas + frase motivacional cliché". Cada respuesta tuya debe ser única y sonar a conversación real.
+2. ADAPTA EL FORMATO SEGÚN LA PREGUNTA:
+   - Si la duda es directa o sobre sensaciones/dolor/ánimo, responde en párrafos normales, fluidos y bien explicados.
+   - Si piden menús, ejercicios o opciones puntuales, puedes usar viñetas si facilitan la lectura, pero de forma orgánica.
+3. EXTENSIÓN NATURAL: Ni una enciclopedia pesada ni un telegrama telegráfico. Responde con la profundidad y claridad justas que darías en un mensaje directo a tu atleta.
+4. TONO: Cercano, empático, experto y amigable ("como tu preparador físico de confianza que realmente sabe de fisiología y nutrición").`;
 
     // 3. Formatear historial asegurando estricta alternancia
     const validHistory: Array<{ role: "user" | "model"; text: string }> = [];
@@ -102,13 +101,8 @@ ESTILO DE RESPUESTA (TÉRMINO MEDIO: NI MUY LARGO NI MUY CORTO):
     for (const msg of history) {
       if (!msg || !msg.text) continue;
       const role = msg.role === "coach" || msg.role === "model" ? "model" : "user";
-      let text = String(msg.text).trim();
+      const text = String(msg.text).trim();
       if (!text) continue;
-
-      // Limitar respuestas previas del coach a 350 caracteres para mantener el contexto en tamaño adecuado
-      if (role === "model" && text.length > 350) {
-        text = text.slice(0, 350) + "...";
-      }
 
       if (validHistory.length > 0 && validHistory[validHistory.length - 1].role === role) {
         validHistory[validHistory.length - 1].text += `\n${text}`;
@@ -118,19 +112,17 @@ ESTILO DE RESPUESTA (TÉRMINO MEDIO: NI MUY LARGO NI MUY CORTO):
     }
 
     const inputHistory = validHistory
-      .slice(-4)
+      .slice(-6)
       .map((h) => `${h.role === "model" ? "Coach" : "Atleta"}: ${h.text}`)
       .join("\n\n");
 
-    const promptWithConstraint = `${userMessage}\n\n(Coach: responde en término medio, ni muy largo ni muy corto, con 3 a 4 puntos clave y prácticos, entre 120 y 160 palabras).`;
-
     // Asegurar que el último turno sea la pregunta actual del usuario
     const lastTurn = validHistory[validHistory.length - 1];
-    if (!lastTurn || lastTurn.role !== "user" || lastTurn.text !== promptWithConstraint) {
+    if (!lastTurn || lastTurn.role !== "user" || lastTurn.text !== userMessage) {
       if (lastTurn && lastTurn.role === "user") {
-        lastTurn.text = promptWithConstraint;
+        lastTurn.text = userMessage;
       } else {
-        validHistory.push({ role: "user", text: promptWithConstraint });
+        validHistory.push({ role: "user", text: userMessage });
       }
     }
 
@@ -139,7 +131,7 @@ ESTILO DE RESPUESTA (TÉRMINO MEDIO: NI MUY LARGO NI MUY CORTO):
       validHistory.shift();
     }
 
-    const finalTurns = validHistory.slice(-4);
+    const finalTurns = validHistory.slice(-6);
     const contents = finalTurns.map((turn) => ({
       role: turn.role,
       parts: [{ text: turn.text }],
@@ -168,8 +160,8 @@ ESTILO DE RESPUESTA (TÉRMINO MEDIO: NI MUY LARGO NI MUY CORTO):
           body: JSON.stringify({
             model: "gpt-4o-mini",
             messages: oaiMessages,
-            temperature: 0.65,
-            max_tokens: 350,
+            temperature: 0.8,
+            max_tokens: 420,
           }),
         });
 
@@ -187,7 +179,7 @@ ESTILO DE RESPUESTA (TÉRMINO MEDIO: NI MUY LARGO NI MUY CORTO):
 
     // 5. Si OpenAI no respondió y hay clave de Gemini, llamar a Gemini
     if (!replyText && apiKey) {
-      const fullInput = inputHistory ? `${inputHistory}\n\nAtleta: ${promptWithConstraint}` : promptWithConstraint;
+      const fullInput = inputHistory ? `${inputHistory}\n\nAtleta: ${userMessage}` : userMessage;
       let targetModels: string[] = [
         "gemini-3.6-flash",
         "gemini-3.7-flash",
