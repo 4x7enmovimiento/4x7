@@ -137,17 +137,29 @@ DIRECTRICES DE CALIDAD Y CONTENIDO:
       parts: [{ text: turn.text }],
     }));
 
-    // 4. Llamar a la API de Gemini con descubrimiento dinámico de modelos
+    // 4. Llamar a la API de Gemini con Interactions API oficial y generateContent
     let replyText = "";
     let lastErrorDetail = "";
 
+    const inputHistory = validHistory
+      .slice(-4)
+      .map((h) => `${h.role === "model" ? "Coach" : "Atleta"}: ${h.text}`)
+      .join("\n\n");
+    const fullInput = inputHistory ? `${inputHistory}\n\nAtleta: ${userMessage}` : userMessage;
+
     if (apiKey) {
-      // Descubrir los modelos activos y soportados para esta API Key directamente de Google
-      let targetModels: string[] = ["gemini-3.7-flash", "gemini-3.5-flash-lite", "gemini-2.0-flash"];
+      // Priorizar los modelos modernos 3.x recomendados por Google (gemini-3.6-flash)
+      let targetModels: string[] = [
+        "gemini-3.6-flash",
+        "gemini-3.7-flash",
+        "gemini-3.8-flash",
+        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite",
+      ];
 
       try {
         const listRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=100`,
           { headers: { "x-goog-api-key": apiKey } }
         );
         if (listRes.ok) {
@@ -159,67 +171,82 @@ DIRECTRICES DE CALIDAD Y CONTENIDO:
                 m.supportedGenerationMethods.includes("generateContent")
               )
               .map((m: any) => m.name.replace(/^models\//, ""))
-              .filter((m: string) => !m.includes("embedding") && !m.includes("aqa") && !m.includes("imagen"));
+              .filter((m: string) =>
+                !m.startsWith("gemini-1.") &&
+                !m.startsWith("gemini-2.") &&
+                !m.includes("embedding") &&
+                !m.includes("aqa") &&
+                !m.includes("imagen")
+              );
 
             if (available.length > 0) {
-              // Colocar los modelos descubiertos al frente
-              targetModels = Array.from(new Set([...available, ...targetModels]));
+              targetModels = Array.from(new Set(["gemini-3.6-flash", "gemini-3.7-flash", ...available, ...targetModels]));
             }
           }
-        } else {
-          const listErr = await listRes.json().catch(() => ({}));
-          console.warn("ListModels status:", listRes.status, listErr);
         }
       } catch (e) {
         console.warn("Could not query ListModels:", e);
       }
 
-      // Probar primero la nueva Interactions API oficial de Google con gemini-3.7-flash
-      try {
-        const inputHistory = validHistory
-          .slice(-4)
-          .map((h) => `${h.role === "model" ? "Coach" : "Atleta"}: ${h.text}`)
-          .join("\n\n");
-        const fullInput = inputHistory ? `${inputHistory}\n\nAtleta: ${userMessage}` : userMessage;
+      // Probar primero la Interactions API recomendada por Google con gemini-3.6-flash y gemini-3.7-flash
+      const interModels = ["gemini-3.6-flash", "gemini-3.7-flash"];
+      for (const interModel of interModels) {
+        try {
+          const interRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/interactions?key=${apiKey}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": apiKey,
+                "Api-Revision": "2026-05-20",
+              },
+              body: JSON.stringify({
+                model: interModel,
+                system_instruction: systemPrompt,
+                input: fullInput,
+              }),
+            }
+          );
 
-        const interRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/interactions?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-goog-api-key": apiKey,
-            },
-            body: JSON.stringify({
-              model: "gemini-3.7-flash",
-              system_instruction: systemPrompt,
-              input: fullInput,
-            }),
-          }
-        );
-
-        if (interRes.ok) {
-          const interData = await interRes.json();
-          if (Array.isArray(interData.steps)) {
-            for (const step of interData.steps) {
-              if (step.type === "model_output" && Array.isArray(step.content)) {
-                const textObj = step.content.find((c: any) => c.text || c.type === "text");
-                if (textObj?.text) {
-                  replyText = textObj.text;
-                  break;
+          if (interRes.ok) {
+            const interData = await interRes.json();
+            // 1. New schema: steps array
+            if (Array.isArray(interData.steps)) {
+              for (const step of interData.steps) {
+                if (step.type === "model_output" && Array.isArray(step.content)) {
+                  for (const part of step.content) {
+                    if (part?.text) {
+                      replyText += part.text;
+                    }
+                  }
                 }
               }
             }
+            // 2. Legacy schema: outputs array
+            if (!replyText && Array.isArray(interData.outputs)) {
+              for (const out of interData.outputs) {
+                if (out?.text) {
+                  replyText += out.text;
+                }
+              }
+            }
+            // 3. Convenience output_text
+            if (!replyText && typeof interData.output_text === "string" && interData.output_text.trim()) {
+              replyText = interData.output_text.trim();
+            }
+
+            if (replyText) break;
+          } else {
+            const interErr = await interRes.json().catch(() => ({}));
+            lastErrorDetail = interErr?.error?.message || `Interactions API HTTP ${interRes.status} en ${interModel}`;
           }
-          if (!replyText && interData.output_text) {
-            replyText = interData.output_text;
-          }
+        } catch (interErr: any) {
+          lastErrorDetail = interErr?.message || "Error al llamar Interactions API";
         }
-      } catch (interErr) {
-        console.warn("Interactions API attempt error:", interErr);
       }
 
-      // Si Interactions no respondió, iterar sobre los modelos válidos con generateContent
+      // Si Interactions API no devolvió respuesta, intentar generateContent con los modelos 3.x
       if (!replyText) {
         for (const model of targetModels) {
           try {
@@ -250,35 +277,38 @@ DIRECTRICES DE CALIDAD Y CONTENIDO:
               const errData = await response.json().catch(() => ({}));
               lastErrorDetail = errData?.error?.message || `HTTP ${response.status} en ${model}`;
 
-              // Si falla por formato (400), reintentar con el prompt unificado en user content
-              if (response.status === 400) {
-                const fallbackContents = [
-                  {
-                    role: "user",
-                    parts: [{ text: `${systemPrompt}\n\n---\nPregunta del atleta:\n${userMessage}` }],
+              // Si falla por compatibilidad de schema, reintentar con el prompt unificado en user turn
+              const fallbackContents = [
+                {
+                  role: "user",
+                  parts: [{ text: `${systemPrompt}\n\n---\nHistorial previo:\n${inputHistory}\n\n---\nPregunta del atleta:\n${userMessage}` }],
+                },
+              ];
+              const retryResp = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": apiKey,
                   },
-                ];
-                const retryResp = await fetch(
-                  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-                  {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "x-goog-api-key": apiKey,
+                  body: JSON.stringify({
+                    contents: fallbackContents,
+                    generationConfig: {
+                      temperature: 0.7,
+                      maxOutputTokens: 2048,
                     },
-                    body: JSON.stringify({
-                      contents: fallbackContents,
-                      generationConfig: {
-                        temperature: 0.7,
-                        maxOutputTokens: 2048,
-                      },
-                    }),
-                  }
-                );
-                if (retryResp.ok) {
-                  const retryData = await retryResp.json();
-                  replyText = retryData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                  if (replyText) break;
+                  }),
+                }
+              );
+              if (retryResp.ok) {
+                const retryData = await retryResp.json();
+                replyText = retryData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                if (replyText) break;
+              } else {
+                const retryErr = await retryResp.json().catch(() => ({}));
+                if (retryErr?.error?.message) {
+                  lastErrorDetail = retryErr.error.message;
                 }
               }
             }
