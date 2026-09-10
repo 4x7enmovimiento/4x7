@@ -16,16 +16,18 @@ export async function POST(request: Request) {
       return json({ error: "Escribe tu pregunta para el Coach." }, 400);
     }
 
-    const apiKey =
+    const apiKey = (
       process.env.GEMINI_API_KEY ||
       process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
       process.env.GOOGLE_API_KEY ||
-      "";
+      process.env.GEMINI_KEY ||
+      ""
+    ).trim();
 
     if (!apiKey) {
       return json({
         reply:
-          "¡Hola! El Coach Virtual está casi listo. Por favor verifica que la variable GEMINI_API_KEY esté configurada en Vercel para activar las respuestas en tiempo real.",
+          "¡Hola! El Coach Virtual necesita la clave de Gemini. Por favor asegúrate de haber agregado la variable GEMINI_API_KEY en Vercel (marcando el entorno Production) y hacer un Redeploy.",
       });
     }
 
@@ -69,7 +71,7 @@ export async function POST(request: Request) {
         : "Salud general y constancia 4×7";
 
     const systemPrompt = `Eres el "Coach 4×7", el entrenador personal, preparador físico y asesor nutricional de la familia en el Reto 4×7 (México).
-Tu misión es guiar, motivar y educar al usuario con consejos prácticos, seguros y médicamente fundamentados.
+Tu misión es responder con precisión y empatía a la duda puntual del usuario sobre nutrición, ejercicios, recuperación o hábitos.
 
 DATOS REALES DEL ATLETA CON QUIEN HABLAS:
 - Nombre: ${userName}
@@ -80,33 +82,55 @@ DATOS REALES DEL ATLETA CON QUIEN HABLAS:
 - Disciplinas recientes: ${recentActivities.join(", ") || "Gimnasio / Cardio"}
 - Meta del reto: Entrenar de 4 a 7 días por semana, beber 35ml de agua por kg de peso, cuidar articulaciones y descansar 3 días.
 
-PAUTAS DE RESPUESTA:
-1. Sé empático, enérgico, claro y positivo con tono mexicano cercano y profesional (sin tecnicismos confusos).
+PAUTAS OBLIGATORIAS:
+1. Responde DIRECTAMENTE a lo que el usuario está preguntando. No repitas saludos largos ni sueltes un monólogo genérico.
 2. Da respuestas concisas y fáciles de leer en el celular: usa viñetas cortas, pasos 1-2-3 y emojis deportivos (💪, 🥗, 💧, ⚡, 🥑, 🏋️).
 3. Si preguntan sobre comida, da ejemplos de alimentos comunes, accesibles y ricos en proteína (huevos, pollo, frijoles, atún, avena, yogur griego, verduras).
 4. Si preguntan sobre dolor o molestias en rodillas o espalda, prioriza la postura, calentamiento y la prudencia médica.
-5. Mantén las respuestas en una extensión cómoda para ser leída o escuchada en voz alta (máximo 3 a 4 párrafos cortos).`;
+5. Mantén las respuestas en una extensión cómoda para ser leída o escuchada en voz alta (máximo 2 a 3 párrafos cortos).`;
 
-    // 3. Formatear historial para Gemini
-    const contents: any[] = [];
+    // 3. Formatear historial asegurando estricta alternancia para Gemini (user -> model -> user)
+    const validHistory: Array<{ role: "user" | "model"; text: string }> = [];
 
-    history.slice(-6).forEach((msg: any) => {
-      if (msg.role === "user" || msg.role === "model") {
-        contents.push({
-          role: msg.role === "user" ? "user" : "model",
-          parts: [{ text: String(msg.text || "") }],
-        });
+    for (const msg of history) {
+      if (!msg || !msg.text) continue;
+      const role = msg.role === "coach" || msg.role === "model" ? "model" : "user";
+      const text = String(msg.text).trim();
+      if (!text) continue;
+
+      if (validHistory.length > 0 && validHistory[validHistory.length - 1].role === role) {
+        validHistory[validHistory.length - 1].text += `\n${text}`;
+      } else {
+        validHistory.push({ role, text });
       }
-    });
+    }
 
-    contents.push({
-      role: "user",
-      parts: [{ text: userMessage }],
-    });
+    // Asegurar que el último turno sea la pregunta actual del usuario
+    const lastTurn = validHistory[validHistory.length - 1];
+    if (!lastTurn || lastTurn.role !== "user" || lastTurn.text !== userMessage) {
+      if (lastTurn && lastTurn.role === "user") {
+        lastTurn.text = userMessage;
+      } else {
+        validHistory.push({ role: "user", text: userMessage });
+      }
+    }
 
-    // 4. Llamar a la API de Gemini (probando gemini-2.5-flash y fallback a gemini-1.5-flash)
+    // Asegurar que el historial inicie con turno de 'user'
+    while (validHistory.length > 0 && validHistory[0].role !== "user") {
+      validHistory.shift();
+    }
+
+    const finalTurns = validHistory.slice(-6);
+
+    const contents = finalTurns.map((turn) => ({
+      role: turn.role,
+      parts: [{ text: turn.text }],
+    }));
+
+    // 4. Llamar a la API de Gemini con fallbacks
     let replyText = "";
-    const models = ["gemini-2.5-flash", "gemini-1.5-flash"];
+    let lastErrorDetail = "";
+    const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
 
     for (const model of models) {
       try {
@@ -133,15 +157,29 @@ PAUTAS DE RESPUESTA:
           if (replyText) break;
         } else {
           const errData = await response.json().catch(() => ({}));
+          lastErrorDetail = errData?.error?.message || `HTTP ${response.status} en modelo ${model}`;
           console.warn(`Gemini model ${model} error:`, errData);
         }
-      } catch (callErr) {
+      } catch (callErr: any) {
+        lastErrorDetail = callErr?.message || `Fallo de conexión al modelo ${model}`;
         console.warn(`Gemini call failure on ${model}:`, callErr);
       }
     }
 
     if (!replyText) {
-      replyText = `¡Hola ${userName}! Aquí tu Coach 4×7. Para tu objetivo de ${objective.toLowerCase()}, la clave de oro es la constancia: cumple tus 4 días de entrenamiento esta semana, bebe tus ${typeof currentWeight === "number" ? (currentWeight * 0.035).toFixed(1) : "2.5"} litros de agua y come suficiente proteína. ¿Tienes alguna duda de tu rutina o tus comidas de hoy? ¡Pregúntame con confianza! 💪🔥`;
+      if (lastErrorDetail) {
+        console.error("Coach Gemini Error:", lastErrorDetail);
+        if (
+          lastErrorDetail.toLowerCase().includes("key") ||
+          lastErrorDetail.toLowerCase().includes("permission") ||
+          lastErrorDetail.toLowerCase().includes("quota")
+        ) {
+          return json({
+            reply: `Hubo un inconveniente con la API Key de Gemini: ${lastErrorDetail}. Por favor verifica tu clave en Vercel.`,
+          });
+        }
+      }
+      replyText = `¡Hola ${userName}! Para responderte mejor sobre "${userMessage}", toma en cuenta que tu objetivo es ${objective.toLowerCase()}. Mantén tus 4 días de ejercicio esta semana y una hidratación de ~${typeof currentWeight === "number" ? (currentWeight * 0.035).toFixed(1) : "2.5"} litros. ¿Deseas una recomendación puntual de ejercicios o un menú de ejemplo? 💪`;
     }
 
     return json({ reply: replyText });

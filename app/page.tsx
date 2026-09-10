@@ -3337,7 +3337,7 @@ export default function Home() {
       coachChatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
 
-    const history = nextMessages
+    const history = coachMessages
       .filter((m) => m.id !== "init")
       .map((m) => ({
         role: m.role === "coach" ? ("model" as const) : ("user" as const),
