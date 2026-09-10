@@ -159,6 +159,11 @@ export const clientApi = {
     });
     return { ...patchRes, evidenceUrl: uploadRes.evidenceUrl };
   },
+  askCoach: (message: string, history?: Array<{ role: "user" | "model"; text: string }>) =>
+    request<{ reply: string }>("/api/mobile/coach", {
+      method: "POST",
+      body: JSON.stringify({ message, history }),
+    }),
   comment: (postId: number, body: string) => request<{ comment: { id: number; postId: number; userId: number; userName: string; body: string; createdAt: string } }>(`/api/mobile/feed/${postId}/comments`, {
     method: "POST",
     body: JSON.stringify({ body }),

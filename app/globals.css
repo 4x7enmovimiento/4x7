@@ -4604,4 +4604,462 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   transform: scale(0.98);
 }
 
+/* ==========================================================================
+   PREGÚNTALE AL COACH (GEMINI AI + VOZ)
+   ========================================================================== */
+.coach-master-card {
+  background: #ffffff;
+  border: 1px solid #dbe6df;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(18, 77, 53, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.coach-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.coach-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex: 1;
+  min-width: 240px;
+}
+
+.coach-avatar-badge {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1d7a58, #104c35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(29, 122, 88, 0.25);
+  flex-shrink: 0;
+}
+
+.coach-avatar-emoji {
+  font-size: 24px;
+}
+
+.coach-online-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid white;
+}
+
+.coach-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #eef7f2;
+  color: #166544;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  margin-bottom: 4px;
+}
+
+.coach-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: coachPulse 1.8s infinite;
+}
+
+@keyframes coachPulse {
+  0% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.coach-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  color: #123326;
+  letter-spacing: -0.3px;
+}
+
+.coach-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 12.5px;
+  color: #586e63;
+  line-height: 1.4;
+}
+
+.coach-voice-badge-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f4f6f5;
+  border: 1px solid #e1e7e3;
+  padding: 5px 10px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #3b5247;
+}
+
+.coach-voice-icon {
+  font-size: 13px;
+}
+
+/* Quick prompt chips */
+.coach-chips-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.coach-chips-title {
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: #72877c;
+}
+
+.coach-chips-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.coach-chips-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.coach-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  background: #f5f8f6;
+  border: 1px solid #dbe5e0;
+  color: #1a4d39;
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.coach-chip-btn:hover {
+  background: #e9f3ed;
+  border-color: #bad3c5;
+  transform: translateY(-1px);
+}
+
+.coach-chip-btn:active {
+  transform: scale(0.97);
+}
+
+.coach-chip-icon {
+  font-size: 13px;
+}
+
+/* Chat Stream */
+.coach-chat-stream {
+  background: #f9fbf9;
+  border: 1px solid #e7eee9;
+  border-radius: 16px;
+  padding: 16px;
+  max-height: 380px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.coach-msg-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 92%;
+}
+
+.coach-msg-row.from-coach {
+  align-self: flex-start;
+}
+
+.coach-msg-row.from-user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.coach-bubble-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #196647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.coach-msg-bubble {
+  border-radius: 16px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  position: relative;
+  word-break: break-word;
+}
+
+.bubble-coach {
+  background: #ffffff;
+  color: #192b23;
+  border: 1px solid #e1ebe5;
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.bubble-user {
+  background: #14583f;
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+}
+
+.coach-paragraph {
+  margin: 0;
+}
+
+.coach-paragraph + .coach-paragraph {
+  margin-top: 8px;
+}
+
+.coach-msg-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.coach-timestamp {
+  font-size: 10.5px;
+  color: #8c9e95;
+  font-weight: 500;
+}
+
+.bubble-user .coach-timestamp {
+  color: #b3d5c4;
+}
+
+.coach-audio-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #edf7f1;
+  border: 1px solid #c9e4d4;
+  color: #125439;
+  border-radius: 8px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.coach-audio-btn:hover {
+  background: #def0e6;
+  border-color: #aed5be;
+}
+
+.coach-audio-btn.playing {
+  background: #feebe8;
+  border-color: #f7c2b8;
+  color: #b82b14;
+}
+
+/* Audio waves animation */
+.coach-wave-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+
+.coach-wave-bars i {
+  width: 2.5px;
+  height: 100%;
+  background: currentColor;
+  border-radius: 2px;
+  animation: coachWave 0.8s ease-in-out infinite alternate;
+}
+
+.coach-wave-bars i:nth-child(2) {
+  animation-delay: 0.25s;
+}
+
+.coach-wave-bars i:nth-child(3) {
+  animation-delay: 0.5s;
+}
+
+@keyframes coachWave {
+  0% { height: 25%; }
+  100% { height: 100%; }
+}
+
+/* Typing Dots Loading */
+.loading-bubble {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #556c61;
+}
+
+.coach-typing-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.coach-typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1c7a56;
+  animation: coachTyping 1.4s infinite ease-in-out both;
+}
+
+.coach-typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+.coach-typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes coachTyping {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* Chat Input Bar */
+.coach-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.coach-input-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1.5px solid #d5e2dc;
+  border-radius: 15px;
+  padding: 5px 6px 5px 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.15s ease;
+}
+
+.coach-input-inner:focus-within {
+  border-color: #197b57;
+  box-shadow: 0 0 0 3px rgba(25, 123, 87, 0.12);
+}
+
+.coach-mic-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 0;
+  background: #f1f6f3;
+  color: #274b3d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.coach-mic-btn:hover {
+  background: #e3ede7;
+}
+
+.coach-mic-btn.listening {
+  background: #fde8e8;
+  color: #dc2626;
+  animation: micPulse 1.2s infinite alternate;
+}
+
+@keyframes micPulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+  100% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+}
+
+.coach-text-input {
+  flex: 1;
+  border: 0;
+  outline: none;
+  background: transparent;
+  padding: 8px 4px;
+  color: #123326;
+  font-size: 14.5px;
+}
+
+.coach-text-input::placeholder {
+  color: #92a49b;
+}
+
+.coach-send-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 0;
+  background: #14583f;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.coach-send-btn:hover:not(:disabled) {
+  background: #0f4934;
+  transform: translateY(-1px);
+}
+
+.coach-send-btn:disabled {
+  background: #d3dfd8;
+  color: #8fa59b;
+  cursor: not-allowed;
+}
+
+.coach-input-hint {
+  margin: 0;
+  font-size: 11px;
+  color: #7b9185;
+  text-align: center;
+}
+
+
 

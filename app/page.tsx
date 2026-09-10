@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuthScreen } from "./components/AuthScreen";
 import { ProfileOnboarding } from "./components/ProfileOnboarding";
 import { clientApi, type FeedPost, type ProfileResponse, type Session } from "./lib/client-api";
@@ -20,6 +20,22 @@ interface CustomChallenge {
   acceptedBy: string[];
   createdAt: string;
 }
+
+interface CoachMessage {
+  id: string;
+  role: "user" | "coach";
+  text: string;
+  timestamp: string;
+}
+
+const COACH_QUICK_PROMPTS = [
+  { icon: "🍎", label: "¿Qué comer antes de entrenar?", query: "¿Qué puedo comer antes de entrenar para tener buena energía sin sentirme pesado?" },
+  { icon: "⚡", label: "Rutina express 30 min", query: "¿Me puedes dar una rutina express de 30 minutos enfocada en quemar grasa y tono muscular?" },
+  { icon: "🍗", label: "Cenas altas en proteína", query: "Dame 3 ideas de cenas fáciles y nutritivas altas en proteína para después de entrenar." },
+  { icon: "💧", label: "¿Cuánta agua tomar?", query: "¿Cuántos litros de agua debo tomar al día según mi peso y nivel de entrenamiento?" },
+  { icon: "🔥", label: "¿Cómo quemar grasa más rápido?", query: "¿Cuáles son los mejores hábitos para acelerar la quema de grasa sin perder masa muscular?" },
+  { icon: "🦵", label: "Aliviar dolor muscular", query: "¿Qué me recomiendas hacer para recuperarme más rápido del dolor muscular post-entreno?" },
+];
 
 const familyMembersList = [
   { name: "Pedcaz", initials: "P", color: "mint" },
@@ -3176,6 +3192,184 @@ export default function Home() {
     }
   };
 
+  // Coach Virtual 4x7 (Gemini AI + Voz)
+  const [coachMessages, setCoachMessages] = useState<CoachMessage[]>([
+    {
+      id: "init",
+      role: "coach",
+      text: "¡Hola! Soy tu Coach Virtual 4×7 impulsado por Gemini AI. Conozco tus métricas, objetivos y entrenamientos. Pregúntame lo que quieras sobre alimentación, rutinas, técnica o recuperación. ¡Puedes escribir o usar tu voz con el micrófono! 🎙️",
+      timestamp: "En línea",
+    },
+  ]);
+  const [coachInput, setCoachInput] = useState("");
+  const [coachLoading, setCoachLoading] = useState(false);
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const coachChatEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Cancelar reproducción de voz si se cambia de vista
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const speakText = (id: string, rawText: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      notify("Tu navegador no soporta síntesis de voz.");
+      return;
+    }
+
+    if (speakingMsgId === id) {
+      window.speechSynthesis.cancel();
+      setSpeakingMsgId(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    // Limpiar formato markdown y emojis para una lectura natural en español
+    const cleanText = rawText
+      .replace(/[*#_~`>]/g, "")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/https?:\/\/\S+/g, "")
+      .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
+      .trim();
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = "es-MX";
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const esVoice = voices.find(
+      (v) =>
+        v.lang.toLowerCase().startsWith("es-mx") ||
+        v.lang.toLowerCase().startsWith("es-us") ||
+        v.lang.toLowerCase().startsWith("es-es") ||
+        v.lang.toLowerCase().startsWith("es")
+    );
+    if (esVoice) {
+      utterance.voice = esVoice;
+    }
+
+    utterance.onstart = () => {
+      setSpeakingMsgId(id);
+    };
+    utterance.onend = () => {
+      setSpeakingMsgId(null);
+    };
+    utterance.onerror = () => {
+      setSpeakingMsgId(null);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const startVoiceRecognition = () => {
+    if (typeof window === "undefined") return;
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      notify("El dictado por voz no está disponible en este navegador. Escribe tu pregunta en el chat.");
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRec();
+      recognition.lang = "es-MX";
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        notify("🎙️ Escuchando... habla ahora");
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results?.[0]?.[0]?.transcript;
+        if (transcript) {
+          setCoachInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        }
+        setIsListening(false);
+      };
+
+      recognition.onerror = () => {
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch {
+      setIsListening(false);
+    }
+  };
+
+  const handleAskCoach = async (queryText?: string) => {
+    const textToSend = (queryText !== undefined ? queryText : coachInput).trim();
+    if (!textToSend || coachLoading) return;
+
+    const nowStr = new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+    const userMsg: CoachMessage = {
+      id: `u-${Date.now()}`,
+      role: "user",
+      text: textToSend,
+      timestamp: nowStr,
+    };
+
+    const nextMessages = [...coachMessages, userMsg];
+    setCoachMessages(nextMessages);
+    if (queryText === undefined) {
+      setCoachInput("");
+    }
+    setCoachLoading(true);
+
+    setTimeout(() => {
+      coachChatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+
+    const history = nextMessages
+      .filter((m) => m.id !== "init")
+      .map((m) => ({
+        role: m.role === "coach" ? ("model" as const) : ("user" as const),
+        text: m.text,
+      }));
+
+    try {
+      const res = await clientApi.askCoach(textToSend, history);
+      const coachMsg: CoachMessage = {
+        id: `c-${Date.now()}`,
+        role: "coach",
+        text: res.reply || "¡Ánimo! Sigue enfocado en tu meta 4×7.",
+        timestamp: new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
+      };
+      setCoachMessages((prev) => [...prev, coachMsg]);
+
+      setTimeout(() => {
+        coachChatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    } catch (cause: any) {
+      const errorMsg: CoachMessage = {
+        id: `err-${Date.now()}`,
+        role: "coach",
+        text: cause?.message || "No pude contactar al coach en este momento. Revisa tu conexión o intenta nuevamente.",
+        timestamp: new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
+      };
+      setCoachMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setCoachLoading(false);
+    }
+  };
+
   const renderProgress = () => {
     const currentWeight = fitness?.profile?.measurement?.weightKg ?? fitness?.measurements?.[0]?.weightKg ?? 70;
     const targetWeight = fitness?.profile?.targetWeightKg ?? 65;
@@ -3482,6 +3676,170 @@ export default function Home() {
               <em className="measure-trend green">-1.5 cm</em>
             </div>
           </div>
+        </article>
+
+        {/* Pregúntale al Coach - Gemini AI con Voz */}
+        <article className="coach-master-card" style={{ marginTop: "22px" }}>
+          <div className="coach-header">
+            <div className="coach-header-left">
+              <div className="coach-avatar-badge">
+                <span className="coach-avatar-emoji">🦾</span>
+                <span className="coach-online-dot" title="Gemini AI Activo" />
+              </div>
+              <div>
+                <div className="coach-status-pill">
+                  <span className="coach-pulse-dot" />
+                  <span>GEMINI AI ASISTENTE</span>
+                </div>
+                <h2 className="coach-title">Pregúntale al Coach</h2>
+                <p className="coach-subtitle">
+                  Nutrición, técnica y recuperación adaptados a tus {currentWeight} kg y meta de {targetWeight} kg.
+                </p>
+              </div>
+            </div>
+            <div className="coach-voice-badge-top">
+              <span className="coach-voice-icon">🔊</span>
+              <span>Respuestas con voz</span>
+            </div>
+          </div>
+
+          {/* Quick Prompts Chips Scroll */}
+          <div className="coach-chips-container">
+            <p className="coach-chips-title">PREGUNTAS RÁPIDAS SUGERIDAS:</p>
+            <div className="coach-chips-scroll">
+              {COACH_QUICK_PROMPTS.map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className="coach-chip-btn"
+                  onClick={() => handleAskCoach(item.query)}
+                  disabled={coachLoading}
+                >
+                  <span className="coach-chip-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Chat Messages Stream */}
+          <div className="coach-chat-stream">
+            {coachMessages.map((msg) => {
+              const isCoach = msg.role === "coach";
+              const isSpeaking = speakingMsgId === msg.id;
+
+              return (
+                <div key={msg.id} className={`coach-msg-row ${isCoach ? "from-coach" : "from-user"}`}>
+                  {isCoach && (
+                    <div className="coach-bubble-avatar">
+                      <span>🦾</span>
+                    </div>
+                  )}
+                  <div className={`coach-msg-bubble ${isCoach ? "bubble-coach" : "bubble-user"}`}>
+                    <div className="coach-msg-body">
+                      {msg.text.split("\n\n").map((para, pIdx) => (
+                        <p key={pIdx} className="coach-paragraph">
+                          {para}
+                        </p>
+                      ))}
+                    </div>
+
+                    <div className="coach-msg-footer">
+                      <span className="coach-timestamp">{msg.timestamp}</span>
+
+                      {isCoach && (
+                        <button
+                          type="button"
+                          className={`coach-audio-btn ${isSpeaking ? "playing" : ""}`}
+                          onClick={() => speakText(msg.id, msg.text)}
+                          title={isSpeaking ? "Pausar voz" : "Escuchar en voz alta"}
+                        >
+                          {isSpeaking ? (
+                            <>
+                              <span className="coach-wave-bars">
+                                <i /><i /><i />
+                              </span>
+                              <span>Pausar voz</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                              <span>Escuchar al Coach</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {coachLoading && (
+              <div className="coach-msg-row from-coach">
+                <div className="coach-bubble-avatar">
+                  <span>🦾</span>
+                </div>
+                <div className="coach-msg-bubble bubble-coach loading-bubble">
+                  <div className="coach-typing-dots">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                  <small>El Coach está analizando tu plan con Gemini...</small>
+                </div>
+              </div>
+            )}
+            <div ref={coachChatEndRef} />
+          </div>
+
+          {/* Chat Input Bar */}
+          <form
+            className="coach-input-container"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAskCoach();
+            }}
+          >
+            <div className="coach-input-inner">
+              <button
+                type="button"
+                className={`coach-mic-btn ${isListening ? "listening" : ""}`}
+                onClick={startVoiceRecognition}
+                title={isListening ? "Grabando... toca para parar" : "Dictar por voz"}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" x2="12" y1="19" y2="22" />
+                </svg>
+              </button>
+
+              <input
+                type="text"
+                className="coach-text-input"
+                placeholder={isListening ? "Escuchando... habla tu duda" : "Escribe tu duda al Coach..."}
+                value={coachInput}
+                onChange={(e) => setCoachInput(e.target.value)}
+                disabled={coachLoading}
+              />
+
+              <button
+                type="submit"
+                className="coach-send-btn"
+                disabled={!coachInput.trim() || coachLoading}
+                title="Enviar pregunta"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              </button>
+            </div>
+            <p className="coach-input-hint">
+              💡 Asesoría personalizada en tiempo real con Inteligencia Artificial y datos de tu perfil 4×7.
+            </p>
+          </form>
         </article>
 
         {/* 5. Comparison Chart: Real vs Proyección */}
