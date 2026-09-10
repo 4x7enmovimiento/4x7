@@ -3898,18 +3898,55 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              className="coach-voice-toggle-btn"
-              onClick={() => setShowVoiceSettings((prev) => !prev)}
-              title="Elige y personaliza la voz del Coach"
-            >
-              <span className="coach-voice-icon">🎙️</span>
-              <span className="coach-voice-lbl">
-                Voz: <b>{voiceSettings.gender === "female" ? "Sofía 👩" : voiceSettings.gender === "male" ? "Carlos 👨" : "Personalizada 📱"}</b>
-              </span>
-              <span className="coach-voice-chevron">{showVoiceSettings ? "▲" : "▼"}</span>
-            </button>
+            <div className="coach-header-actions" style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+              {coachMessages.length > 1 && (
+                <button
+                  type="button"
+                  className="coach-clear-chat-btn"
+                  onClick={() => {
+                    stopSpeaking();
+                    setCoachMessages([
+                      {
+                        id: "init",
+                        role: "coach",
+                        text: "¡Hola! Soy tu Coach Virtual 4×7. Pregúntame sobre ejercicios, alimentos o recuperación. Te responderé corto y directo al grano. ⚡",
+                        timestamp: "En línea",
+                      },
+                    ]);
+                    notify("Chat reiniciado para una nueva consulta.");
+                  }}
+                  title="Reiniciar chat para nueva duda"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "6px 10px",
+                    borderRadius: "14px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    background: "rgba(0,0,0,0.05)",
+                    border: "1px solid rgba(0,0,0,0.1)",
+                    cursor: "pointer",
+                    color: "inherit",
+                  }}
+                >
+                  <span>🔄</span>
+                  <span>Nueva duda</span>
+                </button>
+              )}
+              <button
+                type="button"
+                className="coach-voice-toggle-btn"
+                onClick={() => setShowVoiceSettings((prev) => !prev)}
+                title="Elige y personaliza la voz del Coach"
+              >
+                <span className="coach-voice-icon">🎙️</span>
+                <span className="coach-voice-lbl">
+                  Voz: <b>{voiceSettings.gender === "female" ? "Sofía 👩" : voiceSettings.gender === "male" ? "Carlos 👨" : "Personalizada 📱"}</b>
+                </span>
+                <span className="coach-voice-chevron">{showVoiceSettings ? "▲" : "▼"}</span>
+              </button>
+            </div>
           </div>
 
           {/* Panel para Elegir y Probar Voz Agradable */}
