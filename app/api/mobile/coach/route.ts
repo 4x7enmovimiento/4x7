@@ -240,14 +240,18 @@ DIRECTRICES DE CALIDAD Y CONTENIDO:
           } else {
             const interErr = await interRes.json().catch(() => ({}));
             lastErrorDetail = interErr?.error?.message || `Interactions API HTTP ${interRes.status} en ${interModel}`;
+            if (/depleted|credits|billing/i.test(lastErrorDetail)) {
+              break;
+            }
           }
         } catch (interErr: any) {
           lastErrorDetail = interErr?.message || "Error al llamar Interactions API";
         }
       }
 
-      // Si Interactions API no devolvió respuesta, intentar generateContent con los modelos 3.x
-      if (!replyText) {
+      // Si Interactions API no devolvió respuesta y no es error de cuenta/facturación, intentar generateContent
+      const isAccountBillingError = /depleted|credits|billing/i.test(lastErrorDetail);
+      if (!replyText && !isAccountBillingError) {
         for (const model of targetModels) {
           try {
             const response = await fetch(
