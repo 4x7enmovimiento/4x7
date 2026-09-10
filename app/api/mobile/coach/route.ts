@@ -18,16 +18,22 @@ export async function POST(request: Request) {
 
     const apiKey = (
       process.env.GEMINI_API_KEY ||
-      process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
       process.env.GOOGLE_API_KEY ||
+      process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
       process.env.GEMINI_KEY ||
       ""
-    ).trim();
+    ).trim().replace(/^["']|["']$/g, "");
 
-    if (!apiKey) {
+    const openAiKey = (
+      process.env.OPENAI_API_KEY ||
+      process.env.NEXT_PUBLIC_OPENAI_API_KEY ||
+      ""
+    ).trim().replace(/^["']|["']$/g, "");
+
+    if (!apiKey && !openAiKey) {
       return json({
         reply:
-          "¡Hola! El Coach Virtual necesita la clave de Gemini. Por favor asegúrate de haber agregado la variable GEMINI_API_KEY en Vercel (marcando el entorno Production) y hacer un Redeploy.",
+          "⚠️ El Coach Virtual necesita una API Key. Por favor agrega la variable GEMINI_API_KEY (o OPENAI_API_KEY) en Vercel en el entorno Production y haz un Redeploy.",
       });
     }
 
@@ -131,59 +137,123 @@ DIRECTRICES DE CALIDAD Y CONTENIDO:
       parts: [{ text: turn.text }],
     }));
 
-    // 4. Llamar a la API de Gemini con fallbacks y sin recortes de tokens
+    // 4. Llamar a la API de Gemini con fallbacks inteligentes y sin recortes de tokens
     let replyText = "";
     let lastErrorDetail = "";
-    const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
 
-    for (const model of models) {
-      try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              systemInstruction: { parts: [{ text: systemPrompt }] },
-              contents,
-              generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 2048,
+    if (apiKey) {
+      const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+
+      for (const model of models) {
+        try {
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": apiKey,
               },
-            }),
-          }
-        );
+              body: JSON.stringify({
+                system_instruction: { parts: [{ text: systemPrompt }] },
+                contents,
+                generationConfig: {
+                  temperature: 0.7,
+                  maxOutputTokens: 2048,
+                },
+              }),
+            }
+          );
 
-        if (response.ok) {
-          const data = await response.json();
-          replyText =
-            data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-          if (replyText) break;
-        } else {
-          const errData = await response.json().catch(() => ({}));
-          lastErrorDetail = errData?.error?.message || `HTTP ${response.status} en modelo ${model}`;
-          console.warn(`Gemini model ${model} error:`, errData);
+          if (response.ok) {
+            const data = await response.json();
+            replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            if (replyText) break;
+          } else {
+            const errData = await response.json().catch(() => ({}));
+            lastErrorDetail = errData?.error?.message || `HTTP ${response.status} en ${model}`;
+            console.warn(`Gemini model ${model} error:`, errData);
+
+            // Si falló por formato (400), probar con prompt en el contenido de usuario
+            if (response.status === 400) {
+              const fallbackContents = [
+                {
+                  role: "user",
+                  parts: [{ text: `${systemPrompt}\n\n---\nPregunta del usuario:\n${userMessage}` }],
+                },
+              ];
+              const retryResp = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": apiKey,
+                  },
+                  body: JSON.stringify({
+                    contents: fallbackContents,
+                    generationConfig: {
+                      temperature: 0.7,
+                      maxOutputTokens: 2048,
+                    },
+                  }),
+                }
+              );
+              if (retryResp.ok) {
+                const retryData = await retryResp.json();
+                replyText = retryData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                if (replyText) break;
+              }
+            }
+          }
+        } catch (callErr: any) {
+          lastErrorDetail = callErr?.message || `Fallo de conexión al modelo ${model}`;
+          console.warn(`Gemini call failure on ${model}:`, callErr);
         }
-      } catch (callErr: any) {
-        lastErrorDetail = callErr?.message || `Fallo de conexión al modelo ${model}`;
-        console.warn(`Gemini call failure on ${model}:`, callErr);
+      }
+    }
+
+    // 5. Fallback a OpenAI si Gemini no respondió y hay OPENAI_API_KEY
+    if (!replyText && openAiKey) {
+      try {
+        const oaiMessages: any[] = [
+          { role: "system", content: systemPrompt },
+          ...validHistory.map((h) => ({
+            role: h.role === "model" ? "assistant" : "user",
+            content: h.text,
+          })),
+        ];
+
+        const oaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${openAiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: oaiMessages,
+            temperature: 0.7,
+            max_tokens: 2048,
+          }),
+        });
+
+        if (oaiRes.ok) {
+          const oaiData = await oaiRes.json();
+          replyText = oaiData?.choices?.[0]?.message?.content || "";
+        } else {
+          const oaiErr = await oaiRes.json().catch(() => ({}));
+          lastErrorDetail = oaiErr?.error?.message || `OpenAI HTTP ${oaiRes.status}`;
+        }
+      } catch (err: any) {
+        lastErrorDetail = err?.message || "Error al conectar con OpenAI";
       }
     }
 
     if (!replyText) {
-      if (lastErrorDetail) {
-        console.error("Coach Gemini Error:", lastErrorDetail);
-        if (
-          lastErrorDetail.toLowerCase().includes("key") ||
-          lastErrorDetail.toLowerCase().includes("permission") ||
-          lastErrorDetail.toLowerCase().includes("quota")
-        ) {
-          return json({
-            reply: `Hubo un inconveniente con la API Key de Gemini: ${lastErrorDetail}. Por favor verifica tu clave en Vercel.`,
-          });
-        }
-      }
-      replyText = `¡Hola ${userName}! Para responderte mejor sobre "${userMessage}", toma en cuenta que tu objetivo es ${objective.toLowerCase()}. Mantén tus 4 días de ejercicio esta semana y una hidratación de ~${typeof currentWeight === "number" ? (currentWeight * 0.035).toFixed(1) : "2.5"} litros. ¿Deseas una recomendación puntual de ejercicios o un menú de ejemplo? 💪`;
+      return json({
+        reply: `⚠️ El Coach no pudo conectar con la inteligencia artificial (${lastErrorDetail || "Error desconocido"}).\n\nPor favor verifica tu clave en Google AI Studio (o agrega OPENAI_API_KEY en Vercel).`,
+      });
     }
 
     return json({ reply: replyText });
