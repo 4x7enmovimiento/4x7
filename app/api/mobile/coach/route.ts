@@ -76,16 +76,25 @@ export async function POST(request: Request) {
         ? "Mantener peso y mejorar salud cardiovascular"
         : "Salud general y constancia 4×7";
 
-    const systemPrompt = `Eres el Coach Deportivo del reto "4×7" en México.
-Tu atleta te consulta desde su celular y tu respuesta se reproducirá por voz.
+    const systemPrompt = `Eres el Coach Deportivo y Nutricionista Oficial del reto "4×7" en México.
+Tu atleta te consulta desde su celular y tu respuesta se leerá en voz alta con el sintetizador de voz.
 
-REGLAS ESTRICTAS DE RESPUESTA:
-1. SÉ ULTRA CONCISO: Tu respuesta NO debe superar las 70 palabras en total.
-2. ESTRUCTURA DIRECTA (máximo 4 renglones):
-   - 1 saludo breve a ${userName}.
-   - De 2 a 3 viñetas (•) súper cortas y prácticas con la solución exacta (ej. estiramiento, qué tomar/comer o descanso).
-   - 1 frase de cierre enérgica para el reto 4×7.
-3. Prohibidas las explicaciones largas, rodeos o sermones teóricos.`;
+DATOS DEL ATLETA:
+- Nombre: ${userName}
+- Peso: ${currentWeight} ${typeof currentWeight === "number" ? "kg" : ""}
+- Estatura: ${heightCm} ${typeof heightCm === "number" ? "cm" : ""}
+- Meta: ${targetWeight} ${typeof targetWeight === "number" ? "kg" : ""}
+- Objetivo: ${objective}
+- Disciplina reciente: ${recentActivities.join(", ") || "Entrenamiento 4×7"}
+
+ESTILO DE RESPUESTA (TÉRMINO MEDIO: NI MUY LARGO NI MUY CORTO):
+1. LONGITUD PERFECTA: Alrededor de 120 a 160 palabras en total. Debe sentirse completa y profesional, pero amena y rápida de leer o escuchar.
+2. ESTRUCTURA DINÁMICA:
+   - Saludo cercano y motivador reconociendo el esfuerzo de ${userName}.
+   - Explicación breve (1 o 2 líneas) de lo que pasa en su cuerpo (ej. fatiga o recuperación muscular).
+   - De 3 a 4 recomendaciones en viñetas (•) claras y bien explicadas con acciones exactas (alimentos prácticos de México, hidratación, estiramientos específicos con segundos, o descanso).
+   - Frase de cierre con energía y motivación para el reto 4×7.
+3. TONO: Experto, fresco, enérgico y muy cercano.`;
 
     // 3. Formatear historial asegurando estricta alternancia
     const validHistory: Array<{ role: "user" | "model"; text: string }> = [];
@@ -96,9 +105,9 @@ REGLAS ESTRICTAS DE RESPUESTA:
       let text = String(msg.text).trim();
       if (!text) continue;
 
-      // Limitar respuestas previas del coach a 120 caracteres para no contaminar con respuestas largas
-      if (role === "model" && text.length > 120) {
-        text = text.slice(0, 120) + "...";
+      // Limitar respuestas previas del coach a 350 caracteres para mantener el contexto en tamaño adecuado
+      if (role === "model" && text.length > 350) {
+        text = text.slice(0, 350) + "...";
       }
 
       if (validHistory.length > 0 && validHistory[validHistory.length - 1].role === role) {
@@ -113,7 +122,7 @@ REGLAS ESTRICTAS DE RESPUESTA:
       .map((h) => `${h.role === "model" ? "Coach" : "Atleta"}: ${h.text}`)
       .join("\n\n");
 
-    const promptWithConstraint = `${userMessage}\n\n(Coach: responde ultra corto, máximo 3 viñetas breves, menos de 70 palabras).`;
+    const promptWithConstraint = `${userMessage}\n\n(Coach: responde en término medio, ni muy largo ni muy corto, con 3 a 4 puntos clave y prácticos, entre 120 y 160 palabras).`;
 
     // Asegurar que el último turno sea la pregunta actual del usuario
     const lastTurn = validHistory[validHistory.length - 1];
@@ -159,8 +168,8 @@ REGLAS ESTRICTAS DE RESPUESTA:
           body: JSON.stringify({
             model: "gpt-4o-mini",
             messages: oaiMessages,
-            temperature: 0.6,
-            max_tokens: 150,
+            temperature: 0.65,
+            max_tokens: 350,
           }),
         });
 
@@ -254,8 +263,8 @@ REGLAS ESTRICTAS DE RESPUESTA:
                 body: JSON.stringify({
                   contents,
                   generationConfig: {
-                    temperature: 0.6,
-                    maxOutputTokens: 160,
+                    temperature: 0.65,
+                    maxOutputTokens: 350,
                   },
                 }),
               }
