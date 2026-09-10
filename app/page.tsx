@@ -28,13 +28,6 @@ interface CoachMessage {
   timestamp: string;
 }
 
-interface CoachVoiceSettings {
-  gender: "female" | "male" | "custom";
-  customVoiceUri?: string;
-  speed: number;
-  pitch: number;
-}
-
 const COACH_QUICK_PROMPTS = [
   { icon: "🍎", label: "¿Qué comer antes de entrenar?", query: "¿Qué puedo comer antes de entrenar para tener buena energía sin sentirme pesado?" },
   { icon: "⚡", label: "Rutina express 30 min", query: "¿Me puedes dar una rutina express de 30 minutos enfocada en quemar grasa y tono muscular?" },
@@ -3216,59 +3209,70 @@ export default function Home() {
   const speechTimeoutRef = useRef<any>(null);
   const coachChatEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Configuración de Voz Personalizada para el Coach
-  const [voiceSettings, setVoiceSettings] = useState<CoachVoiceSettings>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("4x7_coach_voice_settings");
-        if (saved) return JSON.parse(saved);
-      } catch {}
-    }
-    return {
-      gender: "female",
-      speed: 1.04,
-      pitch: 1.05,
-    };
-  });
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [naturalVoice, setNaturalVoice] = useState<SpeechSynthesisVoice | null>(null);
 
-  // Cargar y ordenar voces del sistema priorizando alta calidad y español
+  // Detectar y seleccionar automáticamente la voz en español más humana y natural disponible
   useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
 
-    const loadVoices = () => {
+    const selectBestNaturalVoice = () => {
       const all = window.speechSynthesis.getVoices();
       if (!all || all.length === 0) return;
 
-      const spanish = all.filter(
-        (v) =>
-          v.lang.toLowerCase().startsWith("es") ||
-          v.lang.toLowerCase().includes("spanish")
-      );
+      const scoreVoice = (v: SpeechSynthesisVoice) => {
+        let score = 0;
+        const name = v.name.toLowerCase();
+        const lang = v.lang.toLowerCase();
 
-      const targetList = spanish.length > 0 ? spanish : all;
-      const sorted = [...targetList].sort((a, b) => {
-        const score = (v: SpeechSynthesisVoice) => {
-          let s = 0;
-          const name = v.name.toLowerCase();
-          const lang = v.lang.toLowerCase();
-          if (name.includes("enhanced") || name.includes("premium") || name.includes("natural") || name.includes("mejorada")) s += 10;
-          if (name.includes("google")) s += 6;
-          if (name.includes("siri")) s += 5;
-          if (lang.startsWith("es-mx")) s += 4;
-          if (lang.startsWith("es-us") || lang.startsWith("es-419")) s += 3;
-          if (lang.startsWith("es-es")) s += 2;
-          return s;
-        };
-        return score(b) - score(a);
-      });
+        // Debe ser español
+        if (lang.startsWith("es") || lang.includes("spanish")) {
+          score += 100;
+        } else {
+          return -100;
+        }
 
-      setAvailableVoices(sorted);
+        // Priorizar voces neuronales, enhanced y premium (ej. Siri en iOS/macOS, Google Neural, Microsoft Natural)
+        if (
+          name.includes("enhanced") ||
+          name.includes("premium") ||
+          name.includes("natural") ||
+          name.includes("neural") ||
+          name.includes("mejorada") ||
+          name.includes("alta calidad")
+        ) {
+          score += 60;
+        }
+
+        // Siri en iOS/macOS suena mucho más humana y fluida que las voces sintéticas compactas
+        if (name.includes("siri")) score += 40;
+
+        // Voces de Google / red de Android Chrome
+        if (name.includes("google") || name.includes("online") || name.includes("network")) score += 25;
+
+        // Dialecto latino/mexicano preferido
+        if (lang.startsWith("es-mx")) score += 20;
+        else if (lang.startsWith("es-us") || lang.startsWith("es-419")) score += 15;
+        else if (lang.startsWith("es-es")) score += 10;
+
+        // Voces conocidas con excelente entonación natural
+        if (name.includes("paulina") || name.includes("monica") || name.includes("mónica") || name.includes("jorge") || name.includes("diego")) {
+          score += 15;
+        }
+
+        // Penalizar voces compactas o robóticas si hay alternativas de alta calidad
+        if (name.includes("compact")) score -= 25;
+
+        return score;
+      };
+
+      const sorted = [...all].sort((a, b) => scoreVoice(b) - scoreVoice(a));
+      if (sorted.length > 0 && scoreVoice(sorted[0]) > -50) {
+        setNaturalVoice(sorted[0]);
+      }
     };
 
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+    selectBestNaturalVoice();
+    window.speechSynthesis.onvoiceschanged = selectBestNaturalVoice;
 
     return () => {
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
@@ -3276,33 +3280,6 @@ export default function Home() {
       }
     };
   }, []);
-
-  const resolveSelectedVoice = (settings: CoachVoiceSettings, voices: SpeechSynthesisVoice[]) => {
-    if (!voices || voices.length === 0) return null;
-
-    if (settings.gender === "custom" && settings.customVoiceUri) {
-      const found = voices.find((v) => v.voiceURI === settings.customVoiceUri || v.name === settings.customVoiceUri);
-      if (found) return found;
-    }
-
-    if (settings.gender === "female") {
-      const femaleNames = ["paulina", "monica", "mónica", "sabina", "helena", "laura", "sofia", "sofía", "lucia", "lucía", "elvira", "victoria", "female", "mujer", "rosa", "maría", "maria", "angelica", "angélice"];
-      const foundFemale = voices.find((v) =>
-        femaleNames.some((n) => v.name.toLowerCase().includes(n))
-      );
-      if (foundFemale) return foundFemale;
-    }
-
-    if (settings.gender === "male") {
-      const maleNames = ["jorge", "diego", "carlos", "pablo", "alvaro", "álvaro", "enrique", "miguel", "male", "hombre", "raul", "raúl", "mateo", "juan"];
-      const foundMale = voices.find((v) =>
-        maleNames.some((n) => v.name.toLowerCase().includes(n))
-      );
-      if (foundMale) return foundMale;
-    }
-
-    return voices[0] || null;
-  };
 
   const speakText = (id: string, rawText: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
@@ -3331,8 +3308,8 @@ export default function Home() {
       .trim();
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    const liveVoices = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices();
-    const chosenVoice = resolveSelectedVoice(voiceSettings, liveVoices);
+    const allVoices = typeof window !== "undefined" && "speechSynthesis" in window ? window.speechSynthesis.getVoices() : [];
+    const chosenVoice = naturalVoice || allVoices.find((v) => v.lang.toLowerCase().startsWith("es")) || allVoices[0] || null;
 
     if (chosenVoice) {
       utterance.voice = chosenVoice;
@@ -3341,13 +3318,9 @@ export default function Home() {
       utterance.lang = "es-MX";
     }
 
-    utterance.rate = voiceSettings.speed || 1.04;
-    utterance.pitch =
-      voiceSettings.gender === "female"
-        ? 1.05
-        : voiceSettings.gender === "male"
-        ? 0.96
-        : voiceSettings.pitch || 1.0;
+    // Ritmo y tono 1.0 completamente naturales (sin agudeza artificial ni aceleración robótica)
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
 
     utterance.onstart = () => {
       setSpeakingMsgId(id);
@@ -3360,16 +3333,6 @@ export default function Home() {
     };
 
     window.speechSynthesis.speak(utterance);
-  };
-
-  const testVoiceSample = (settingsToTest?: CoachVoiceSettings) => {
-    const currentCfg = settingsToTest || voiceSettings;
-    const athleteName = currentUserName ? currentUserName.split(" ")[0] : "Atleta";
-    const sampleText =
-      currentCfg.gender === "male"
-        ? `¡Hola ${athleteName}! Soy Carlos, tu coach 4 por 7. Con buena técnica y constancia alcanzaremos tus metas. ¡Vamos a darle con todo hoy!`
-        : `¡Hola ${athleteName}! Soy Sofía, tu coach 4 por 7. Estoy aquí para resolver tus dudas de alimentación y entrenamientos. ¡A cumplir la meta esta semana!`;
-    speakText("sample-voice-preview", sampleText);
   };
 
   const renderCoachFormattedMessage = (raw: string) => {
@@ -3719,137 +3682,8 @@ export default function Home() {
                   <span>Nueva duda</span>
                 </button>
               )}
-              <button
-                type="button"
-                className="coach-voice-toggle-btn"
-                onClick={() => setShowVoiceSettings((prev) => !prev)}
-                title="Elige y personaliza la voz del Coach"
-              >
-                <span className="coach-voice-icon">🎙️</span>
-                <span className="coach-voice-lbl">
-                  Voz: <b>{voiceSettings.gender === "female" ? "Sofía 👩" : voiceSettings.gender === "male" ? "Carlos 👨" : "Personalizada 📱"}</b>
-                </span>
-                <span className="coach-voice-chevron">{showVoiceSettings ? "▲" : "▼"}</span>
-              </button>
             </div>
           </div>
-
-          {/* Panel para Elegir y Probar Voz Agradable */}
-          {showVoiceSettings && (
-            <div className="coach-voice-config-box">
-              <div className="coach-voice-config-head">
-                <div>
-                  <p className="coach-config-eyebrow">CONFIGURACIÓN DE AUDIO</p>
-                  <h4>Elige una voz agradable para tu Coach</h4>
-                </div>
-                <button
-                  type="button"
-                  className="coach-test-voice-btn"
-                  onClick={() => testVoiceSample()}
-                  title="Escuchar muestra de audio"
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                  </svg>
-                  <span>Probar voz</span>
-                </button>
-              </div>
-
-              {/* Presets Grid */}
-              <div className="coach-voice-presets-grid">
-                <button
-                  type="button"
-                  className={`coach-voice-preset-card ${voiceSettings.gender === "female" ? "selected" : ""}`}
-                  onClick={() => {
-                    const updated: CoachVoiceSettings = { ...voiceSettings, gender: "female", pitch: 1.05 };
-                    setVoiceSettings(updated);
-                    localStorage.setItem("4x7_coach_voice_settings", JSON.stringify(updated));
-                    testVoiceSample(updated);
-                  }}
-                >
-                  <span className="preset-avatar">👩</span>
-                  <div className="preset-info">
-                    <strong>Coach Sofía</strong>
-                    <small>Voz femenina · Cálida, motivadora y clara</small>
-                  </div>
-                  {voiceSettings.gender === "female" && <span className="preset-check">✓</span>}
-                </button>
-
-                <button
-                  type="button"
-                  className={`coach-voice-preset-card ${voiceSettings.gender === "male" ? "selected" : ""}`}
-                  onClick={() => {
-                    const updated: CoachVoiceSettings = { ...voiceSettings, gender: "male", pitch: 0.96 };
-                    setVoiceSettings(updated);
-                    localStorage.setItem("4x7_coach_voice_settings", JSON.stringify(updated));
-                    testVoiceSample(updated);
-                  }}
-                >
-                  <span className="preset-avatar">👨</span>
-                  <div className="preset-info">
-                    <strong>Coach Carlos</strong>
-                    <small>Voz masculina · Enérgica, atlética y firme</small>
-                  </div>
-                  {voiceSettings.gender === "male" && <span className="preset-check">✓</span>}
-                </button>
-              </div>
-
-              {/* Selector de Voces del Dispositivo y Velocidad */}
-              <div className="coach-voice-controls-row">
-                <div className="coach-voice-control-item">
-                  <label>Voces disponibles en tu celular ({availableVoices.length}):</label>
-                  <select
-                    className="coach-voice-select"
-                    value={voiceSettings.customVoiceUri || ""}
-                    onChange={(e) => {
-                      const uri = e.target.value;
-                      const updated: CoachVoiceSettings = {
-                        ...voiceSettings,
-                        gender: uri ? "custom" : "female",
-                        customVoiceUri: uri || undefined,
-                      };
-                      setVoiceSettings(updated);
-                      localStorage.setItem("4x7_coach_voice_settings", JSON.stringify(updated));
-                      testVoiceSample(updated);
-                    }}
-                  >
-                    <option value="">Selección recomendada de alta fidelidad</option>
-                    {availableVoices.map((v, i) => (
-                      <option key={i} value={v.voiceURI || v.name}>
-                        {v.name} ({v.lang})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="coach-voice-control-item">
-                  <label>Ritmo de habla:</label>
-                  <div className="coach-speed-pills">
-                    {[
-                      { label: "Pausada", val: 0.94 },
-                      { label: "Normal", val: 1.04 },
-                      { label: "Ágil", val: 1.16 },
-                    ].map((s) => (
-                      <button
-                        key={s.val}
-                        type="button"
-                        className={`coach-speed-pill ${Math.abs(voiceSettings.speed - s.val) < 0.05 ? "active" : ""}`}
-                        onClick={() => {
-                          const updated = { ...voiceSettings, speed: s.val };
-                          setVoiceSettings(updated);
-                          localStorage.setItem("4x7_coach_voice_settings", JSON.stringify(updated));
-                        }}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Quick Prompts Chips Scroll */}
           <div className="coach-chips-container">
