@@ -3664,235 +3664,8 @@ export default function Home() {
 
     return (
       <section className="module-page">
-        {/* 1. Header & AI ETA Prediction */}
-        <div className="progress-summary">
-          <article className="progress-hero">
-            <div className="progress-weight-display-card">
-              <p className="eyebrow">PESO ACTUAL & COMPOSICIÓN</p>
-              <div className="weight-main-row">
-                <div className="weight-num-group">
-                  <span className="weight-huge-num">{currentWeight}</span>
-                  <span className="weight-unit-badge">kg</span>
-                </div>
-                <div className="bmi-status-badge">
-                  <span className="bmi-dot" />
-                  <span>IMC {fitness?.projection?.bmi ?? "24.5"}</span>
-                  <span style={{ opacity: 0.5 }}>·</span>
-                  <span>{fitness?.projection?.bmiCategory ?? "Rango saludable"}</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="register-weight-main-btn"
-                onClick={() => {
-                  setWeightInputValue(String(currentWeight));
-                  setWaistInputValue(String(bodyMeasurements.waistCm));
-                  setShowWeightModal(true);
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
-                <span>Registrar peso de esta semana</span>
-              </button>
-            </div>
-
-            {/* AI Estimation Banner */}
-            <div className="ai-eta-banner">
-              <span className="ai-badge">🤖 ANÁLISIS & PREDICCIÓN IA</span>
-              <p>
-                {fitness?.projection?.etaSummary ||
-                  `A un ritmo saludable de 4 entrenamientos por semana, alcanzarías tu meta de ${targetWeight} kg en aproximadamente ${fitness?.projection?.estimatedWeeks || 10} a 12 semanas (cambio de ~${fitness?.projection?.weeklyPaceKg || 0.55} kg/sem).`}
-              </p>
-            </div>
-          </article>
-
-          <article className="goal-card">
-            <p className="eyebrow">TU OBJETIVO</p>
-            <h2>{targetWeight} kg</h2>
-            <p>
-              {objective === "lose_fat"
-                ? `Llevas ${totalLost} kg bajados. Te faltan ${remainingToTarget} kg para llegar a tu meta.`
-                : objective === "gain_muscle"
-                ? `Construyendo masa muscular limpia. Te faltan ${remainingToTarget} kg para tu peso meta.`
-                : "Manteniendo hábitos 4×7 para máxima energía y salud."}
-            </p>
-            <div className="goal-line">
-              <i style={{ width: `${Math.min(100, Math.max(15, (Number(totalLost) / (Number(totalLost) + Number(remainingToTarget))) * 100))}%` }} />
-            </div>
-            <small>Ritmo saludable estimado: ~{fitness?.projection?.weeklyPaceKg || 0.55} kg por semana</small>
-          </article>
-        </div>
-
-        {/* 2. Banner Motivacional: Lunes de Peso Nuevo */}
-        <article className="monday-weight-banner" style={{ marginTop: "18px" }}>
-          <div className="monday-banner-left">
-            <span className="monday-badge">📅 LUNES DE PESO NUEVO</span>
-            <h3>¡Es momento de registrar tu nuevo peso y ver tus avances! ⚖️</h3>
-            <p>
-              Los lunes son el día oficial de pesaje en 4×7 (en ayunas al despertar) para calibrar tu evolución semanal, medir tus avances y ajustar la proyección de la IA.
-            </p>
-          </div>
-          <div className="monday-banner-actions">
-            <button
-              type="button"
-              className="primary-button compact"
-              onClick={() => {
-                setWeightInputValue(String(currentWeight));
-                setWaistInputValue(String(bodyMeasurements.waistCm));
-                setShowWeightModal(true);
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "middle", marginRight: "4px" }}><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
-              Registrar mi peso hoy
-            </button>
-            <button
-              type="button"
-              className="ghost-button compact"
-              onClick={() => {
-                setMeasWaist(String(bodyMeasurements.waistCm));
-                setMeasChest(String(bodyMeasurements.chestCm));
-                setMeasHips(String(bodyMeasurements.hipsCm));
-                setMeasArm(String(bodyMeasurements.armCm));
-                setMeasThigh(String(bodyMeasurements.thighCm));
-                setShowMeasurementsModal(true);
-              }}
-            >
-              📏 Actualizar medidas
-            </button>
-          </div>
-        </article>
-
-        {/* 3. Weekly Visual Gallery (Before vs Now / Week by Week) - MOVED ABOVE CHART */}
-        <article className="weekly-gallery-card" style={{ marginTop: "22px" }}>
-          <div className="compare-head">
-            <div>
-              <p className="eyebrow">HISTORIAL & FOTOS DE EVOLUCIÓN</p>
-              <h2>Tu Transformación Semana a Semana</h2>
-            </div>
-            <button
-              className="secondary-action-btn"
-              onClick={() => {
-                setWeightInputValue(String(currentWeight));
-                setWaistInputValue(String(bodyMeasurements.waistCm));
-                setShowWeightModal(true);
-              }}
-            >
-              ＋ Añadir nuevo registro
-            </button>
-          </div>
-
-          <div className="gallery-timeline-row">
-            {weightHistory.map((item, index) => {
-              const prev = weightHistory[index - 1];
-              const diff = prev ? (item.weightKg - prev.weightKg).toFixed(1) : null;
-
-              return (
-                <div className="gallery-item-card" key={item.week}>
-                  <div className="gallery-photo-box">
-                    {item.photoUrl ? (
-                      <img src={item.photoUrl} alt={`Foto semana ${item.week}`} />
-                    ) : (
-                      <div className="photo-placeholder">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                        <small>Sem {item.week}</small>
-                      </div>
-                    )}
-                  </div>
-                  <div className="gallery-item-info">
-                    <div className="gallery-info-top">
-                      <b>Semana {item.week}</b>
-                      <small>{item.date}</small>
-                    </div>
-                    <strong>{item.weightKg} kg</strong>
-                    {item.waistCm && <p>Cintura: {item.waistCm} cm</p>}
-                    {diff && (
-                      <span className={`diff-pill ${Number(diff) <= 0 ? "negative" : "positive"}`}>
-                        {Number(diff) <= 0 ? `${diff} kg` : `+${diff} kg`}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </article>
-
-        {/* 4. Mis Medidas Corporales (A la vista para actualizar) */}
-        <article className="measurements-card" style={{ marginTop: "22px" }}>
-          <div className="measurements-header">
-            <div>
-              <p className="eyebrow">SEGUIMIENTO DE MEDIDAS</p>
-              <h2>Mis Medidas Corporales 📏</h2>
-              <p className="measurements-sub">
-                Última actualización: <b>{bodyMeasurements.updatedAt}</b>. Ideal para medir reducción de tallas y tonificación.
-              </p>
-            </div>
-            <button
-              type="button"
-              className="primary-button compact"
-              onClick={() => {
-                setMeasWaist(String(bodyMeasurements.waistCm));
-                setMeasChest(String(bodyMeasurements.chestCm));
-                setMeasHips(String(bodyMeasurements.hipsCm));
-                setMeasArm(String(bodyMeasurements.armCm));
-                setMeasThigh(String(bodyMeasurements.thighCm));
-                setShowMeasurementsModal(true);
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "middle", marginRight: "4px" }}><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
-              Actualizar Medidas
-            </button>
-          </div>
-
-          <div className="measurements-grid">
-            <div className="measure-item">
-              <span className="measure-icon">◎</span>
-              <div>
-                <small>Cintura</small>
-                <strong>{bodyMeasurements.waistCm} <span className="unit">cm</span></strong>
-              </div>
-              <em className="measure-trend green">-3 cm</em>
-            </div>
-
-            <div className="measure-item">
-              <span className="measure-icon">🫁</span>
-              <div>
-                <small>Pecho / Torso</small>
-                <strong>{bodyMeasurements.chestCm} <span className="unit">cm</span></strong>
-              </div>
-              <em className="measure-trend">+1.5 cm</em>
-            </div>
-
-            <div className="measure-item">
-              <span className="measure-icon">👖</span>
-              <div>
-                <small>Cadera</small>
-                <strong>{bodyMeasurements.hipsCm} <span className="unit">cm</span></strong>
-              </div>
-              <em className="measure-trend green">-2 cm</em>
-            </div>
-
-            <div className="measure-item">
-              <span className="measure-icon">💪</span>
-              <div>
-                <small>Brazo</small>
-                <strong>{bodyMeasurements.armCm} <span className="unit">cm</span></strong>
-              </div>
-              <em className="measure-trend">+1 cm</em>
-            </div>
-
-            <div className="measure-item">
-              <span className="measure-icon">🦵</span>
-              <div>
-                <small>Muslo</small>
-                <strong>{bodyMeasurements.thighCm} <span className="unit">cm</span></strong>
-              </div>
-              <em className="measure-trend green">-1.5 cm</em>
-            </div>
-          </div>
-        </article>
-
-        {/* Pregúntale al Coach - Gemini AI con Voz */}
-        <article className="coach-master-card" style={{ marginTop: "22px" }}>
+        {/* Pregúntale al Coach - Inteligencia Artificial con Voz */}
+        <article className="coach-master-card" style={{ marginBottom: "22px" }}>
           <div className="coach-header">
             <div className="coach-header-left">
               <div className="coach-avatar-badge">
@@ -4211,6 +3984,233 @@ export default function Home() {
               💡 Asesoría personalizada en tiempo real con Inteligencia Artificial y datos de tu perfil 4×7.
             </p>
           </form>
+        </article>
+
+        {/* 1. Header & AI ETA Prediction */}
+        <div className="progress-summary">
+          <article className="progress-hero">
+            <div className="progress-weight-display-card">
+              <p className="eyebrow">PESO ACTUAL & COMPOSICIÓN</p>
+              <div className="weight-main-row">
+                <div className="weight-num-group">
+                  <span className="weight-huge-num">{currentWeight}</span>
+                  <span className="weight-unit-badge">kg</span>
+                </div>
+                <div className="bmi-status-badge">
+                  <span className="bmi-dot" />
+                  <span>IMC {fitness?.projection?.bmi ?? "24.5"}</span>
+                  <span style={{ opacity: 0.5 }}>·</span>
+                  <span>{fitness?.projection?.bmiCategory ?? "Rango saludable"}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="register-weight-main-btn"
+                onClick={() => {
+                  setWeightInputValue(String(currentWeight));
+                  setWaistInputValue(String(bodyMeasurements.waistCm));
+                  setShowWeightModal(true);
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+                <span>Registrar peso de esta semana</span>
+              </button>
+            </div>
+
+            {/* AI Estimation Banner */}
+            <div className="ai-eta-banner">
+              <span className="ai-badge">🤖 ANÁLISIS & PREDICCIÓN IA</span>
+              <p>
+                {fitness?.projection?.etaSummary ||
+                  `A un ritmo saludable de 4 entrenamientos por semana, alcanzarías tu meta de ${targetWeight} kg en aproximadamente ${fitness?.projection?.estimatedWeeks || 10} a 12 semanas (cambio de ~${fitness?.projection?.weeklyPaceKg || 0.55} kg/sem).`}
+              </p>
+            </div>
+          </article>
+
+          <article className="goal-card">
+            <p className="eyebrow">TU OBJETIVO</p>
+            <h2>{targetWeight} kg</h2>
+            <p>
+              {objective === "lose_fat"
+                ? `Llevas ${totalLost} kg bajados. Te faltan ${remainingToTarget} kg para llegar a tu meta.`
+                : objective === "gain_muscle"
+                ? `Construyendo masa muscular limpia. Te faltan ${remainingToTarget} kg para tu peso meta.`
+                : "Manteniendo hábitos 4×7 para máxima energía y salud."}
+            </p>
+            <div className="goal-line">
+              <i style={{ width: `${Math.min(100, Math.max(15, (Number(totalLost) / (Number(totalLost) + Number(remainingToTarget))) * 100))}%` }} />
+            </div>
+            <small>Ritmo saludable estimado: ~{fitness?.projection?.weeklyPaceKg || 0.55} kg por semana</small>
+          </article>
+        </div>
+
+        {/* 2. Banner Motivacional: Lunes de Peso Nuevo */}
+        <article className="monday-weight-banner" style={{ marginTop: "18px" }}>
+          <div className="monday-banner-left">
+            <span className="monday-badge">📅 LUNES DE PESO NUEVO</span>
+            <h3>¡Es momento de registrar tu nuevo peso y ver tus avances! ⚖️</h3>
+            <p>
+              Los lunes son el día oficial de pesaje en 4×7 (en ayunas al despertar) para calibrar tu evolución semanal, medir tus avances y ajustar la proyección de la IA.
+            </p>
+          </div>
+          <div className="monday-banner-actions">
+            <button
+              type="button"
+              className="primary-button compact"
+              onClick={() => {
+                setWeightInputValue(String(currentWeight));
+                setWaistInputValue(String(bodyMeasurements.waistCm));
+                setShowWeightModal(true);
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "middle", marginRight: "4px" }}><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+              Registrar mi peso hoy
+            </button>
+            <button
+              type="button"
+              className="ghost-button compact"
+              onClick={() => {
+                setMeasWaist(String(bodyMeasurements.waistCm));
+                setMeasChest(String(bodyMeasurements.chestCm));
+                setMeasHips(String(bodyMeasurements.hipsCm));
+                setMeasArm(String(bodyMeasurements.armCm));
+                setMeasThigh(String(bodyMeasurements.thighCm));
+                setShowMeasurementsModal(true);
+              }}
+            >
+              📏 Actualizar medidas
+            </button>
+          </div>
+        </article>
+
+        {/* 3. Weekly Visual Gallery (Before vs Now / Week by Week) - MOVED ABOVE CHART */}
+        <article className="weekly-gallery-card" style={{ marginTop: "22px" }}>
+          <div className="compare-head">
+            <div>
+              <p className="eyebrow">HISTORIAL & FOTOS DE EVOLUCIÓN</p>
+              <h2>Tu Transformación Semana a Semana</h2>
+            </div>
+            <button
+              className="secondary-action-btn"
+              onClick={() => {
+                setWeightInputValue(String(currentWeight));
+                setWaistInputValue(String(bodyMeasurements.waistCm));
+                setShowWeightModal(true);
+              }}
+            >
+              ＋ Añadir nuevo registro
+            </button>
+          </div>
+
+          <div className="gallery-timeline-row">
+            {weightHistory.map((item, index) => {
+              const prev = weightHistory[index - 1];
+              const diff = prev ? (item.weightKg - prev.weightKg).toFixed(1) : null;
+
+              return (
+                <div className="gallery-item-card" key={item.week}>
+                  <div className="gallery-photo-box">
+                    {item.photoUrl ? (
+                      <img src={item.photoUrl} alt={`Foto semana ${item.week}`} />
+                    ) : (
+                      <div className="photo-placeholder">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        <small>Sem {item.week}</small>
+                      </div>
+                    )}
+                  </div>
+                  <div className="gallery-item-info">
+                    <div className="gallery-info-top">
+                      <b>Semana {item.week}</b>
+                      <small>{item.date}</small>
+                    </div>
+                    <strong>{item.weightKg} kg</strong>
+                    {item.waistCm && <p>Cintura: {item.waistCm} cm</p>}
+                    {diff && (
+                      <span className={`diff-pill ${Number(diff) <= 0 ? "negative" : "positive"}`}>
+                        {Number(diff) <= 0 ? `${diff} kg` : `+${diff} kg`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </article>
+
+        {/* 4. Mis Medidas Corporales (A la vista para actualizar) */}
+        <article className="measurements-card" style={{ marginTop: "22px" }}>
+          <div className="measurements-header">
+            <div>
+              <p className="eyebrow">SEGUIMIENTO DE MEDIDAS</p>
+              <h2>Mis Medidas Corporales 📏</h2>
+              <p className="measurements-sub">
+                Última actualización: <b>{bodyMeasurements.updatedAt}</b>. Ideal para medir reducción de tallas y tonificación.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="primary-button compact"
+              onClick={() => {
+                setMeasWaist(String(bodyMeasurements.waistCm));
+                setMeasChest(String(bodyMeasurements.chestCm));
+                setMeasHips(String(bodyMeasurements.hipsCm));
+                setMeasArm(String(bodyMeasurements.armCm));
+                setMeasThigh(String(bodyMeasurements.thighCm));
+                setShowMeasurementsModal(true);
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "middle", marginRight: "4px" }}><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
+              Actualizar Medidas
+            </button>
+          </div>
+
+          <div className="measurements-grid">
+            <div className="measure-item">
+              <span className="measure-icon">◎</span>
+              <div>
+                <small>Cintura</small>
+                <strong>{bodyMeasurements.waistCm} <span className="unit">cm</span></strong>
+              </div>
+              <em className="measure-trend green">-3 cm</em>
+            </div>
+
+            <div className="measure-item">
+              <span className="measure-icon">🫁</span>
+              <div>
+                <small>Pecho / Torso</small>
+                <strong>{bodyMeasurements.chestCm} <span className="unit">cm</span></strong>
+              </div>
+              <em className="measure-trend">+1.5 cm</em>
+            </div>
+
+            <div className="measure-item">
+              <span className="measure-icon">👖</span>
+              <div>
+                <small>Cadera</small>
+                <strong>{bodyMeasurements.hipsCm} <span className="unit">cm</span></strong>
+              </div>
+              <em className="measure-trend green">-2 cm</em>
+            </div>
+
+            <div className="measure-item">
+              <span className="measure-icon">💪</span>
+              <div>
+                <small>Brazo</small>
+                <strong>{bodyMeasurements.armCm} <span className="unit">cm</span></strong>
+              </div>
+              <em className="measure-trend">+1 cm</em>
+            </div>
+
+            <div className="measure-item">
+              <span className="measure-icon">🦵</span>
+              <div>
+                <small>Muslo</small>
+                <strong>{bodyMeasurements.thighCm} <span className="unit">cm</span></strong>
+              </div>
+              <em className="measure-trend green">-1.5 cm</em>
+            </div>
+          </div>
         </article>
 
         {/* 5. Comparison Chart: Real vs Proyección */}
