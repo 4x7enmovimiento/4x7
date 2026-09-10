@@ -137,78 +137,154 @@ DIRECTRICES DE CALIDAD Y CONTENIDO:
       parts: [{ text: turn.text }],
     }));
 
-    // 4. Llamar a la API de Gemini con fallbacks inteligentes y sin recortes de tokens
+    // 4. Llamar a la API de Gemini con descubrimiento dinámico de modelos
     let replyText = "";
     let lastErrorDetail = "";
 
     if (apiKey) {
-      const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+      // Descubrir los modelos activos y soportados para esta API Key directamente de Google
+      let targetModels: string[] = ["gemini-3.7-flash", "gemini-3.5-flash-lite", "gemini-2.0-flash"];
 
-      for (const model of models) {
-        try {
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-goog-api-key": apiKey,
-              },
-              body: JSON.stringify({
-                system_instruction: { parts: [{ text: systemPrompt }] },
-                contents,
-                generationConfig: {
-                  temperature: 0.7,
-                  maxOutputTokens: 2048,
-                },
-              }),
+      try {
+        const listRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+          { headers: { "x-goog-api-key": apiKey } }
+        );
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          if (Array.isArray(listData?.models)) {
+            const available = listData.models
+              .filter((m: any) =>
+                Array.isArray(m.supportedGenerationMethods) &&
+                m.supportedGenerationMethods.includes("generateContent")
+              )
+              .map((m: any) => m.name.replace(/^models\//, ""))
+              .filter((m: string) => !m.includes("embedding") && !m.includes("aqa") && !m.includes("imagen"));
+
+            if (available.length > 0) {
+              // Colocar los modelos descubiertos al frente
+              targetModels = Array.from(new Set([...available, ...targetModels]));
             }
-          );
+          }
+        } else {
+          const listErr = await listRes.json().catch(() => ({}));
+          console.warn("ListModels status:", listRes.status, listErr);
+        }
+      } catch (e) {
+        console.warn("Could not query ListModels:", e);
+      }
 
-          if (response.ok) {
-            const data = await response.json();
-            replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-            if (replyText) break;
-          } else {
-            const errData = await response.json().catch(() => ({}));
-            lastErrorDetail = errData?.error?.message || `HTTP ${response.status} en ${model}`;
-            console.warn(`Gemini model ${model} error:`, errData);
+      // Probar primero la nueva Interactions API oficial de Google con gemini-3.7-flash
+      try {
+        const inputHistory = validHistory
+          .slice(-4)
+          .map((h) => `${h.role === "model" ? "Coach" : "Atleta"}: ${h.text}`)
+          .join("\n\n");
+        const fullInput = inputHistory ? `${inputHistory}\n\nAtleta: ${userMessage}` : userMessage;
 
-            // Si falló por formato (400), probar con prompt en el contenido de usuario
-            if (response.status === 400) {
-              const fallbackContents = [
-                {
-                  role: "user",
-                  parts: [{ text: `${systemPrompt}\n\n---\nPregunta del usuario:\n${userMessage}` }],
-                },
-              ];
-              const retryResp = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": apiKey,
-                  },
-                  body: JSON.stringify({
-                    contents: fallbackContents,
-                    generationConfig: {
-                      temperature: 0.7,
-                      maxOutputTokens: 2048,
-                    },
-                  }),
+        const interRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/interactions?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": apiKey,
+            },
+            body: JSON.stringify({
+              model: "gemini-3.7-flash",
+              system_instruction: systemPrompt,
+              input: fullInput,
+            }),
+          }
+        );
+
+        if (interRes.ok) {
+          const interData = await interRes.json();
+          if (Array.isArray(interData.steps)) {
+            for (const step of interData.steps) {
+              if (step.type === "model_output" && Array.isArray(step.content)) {
+                const textObj = step.content.find((c: any) => c.text || c.type === "text");
+                if (textObj?.text) {
+                  replyText = textObj.text;
+                  break;
                 }
-              );
-              if (retryResp.ok) {
-                const retryData = await retryResp.json();
-                replyText = retryData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                if (replyText) break;
               }
             }
           }
-        } catch (callErr: any) {
-          lastErrorDetail = callErr?.message || `Fallo de conexión al modelo ${model}`;
-          console.warn(`Gemini call failure on ${model}:`, callErr);
+          if (!replyText && interData.output_text) {
+            replyText = interData.output_text;
+          }
+        }
+      } catch (interErr) {
+        console.warn("Interactions API attempt error:", interErr);
+      }
+
+      // Si Interactions no respondió, iterar sobre los modelos válidos con generateContent
+      if (!replyText) {
+        for (const model of targetModels) {
+          try {
+            const response = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-goog-api-key": apiKey,
+                },
+                body: JSON.stringify({
+                  system_instruction: { parts: [{ text: systemPrompt }] },
+                  contents,
+                  generationConfig: {
+                    temperature: 0.7,
+                    maxOutputTokens: 2048,
+                  },
+                }),
+              }
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+              if (replyText) break;
+            } else {
+              const errData = await response.json().catch(() => ({}));
+              lastErrorDetail = errData?.error?.message || `HTTP ${response.status} en ${model}`;
+
+              // Si falla por formato (400), reintentar con el prompt unificado en user content
+              if (response.status === 400) {
+                const fallbackContents = [
+                  {
+                    role: "user",
+                    parts: [{ text: `${systemPrompt}\n\n---\nPregunta del atleta:\n${userMessage}` }],
+                  },
+                ];
+                const retryResp = await fetch(
+                  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "x-goog-api-key": apiKey,
+                    },
+                    body: JSON.stringify({
+                      contents: fallbackContents,
+                      generationConfig: {
+                        temperature: 0.7,
+                        maxOutputTokens: 2048,
+                      },
+                    }),
+                  }
+                );
+                if (retryResp.ok) {
+                  const retryData = await retryResp.json();
+                  replyText = retryData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                  if (replyText) break;
+                }
+              }
+            }
+          } catch (callErr: any) {
+            lastErrorDetail = callErr?.message || `Fallo de conexión al modelo ${model}`;
+          }
         }
       }
     }
