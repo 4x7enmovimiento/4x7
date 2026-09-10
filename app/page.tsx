@@ -3212,6 +3212,8 @@ export default function Home() {
   const [coachLoading, setCoachLoading] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
+  const speechRecognitionRef = useRef<any>(null);
+  const speechTimeoutRef = useRef<any>(null);
   const coachChatEndRef = useRef<HTMLDivElement | null>(null);
 
   // Configuración de Voz Personalizada para el Coach
@@ -3442,6 +3444,21 @@ export default function Home() {
     return elements;
   };
 
+  const stopVoiceRecognition = () => {
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+      speechTimeoutRef.current = null;
+    }
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+        speechRecognitionRef.current.abort();
+      } catch {}
+      speechRecognitionRef.current = null;
+    }
+    setIsListening(false);
+  };
+
   const startVoiceRecognition = () => {
     if (typeof window === "undefined") return;
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -3451,19 +3468,28 @@ export default function Home() {
     }
 
     if (isListening) {
-      setIsListening(false);
+      stopVoiceRecognition();
       return;
     }
 
     try {
+      stopVoiceRecognition();
+
       const recognition = new SpeechRec();
+      speechRecognitionRef.current = recognition;
       recognition.lang = "es-MX";
       recognition.continuous = false;
       recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
 
       recognition.onstart = () => {
         setIsListening(true);
-        notify("🎙️ Escuchando... habla ahora");
+        notify("🎙️ Escuchando... habla tu duda");
+        // Auto-apagado de seguridad tras 8 segundos de silencio para no dejar el micro encendido
+        if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
+        speechTimeoutRef.current = setTimeout(() => {
+          stopVoiceRecognition();
+        }, 8000);
       };
 
       recognition.onresult = (event: any) => {
@@ -3471,24 +3497,25 @@ export default function Home() {
         if (transcript) {
           setCoachInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
         }
-        setIsListening(false);
+        stopVoiceRecognition(); // Apagar inmediatamente el micrófono al recibir la voz
       };
 
       recognition.onerror = () => {
-        setIsListening(false);
+        stopVoiceRecognition();
       };
 
       recognition.onend = () => {
-        setIsListening(false);
+        stopVoiceRecognition();
       };
 
       recognition.start();
     } catch {
-      setIsListening(false);
+      stopVoiceRecognition();
     }
   };
 
   const handleAskCoach = async (queryText?: string) => {
+    stopVoiceRecognition(); // Asegurar que el micrófono se apague al enviar
     const textToSend = (queryText !== undefined ? queryText : coachInput).trim();
     if (!textToSend || coachLoading) return;
 
