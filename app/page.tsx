@@ -5,7 +5,7 @@ import { AuthScreen } from "./components/AuthScreen";
 import { ProfileOnboarding } from "./components/ProfileOnboarding";
 import { clientApi, type FeedPost, type ProfileResponse, type Session } from "./lib/client-api";
 
-const navItems = ["Hoy", "Muro", "Liga y Retos", "Mis Récords", "Progreso"] as const;
+const navItems = ["Hoy", "Liga y Retos", "Mis Récords", "Progreso"] as const;
 type Section = typeof navItems[number];
 
 interface CustomChallenge {
@@ -63,8 +63,7 @@ const week = [
 ];
 
 const titleCopy: Record<Section, [string, string]> = {
-  Hoy: ["SEMANA ACTUAL · LUNES A DOMINGO", "Buenas tardes"],
-  Muro: ["EL MURO DEL SUDOR", "Motivación familiar en vivo"],
+  Hoy: ["SEMANA ACTUAL · MURO Y ACTIVIDAD FAMILIAR", "Buenas tardes"],
   "Liga y Retos": ["COMPETENCIA CON CARIÑO", "Liga y Retos Familiares"],
   "Mis Récords": ["CARGAS MÁXIMAS (LBS)", "Vitrina de Récords Personales (PRs)"],
   Progreso: ["TU EVOLUCIÓN", "Seguimiento de peso y hábitos"],
@@ -84,13 +83,6 @@ function Glyph({ label }: { label: string }) {
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
         <polyline points="9 22 9 12 15 12 15 22"/>
-      </svg>
-    );
-  }
-  if (label === "Muro") {
-    return (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>
       </svg>
     );
   }
@@ -2915,14 +2907,16 @@ export default function Home() {
           <section className="section-block" style={{ marginTop: "28px" }}>
             <div className="section-heading">
               <div>
-                <p className="eyebrow">MURO DEL DÍA · ACTIVIDAD FAMILIAR</p>
+                <p className="eyebrow">MURO FAMILIAR · ACTIVIDAD EN VIVO</p>
                 <h2>Publicaciones y Check-ins de Hoy</h2>
               </div>
               <span style={{ fontSize: "12px", fontWeight: "700", color: "var(--green)" }}>
                 {feedPosts.length} publicaciones
               </span>
             </div>
-            {feedPosts.length ? (
+            {feedLoading ? (
+              <div className="feed-loading">Actualizando el muro familiar…</div>
+            ) : feedPosts.length ? (
               <div className="feed">
                 {feedPosts.map((post) => renderPostCard(post))}
               </div>
@@ -2933,6 +2927,12 @@ export default function Home() {
         </section>
 
         <aside className="right-column">
+          <article className="family-prompt" style={{ marginBottom: "16px" }}>
+            <span>🔥</span>
+            <p className="eyebrow">APOYO FAMILIAR</p>
+            <h3>La racha se construye juntos</h3>
+            <p>Reacciona a los check-ins de tu familia y motívalos a cumplir su 4×7.</p>
+          </article>
           {renderLeagueCard()}
           {renderChallengeMini()}
         </aside>
@@ -3034,39 +3034,6 @@ export default function Home() {
         ⚡ Hacer Check-In Ahora
       </button>
     </div>
-  );
-
-  const renderWall = () => (
-    <section className="module-page">
-      {renderHeroCheckInCard()}
-      <div className="wall-layout" style={{ marginTop: "24px" }}>
-        <div>
-          <div className="module-toolbar">
-            <div>
-              <p>Las evidencias y frases de la familia aparecen aquí para que nadie entrene solo.</p>
-            </div>
-          </div>
-          {feedLoading ? (
-            <div className="feed-loading">Actualizando el muro familiar…</div>
-          ) : feedPosts.length ? (
-            <div className="feed wall-feed">
-              {feedPosts.map((post) => renderPostCard(post))}
-            </div>
-          ) : (
-            <EmptyFeed />
-          )}
-        </div>
-        <aside className="wall-side">
-          <article className="family-prompt">
-            <span>🔥</span>
-            <p className="eyebrow">APOYO FAMILIAR</p>
-            <h3>La racha se construye juntos</h3>
-            <p>Reacciona a los check-ins de tu familia y motívalos a cumplir su 4×7.</p>
-          </article>
-          {renderLeagueCard()}
-        </aside>
-      </div>
-    </section>
   );
 
   // Weight Tracker & Photo Progress State
@@ -5208,8 +5175,6 @@ export default function Home() {
     ? renderAdminDashboardView()
     : active === "Hoy"
     ? renderTodayDashboard()
-    : active === "Muro"
-    ? renderWall()
     : active === "Liga y Retos"
     ? renderLeagueAndChallenges()
     : active === "Mis Récords"
@@ -5231,7 +5196,7 @@ export default function Home() {
               onClick={() => {
                 setInAdminView(false);
                 setActive(item);
-                if (item === "Muro" || item === "Hoy") loadFeed();
+                if (item === "Hoy") loadFeed();
               }}
             >
               <Glyph label={item} />
@@ -5319,7 +5284,7 @@ export default function Home() {
             className={active === item ? "active" : ""}
             onClick={() => {
               setActive(item);
-              if (item === "Muro" || item === "Hoy") loadFeed();
+              if (item === "Hoy") loadFeed();
             }}
           >
             <Glyph label={item} />
