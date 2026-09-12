@@ -232,8 +232,15 @@ export async function GET(request: Request) {
           updatedAt: prof?.updated_at || new Date().toISOString(),
         };
 
+        const cleanNick = nickname
+          .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
+          .trim()
+          .toLowerCase();
+
         familyProfilesObj[u.name.toLowerCase()] = summary;
         familyProfilesObj[nickname.toLowerCase()] = summary;
+        if (cleanNick) familyProfilesObj[cleanNick] = summary;
+        if (officialNick) familyProfilesObj[officialNick.toLowerCase()] = summary;
         if (u.email) familyProfilesObj[u.email.toLowerCase()] = summary;
 
         const userWorkouts = workoutsByUser.get(u.id) || [];
@@ -291,6 +298,8 @@ export async function GET(request: Request) {
 
         familyStatsObj[u.name.toLowerCase()] = statEntry;
         familyStatsObj[nickname.toLowerCase()] = statEntry;
+        if (cleanNick) familyStatsObj[cleanNick] = statEntry;
+        if (officialNick) familyStatsObj[officialNick.toLowerCase()] = statEntry;
         if (u.email) familyStatsObj[u.email.toLowerCase()] = statEntry;
       });
     } catch (e) {
