@@ -55,7 +55,7 @@ export async function GET(request: Request) {
           activity_type,
           evidence_url,
           created_at,
-          users (name),
+          users (id, name, email),
           workouts (activity_type, duration_seconds, distance_meters, steps, calories)
         `)
         .eq("family_id", current.familyId)
@@ -64,6 +64,10 @@ export async function GET(request: Request) {
 
       if (postsData && postsData.length > 0) {
         const postIds = postsData.map((p: any) => p.id);
+        const postUserIds = Array.from(new Set(postsData.map((p: any) => p.user_id)));
+        const { data: postProfiles } = await supabase.from("user_profiles").select("user_id, nickname").in("user_id", postUserIds);
+        const postNickMap = new Map((postProfiles || []).map((p: any) => [p.user_id, p.nickname]));
+
         const { data: likesData } = await supabase.from("post_likes").select("post_id, user_id").in("post_id", postIds);
         const { data: commentsData } = await supabase.from("post_comments").select("post_id").in("post_id", postIds);
 
@@ -81,10 +85,34 @@ export async function GET(request: Request) {
 
         dbPosts = postsData.map((row: any) => {
           const userLikes = likesByPost.get(row.id) || [];
+          const userEmail = (row.users?.email || "").toLowerCase();
+          const officialNick = userEmail ? officialNickMap[userEmail] : null;
+          const userProfileNick = postNickMap.get(row.user_id);
+
+          let displayNick = userProfileNick || officialNick;
+          if (!displayNick) {
+            const rawName = row.users?.name || "";
+            if (rawName.includes("Pedro")) displayNick = "Pedcaz";
+            else if (rawName.includes("Cristina")) displayNick = "CristinaFit";
+            else if (rawName.includes("Guadalupe")) displayNick = "Pita";
+            else if (rawName.includes("Belén") || rawName.includes("Belen")) displayNick = "Mabel";
+            else if (rawName.includes("Judith")) displayNick = "JuuGlez";
+            else if (rawName.includes("Ian")) displayNick = "Baby";
+            else if (rawName.includes("Ivan")) displayNick = "Ivanovich";
+            else if (rawName.includes("Estefany")) displayNick = "EstefanyLM";
+            else if (rawName.includes("Edgar")) displayNick = "Wero LM";
+            else if (rawName.includes("Elizabeth")) displayNick = "Ely";
+            else if (rawName.includes("Emmanuel")) displayNick = "Emanuelle";
+            else if (rawName.includes("Viridiana")) displayNick = "Virinovich";
+            else if (rawName.includes("Horacio")) displayNick = "Holobas";
+            else if (rawName.includes("Fernando")) displayNick = "Fercho";
+            else displayNick = rawName.split(" ")[0] || "Familiar";
+          }
+
           return {
             id: row.id,
             userId: row.user_id,
-            userName: row.users?.name ? (row.users.name.includes("Pedro") ? "Pedcaz" : row.users.name.includes("Cristina") ? "CristinaFit" : row.users.name.split(" ")[0]) : "Familiar",
+            userName: displayNick,
             caption: row.caption,
             evidenceUrl: row.evidence_url || null,
             createdAt: row.created_at,
@@ -196,12 +224,17 @@ export async function GET(request: Request) {
         "marbelen.chaz@gmail.com": "Mabel",
         "edgar.lopez8983@alumnos.udg.mx": "Wero LM",
         "lucymatdan@gmail.com": "Lucy",
+        "lucyramirezsolutec@gmail.com": "Lucy",
         "valhumrh@gmail.com": "CristinaFit",
         "chzivan@gmail.com": "Ivanovich",
         "estefanylome@gmail.com": "EstefanyLM",
         "eloalvarez.e@gmail.com": "Ely",
         "emmanuellopez3911@gmail.com": "Emanuelle",
         "viridiana.ca@icloud.com": "Virinovich",
+        "lupitatp@live.com.mx": "Pita",
+        "holobas12@gmail.com": "Holobas",
+        "alvarezset1984@gmail.com": "Set",
+        "fernando.life18@gmail.com": "Fercho",
       };
 
       function computeWeekPoints(count: number): number {
@@ -223,6 +256,7 @@ export async function GET(request: Request) {
         const nickname = (prof as any)?.nickname || officialNick || nameParts[0] || u.name;
 
         const summary = {
+          userId: u.id,
           name: nameParts[0] || u.name,
           fullName: u.name,
           nickname,
@@ -237,6 +271,8 @@ export async function GET(request: Request) {
           .trim()
           .toLowerCase();
 
+        familyProfilesObj[u.id] = summary;
+        familyProfilesObj[String(u.id)] = summary;
         familyProfilesObj[u.name.toLowerCase()] = summary;
         familyProfilesObj[nickname.toLowerCase()] = summary;
         if (cleanNick) familyProfilesObj[cleanNick] = summary;
@@ -296,6 +332,8 @@ export async function GET(request: Request) {
           lastCheckinDate: allCompletedDates[allCompletedDates.length - 1] || "",
         };
 
+        familyStatsObj[u.id] = statEntry;
+        familyStatsObj[String(u.id)] = statEntry;
         familyStatsObj[u.name.toLowerCase()] = statEntry;
         familyStatsObj[nickname.toLowerCase()] = statEntry;
         if (cleanNick) familyStatsObj[cleanNick] = statEntry;

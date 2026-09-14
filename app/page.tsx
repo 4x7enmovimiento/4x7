@@ -50,6 +50,7 @@ const familyMembersList = [
   { name: "Ely", initials: "E", color: "lilac" },
   { name: "Emanuelle", initials: "E", color: "sun" },
   { name: "Virinovich", initials: "V", color: "coral" },
+  { name: "Pita", initials: "P", color: "sun" },
 ];
 
 const week = [
@@ -934,6 +935,9 @@ export default function Home() {
       EstefanyLM: "523324265455",
       Emanuelle: "523331087798",
       Virinovich: "523322729289",
+      Pita: "523312345678",
+      Holobas: "",
+      Fercho: "",
     };
   });
   const [phoneEditMember, setPhoneEditMember] = useState<{ name: string; phone: string } | null>(null);
@@ -943,19 +947,32 @@ export default function Home() {
   const currentUserNick = ((session?.user as any)?.nickname || (currentUserName ? currentUserName.split(" ")[0] : "")).trim();
 
   const familyCheckInData = useMemo(() => {
-    const rawMembers = [
-      { name: "Pedro", fullName: "Pedro Humberto González López", nickname: "Pedcaz", relation: "Papá / Admin", initials: "P", color: "mint", phone: "523324077845", email: "p.glez.lpz92@gmail.com" },
-      { name: "Ian", fullName: "Ian González Torres", nickname: "Baby", relation: "", initials: "I", color: "sun", phone: "523312804849", email: "hackyan4@gmail.com" },
+    const rawMembers: Array<{
+      name: string;
+      fullName: string;
+      nickname: string;
+      relation: string;
+      initials: string;
+      color: string;
+      phone: string;
+      email: string;
+      userId?: number;
+    }> = [
+      { name: "Pedro", fullName: "Pedro Humberto González López", nickname: "Pedcaz", relation: "Papá / Admin", initials: "P", color: "mint", phone: "523324077845", email: "p.glez.lpz92@gmail.com", userId: 3 },
+      { name: "Ian", fullName: "Ian González Torres", nickname: "Baby", relation: "", initials: "I", color: "sun", phone: "523312804849", email: "hackyan4@gmail.com", userId: 17 },
       { name: "Belén", fullName: "María Belén Chávez López", nickname: "Mabel", relation: "", initials: "B", color: "coral", phone: "52333871243", email: "marbelen.chaz@gmail.com" },
-      { name: "Edgar", fullName: "Edgar Josué López Melchor", nickname: "Wero LM", relation: "", initials: "E", color: "lilac", phone: "523310838858", email: "edgar.lopez8983@alumnos.udg.mx" },
-      { name: "Lucy", fullName: "Luz María Ramírez Hernández", nickname: "Lucy", relation: "", initials: "L", color: "coral", phone: "523316089229", email: "lucyramirezsolutec@gmail.com" },
-      { name: "Cristina", fullName: "Cristina Díaz González", nickname: "CristinaFit", relation: "", initials: "C", color: "mint", phone: "523331586066", email: "valhumrh@gmail.com" },
-      { name: "Judith", fullName: "Judith González López", nickname: "JuuGlez", relation: "", initials: "J", color: "sun", phone: "523327479701", email: "emilyalejandra01@gmail.com" },
-      { name: "Ivan", fullName: "Ivan Chávez López", nickname: "Ivanovich", relation: "", initials: "I", color: "mint", phone: "522326621281", email: "chzivan@gmail.com" },
-      { name: "Estefany", fullName: "Estefany López Melchor", nickname: "EstefanyLM", relation: "", initials: "E", color: "coral", phone: "523324265455", email: "estefanylome@gmail.com" },
-      { name: "Ely", fullName: "Elizabeth López Álvarez", nickname: "Ely", relation: "", initials: "E", color: "lilac", phone: "523333541315", email: "eloalvarez.e@gmail.com" },
-      { name: "Emmanuel", fullName: "Emmanuel López Álvarez", nickname: "Emanuelle", relation: "", initials: "E", color: "sun", phone: "523331087798", email: "emmanuellopez3911@gmail.com" },
-      { name: "Viridiana", fullName: "Viridiana Contreras", nickname: "Virinovich", relation: "", initials: "V", color: "coral", phone: "523322729289", email: "viridiana.ca@icloud.com" },
+      { name: "Edgar", fullName: "Edgar Josué López Melchor", nickname: "Wero LM", relation: "", initials: "E", color: "lilac", phone: "523310838858", email: "edgar.lopez8983@alumnos.udg.mx", userId: 19 },
+      { name: "Lucy", fullName: "Luz María Ramírez Hernández", nickname: "Lucy", relation: "", initials: "L", color: "coral", phone: "523316089229", email: "lucyramirezsolutec@gmail.com", userId: 14 },
+      { name: "Cristina", fullName: "Cristina Díaz González", nickname: "CristinaFit", relation: "", initials: "C", color: "mint", phone: "523331586066", email: "valhumrh@gmail.com", userId: 4 },
+      { name: "Judith", fullName: "Judith González López", nickname: "JuuGlez", relation: "", initials: "J", color: "sun", phone: "523327479701", email: "emilyalejandra01@gmail.com", userId: 11 },
+      { name: "Ivan", fullName: "Ivan Chávez López", nickname: "Ivanovich", relation: "", initials: "I", color: "mint", phone: "522326621281", email: "chzivan@gmail.com", userId: 12 },
+      { name: "Estefany", fullName: "Estefany López Melchor", nickname: "EstefanyLM", relation: "", initials: "E", color: "coral", phone: "523324265455", email: "estefanylome@gmail.com", userId: 18 },
+      { name: "Ely", fullName: "Elizabeth López Álvarez", nickname: "Ely", relation: "", initials: "E", color: "lilac", phone: "523333541315", email: "eloalvarez.e@gmail.com", userId: 15 },
+      { name: "Emmanuel", fullName: "Emmanuel López Álvarez", nickname: "Emanuelle", relation: "", initials: "E", color: "sun", phone: "523331087798", email: "emmanuellopez3911@gmail.com", userId: 21 },
+      { name: "Viridiana", fullName: "Viridiana Contreras", nickname: "Virinovich", relation: "", initials: "V", color: "coral", phone: "523322729289", email: "viridiana.ca@icloud.com", userId: 16 },
+      { name: "Pita", fullName: "María Guadalupe Torres Parra", nickname: "Pita", relation: "", initials: "P", color: "sun", phone: "523312345678", email: "lupitatp@live.com.mx", userId: 13 },
+      { name: "Horacio", fullName: "Horacio Lopez B", nickname: "Holobas", relation: "", initials: "H", color: "mint", phone: "", email: "holobas12@gmail.com", userId: 20 },
+      { name: "Fernando", fullName: "Luis Fernando Torres Zapata", nickname: "Fercho", relation: "", initials: "F", color: "sun", phone: "", email: "fernando.life18@gmail.com", userId: 23 },
     ];
 
     const allMembers = [...rawMembers];
@@ -968,7 +985,10 @@ export default function Home() {
         .trim()
         .toLowerCase();
 
-    const isMemberMatch = (m: any, checkName: string, checkNick: string, checkEmail?: string) => {
+    const isMemberMatch = (m: any, checkName: string, checkNick: string, checkEmail?: string, checkUserId?: number | string) => {
+      if (checkUserId && m.userId && Number(checkUserId) === Number(m.userId)) {
+        return true;
+      }
       const cEmail = (checkEmail || "").toLowerCase().trim();
       if (cEmail) {
         if (m.email && m.email.toLowerCase() === cEmail) return true;
@@ -989,7 +1009,8 @@ export default function Home() {
       if (normCName && (normMFull === normCName || normMName === normCName)) {
         return true;
       }
-      if (normCName && normMFull && (normMFull.includes(normCName) || normCName.includes(normMName))) {
+      // Never do partial substring match if normCName is simply "maria" to avoid collision between María Belén & María Guadalupe
+      if (normCName && normCName !== "maria" && normMFull && (normMFull.includes(normCName) || normCName.includes(normMName))) {
         return true;
       }
       return false;
@@ -999,11 +1020,14 @@ export default function Home() {
     if (session?.user?.name) {
       const uFullName = session.user.name.trim();
       const uNick = ((session.user as any).nickname || uFullName.split(" ")[0]).trim();
-      const match = allMembers.find((m) => isMemberMatch(m, uFullName, uNick, session.user.email));
+      const uId = (session.user as any).id;
+      const match = allMembers.find((m) => isMemberMatch(m, uFullName, uNick, session.user.email, uId));
       if (match) {
+        if (!match.userId && uId) match.userId = uId;
         if (uNick && uNick !== match.name) match.nickname = uNick;
       } else {
         allMembers.push({
+          userId: uId,
           name: uFullName.split(" ")[0],
           fullName: uFullName,
           nickname: uNick,
@@ -1021,15 +1045,18 @@ export default function Home() {
       for (const key of Object.keys(familyProfiles)) {
         const prof = familyProfiles[key];
         if (prof && prof.fullName) {
+          const profUserId = prof.userId || (Number(key) ? Number(key) : undefined);
           const nick = prof.nickname || prof.name || prof.fullName.split(" ")[0];
-          const match = allMembers.find((m) => isMemberMatch(m, prof.fullName, nick, key.includes("@") ? key : undefined));
+          const match = allMembers.find((m) => isMemberMatch(m, prof.fullName, nick, key.includes("@") ? key : undefined, profUserId));
           if (match) {
+            if (!match.userId && profUserId) match.userId = profUserId;
             // Adopt user's preferred custom nickname if present (ej. "Ely 🌸")
             if (nick && nick.length >= 2 && nick !== match.name) {
               match.nickname = nick;
             }
           } else {
             allMembers.push({
+              userId: profUserId,
               name: prof.name || prof.fullName.split(" ")[0],
               fullName: prof.fullName,
               nickname: nick,
@@ -1048,7 +1075,7 @@ export default function Home() {
     const uniqueMembers: typeof allMembers = [];
     const seenKeys = new Set<string>();
     for (const m of allMembers) {
-      const key = m.email ? m.email.toLowerCase() : normalize(m.nickname || m.name);
+      const key = m.userId ? `uid_${m.userId}` : (m.email ? m.email.toLowerCase() : normalize(m.nickname || m.name));
       if (!seenKeys.has(key)) {
         seenKeys.add(key);
         uniqueMembers.push(m);
@@ -1063,34 +1090,40 @@ export default function Home() {
 
       // 1. Check shared stats from server for this member!
       const serverStat =
+        (m.userId && (familyStats[m.userId] || familyStats[String(m.userId)])) ||
+        (m.email && familyStats[m.email.toLowerCase()]) ||
         familyStats[m.nickname.toLowerCase()] ||
         familyStats[m.name.toLowerCase()] ||
         familyStats[m.fullName.toLowerCase()] ||
-        (m.email && familyStats[m.email.toLowerCase()]) ||
         (normNick && familyStats[normNick]) ||
         (normName && familyStats[normName]) ||
         familyStats[m.phone];
 
       const isCurrentUser = Boolean(
-        (session?.user?.id && serverStat?.userId && session.user.id === serverStat.userId) ||
+        (session?.user?.id && (m.userId || serverStat?.userId) && Number(session.user.id) === Number(m.userId || serverStat?.userId)) ||
         (session?.user?.email && m.email && session.user.email.toLowerCase() === m.email.toLowerCase()) ||
         (session?.user?.email && m.phone && session.user.email.toLowerCase() === m.phone.toLowerCase()) ||
         (currentUserName && (m.fullName.toLowerCase() === currentUserName.toLowerCase() || m.name.toLowerCase() === currentUserName.toLowerCase() || normalize(m.name) === normalize(currentUserName))) ||
         (currentUserNick && m.nickname && (m.nickname.toLowerCase() === currentUserNick.toLowerCase() || normalize(m.nickname) === normalize(currentUserNick)))
       );
 
-      // Find real posts from this member this week
+      // Find real posts from this member this week strictly anchored by userId
       const memberWeekPosts = feedPosts.filter((p) => {
         if (!p.createdAt) return false;
-        const pName = (p.userName || "").trim().toLowerCase();
-        const normPName = normalize(pName);
-        const matches =
-          pName.includes(m.name.toLowerCase()) ||
-          pName.includes(m.nickname.toLowerCase()) ||
-          m.fullName.toLowerCase().includes(pName) ||
-          (normName && normPName.includes(normName)) ||
-          (normNick && normPName.includes(normNick));
-        if (!matches) return false;
+        if (m.userId && p.userId) {
+          if (Number(m.userId) !== Number(p.userId)) return false;
+        } else if (p.userId && serverStat?.userId) {
+          if (Number(p.userId) !== Number(serverStat.userId)) return false;
+        } else {
+          const pName = (p.userName || "").trim().toLowerCase();
+          const normPName = normalize(pName);
+          if (normPName === "maria") return false;
+          const exactMatch =
+            normPName === normNick ||
+            normPName === normName ||
+            normPName === normalize(m.fullName);
+          if (!exactMatch) return false;
+        }
         const postDate = new Date(p.createdAt);
         const pKey = `${postDate.getFullYear()}-${String(postDate.getMonth() + 1).padStart(2, "0")}-${String(postDate.getDate()).padStart(2, "0")}`;
         return gdl.currentWeekDays.some((d) => d.dateKey === pKey);
@@ -1181,11 +1214,12 @@ export default function Home() {
       if (!realActivity) {
         // 1. Check familyProfiles synced from server
         const serverProf =
+          (m.userId && (familyProfiles[m.userId] || familyProfiles[String(m.userId)])) ||
+          (m.email && familyProfiles[m.email.toLowerCase()]) ||
           familyProfiles[m.nickname.toLowerCase()] ||
           familyProfiles[m.name.toLowerCase()] ||
           familyProfiles[m.fullName.toLowerCase()] ||
           (normNick && familyProfiles[normNick]) ||
-          (m.email && familyProfiles[m.email.toLowerCase()]) ||
           familyProfiles[m.phone];
         if (serverProf?.preferredActivity) {
           realActivity = serverProf.preferredActivity;
