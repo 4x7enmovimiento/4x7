@@ -13,6 +13,26 @@ import {
 
 export const OPTIONS = options;
 
+const officialNickMap: Record<string, string> = {
+  "p.glez.lpz92@gmail.com": "Pedcaz",
+  "emilyalejandra01@gmail.com": "JuuGlez",
+  "hackyan4@gmail.com": "Baby",
+  "marbelen.chaz@gmail.com": "Mabel",
+  "edgar.lopez8983@alumnos.udg.mx": "Wero LM",
+  "lucymatdan@gmail.com": "Lucy",
+  "lucyramirezsolutec@gmail.com": "Lucy",
+  "valhumrh@gmail.com": "CristinaFit",
+  "chzivan@gmail.com": "Ivanovich",
+  "estefanylome@gmail.com": "EstefanyLM",
+  "eloalvarez.e@gmail.com": "Ely",
+  "emmanuellopez3911@gmail.com": "Emanuelle",
+  "viridiana.ca@icloud.com": "Virinovich",
+  "lupitatp@live.com.mx": "Pita",
+  "holobas12@gmail.com": "Holobas",
+  "alvarezset1984@gmail.com": "Set",
+  "fernando.life18@gmail.com": "Fercho",
+};
+
 export async function GET(request: Request) {
   try {
     const current = await requireMobileUser(request);
@@ -216,26 +236,6 @@ export async function GET(request: Request) {
         { id: "week4", label: "Semana 4", range: "21 - 27 Sep", start: "2026-09-21", end: "2026-09-27" },
         { id: "week5", label: "Semana 5", range: "28 - 30 Sep", start: "2026-09-28", end: "2026-09-30" },
       ];
-
-      const officialNickMap: Record<string, string> = {
-        "p.glez.lpz92@gmail.com": "Pedcaz",
-        "emilyalejandra01@gmail.com": "JuuGlez",
-        "hackyan4@gmail.com": "Baby",
-        "marbelen.chaz@gmail.com": "Mabel",
-        "edgar.lopez8983@alumnos.udg.mx": "Wero LM",
-        "lucymatdan@gmail.com": "Lucy",
-        "lucyramirezsolutec@gmail.com": "Lucy",
-        "valhumrh@gmail.com": "CristinaFit",
-        "chzivan@gmail.com": "Ivanovich",
-        "estefanylome@gmail.com": "EstefanyLM",
-        "eloalvarez.e@gmail.com": "Ely",
-        "emmanuellopez3911@gmail.com": "Emanuelle",
-        "viridiana.ca@icloud.com": "Virinovich",
-        "lupitatp@live.com.mx": "Pita",
-        "holobas12@gmail.com": "Holobas",
-        "alvarezset1984@gmail.com": "Set",
-        "fernando.life18@gmail.com": "Fercho",
-      };
 
       function computeWeekPoints(count: number): number {
         let pts = 0;

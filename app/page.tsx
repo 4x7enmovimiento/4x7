@@ -2964,10 +2964,6 @@ export default function Home() {
               <span className="prize-badge">RIFA {monthlyPrize.month.toUpperCase()}</span>
             </div>
             <div className="prize-info-box">
-              <div className="prize-sponsor-header-pill">
-                <span className="sponsor-dot" />
-                <span>PATROCINADO POR FIX SYSTEMS</span>
-              </div>
               <p className="eyebrow">PREMIO DEL MES A LA CONSTANCIA</p>
               <h2>{monthlyPrize.title}</h2>
               <p className="prize-desc">{monthlyPrize.description}</p>
@@ -2979,37 +2975,17 @@ export default function Home() {
                 </span>
                 <small>Se rifa a fin de mes entre los que cumplan su 4×7</small>
               </div>
-              <div className="prize-sponsor-signature">
-                <img src="/images/fix-systems.png" alt="Fix Systems - Punto de Venta y Básculas" className="prize-sponsor-logo" />
-                <div className="prize-sponsor-caption">
-                  <b>Fix Systems</b>
-                  <span>Punto de Venta y Básculas · Patrocinador Oficial</span>
-                </div>
+              <div className="prize-sponsor-credit">
+                <span className="prize-sponsor-kicker">Patrocinado por</span>
+                <img
+                  src="/images/fix-systems.png"
+                  alt="Fix Systems - Punto de Venta y Básculas"
+                  className="prize-sponsor-micro-logo"
+                />
+                <span className="prize-sponsor-sub">Punto de Venta y Básculas</span>
               </div>
             </div>
           </article>
-
-          {/* 3.1 Official Sponsor Highlight Banner */}
-          <section className="official-sponsor-banner" style={{ marginTop: "18px" }}>
-            <div className="sponsor-banner-badge">
-              <span className="sponsor-flame-icon">🔥</span>
-              <span>PATROCINADOR OFICIAL 4×7</span>
-            </div>
-            <div className="sponsor-banner-body">
-              <div className="sponsor-banner-logo-box">
-                <img src="/images/fix-systems.png" alt="Fix Systems - Punto de Venta y Básculas" />
-              </div>
-              <div className="sponsor-banner-content">
-                <div className="sponsor-title-wrap">
-                  <h3>Fix Systems</h3>
-                  <span className="sponsor-subtitle-tag">Punto de Venta y Básculas</span>
-                </div>
-                <p className="sponsor-quote">
-                  Patrocinador oficial del Reto Familiar 4×7. Respaldando la constancia, el esfuerzo y los premios mensuales de nuestra familia.
-                </p>
-              </div>
-            </div>
-          </section>
 
           {/* 4. Live Family Feed - Todas las publicaciones del muro en la pantalla de Inicio */}
           <section className="section-block" style={{ marginTop: "28px" }}>
@@ -5325,18 +5301,6 @@ export default function Home() {
             Equipo: <strong>{familyName}</strong>
           </p>
         </button>
-
-        {/* Patrocinador Oficial en Sidebar */}
-        <div className="sidebar-sponsor-widget" title="Fix Systems · Patrocinador Oficial: Punto de Venta y Básculas">
-          <div className="sidebar-sponsor-header">
-            <span className="sidebar-sponsor-dot" />
-            <span className="sidebar-sponsor-kicker">PATROCINADOR OFICIAL</span>
-          </div>
-          <div className="sidebar-sponsor-logo-wrap">
-            <img src="/images/fix-systems.png" alt="Fix Systems - Punto de Venta y Básculas" />
-          </div>
-          <p className="sidebar-sponsor-footer">Punto de Venta y Básculas</p>
-        </div>
 
         <div className="profile-card">
           <span className="avatar mint">{initials}</span>
