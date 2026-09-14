@@ -551,17 +551,7 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 }
 
 .fb-photo-stat-badge {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  padding: 5px 9px;
-  border-radius: 8px;
-  background: rgb(15 31 24 / 75%);
-  color: white;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .05em;
-  backdrop-filter: blur(6px);
+  display: none !important;
 }
 
 /* Reactions Bar */
@@ -5330,6 +5320,280 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   font-size: 11px;
   color: #7b9185;
   text-align: center;
+}
+
+/* ==========================================================================
+   OFFICIAL SPONSOR: FIX SYSTEMS (Punto de Venta y Básculas)
+   ========================================================================== */
+
+/* 1. Header / Topbar Sponsor Badge */
+.top-sponsor-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1px solid #d8e5df;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(28, 90, 64, 0.05);
+  cursor: default;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+.top-sponsor-badge:hover {
+  border-color: #257853;
+  box-shadow: 0 4px 12px rgba(37, 120, 83, 0.12);
+}
+.top-sponsor-kicker {
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  color: #1e6645;
+  background: #eaf6ef;
+  padding: 2px 5px;
+  border-radius: 5px;
+  text-transform: uppercase;
+}
+.top-sponsor-logo {
+  height: 22px;
+  width: auto;
+  max-width: 76px;
+  object-fit: contain;
+  display: block;
+}
+
+/* 2. Sidebar Sponsor Widget (Desktop) */
+.sidebar-sponsor-widget {
+  margin: 10px 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #ffffff 0%, #f7faf8 100%);
+  border: 1.5px solid #dbe8e1;
+  box-shadow: 0 4px 14px rgba(20, 88, 63, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+.sidebar-sponsor-widget:hover {
+  border-color: #257853;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(37, 120, 83, 0.1);
+}
+.sidebar-sponsor-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.sidebar-sponsor-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+.sidebar-sponsor-kicker {
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  color: #1c5a40;
+  text-transform: uppercase;
+}
+.sidebar-sponsor-logo-wrap {
+  width: 100%;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+}
+.sidebar-sponsor-logo-wrap img {
+  max-width: 130px;
+  max-height: 44px;
+  object-fit: contain;
+}
+.sidebar-sponsor-footer {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  color: #557062;
+  letter-spacing: -0.01em;
+}
+
+/* 3. Monthly Prize Card Sponsor Additions */
+.prize-sponsor-header-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #e8f5ed;
+  border: 1px solid #c2e2cf;
+  font-size: 9px;
+  font-weight: 850;
+  color: #135538;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.prize-sponsor-header-pill .sponsor-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #257853;
+}
+.prize-sponsor-signature {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed #e2ece6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.prize-sponsor-logo {
+  height: 32px;
+  width: auto;
+  max-width: 80px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.prize-sponsor-caption {
+  display: flex;
+  flex-direction: column;
+}
+.prize-sponsor-caption b {
+  font-size: 11.5px;
+  color: #1a3c2e;
+  letter-spacing: -0.01em;
+}
+.prize-sponsor-caption span {
+  font-size: 10px;
+  color: #6a8276;
+  font-weight: 600;
+}
+
+/* 4. Official Sponsor Highlight Banner (Dashboard "Hoy") */
+.official-sponsor-banner {
+  background: linear-gradient(135deg, #ffffff 0%, #f4f9f6 50%, #eaf5ef 100%);
+  border: 1.5px solid #cae3d5;
+  border-radius: 20px;
+  padding: 16px 20px;
+  box-shadow: 0 4px 16px rgba(28, 90, 64, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+.official-sponsor-banner::after {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(37, 120, 83, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.sponsor-banner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9.5px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  color: #175d3c;
+  background: #e1f2e8;
+  padding: 3px 9px;
+  border-radius: 7px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.sponsor-flame-icon {
+  font-size: 11px;
+}
+.sponsor-banner-body {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.sponsor-banner-logo-box {
+  width: 110px;
+  height: 60px;
+  background: white;
+  border-radius: 14px;
+  border: 1px solid #d4e5dc;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  flex-shrink: 0;
+}
+.sponsor-banner-logo-box img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.sponsor-banner-content {
+  flex: 1;
+  min-width: 0;
+}
+.sponsor-title-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.sponsor-title-wrap h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 850;
+  color: #143e2d;
+  letter-spacing: -0.03em;
+}
+.sponsor-subtitle-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #257853;
+  background: rgba(37, 120, 83, 0.1);
+  padding: 1px 7px;
+  border-radius: 5px;
+}
+.sponsor-quote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #486355;
+}
+
+/* Mobile Adjustments for Sponsor */
+@media (max-width: 680px) {
+  .top-sponsor-badge {
+    height: 34px;
+    padding: 0 7px;
+    gap: 5px;
+  }
+  .top-sponsor-kicker {
+    font-size: 7.5px;
+    padding: 1px 4px;
+  }
+  .top-sponsor-logo {
+    height: 18px;
+    max-width: 58px;
+  }
+  .sponsor-banner-body {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .sponsor-banner-logo-box {
+    width: 100px;
+    height: 52px;
+  }
 }
 
 

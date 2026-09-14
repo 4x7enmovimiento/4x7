@@ -2146,7 +2146,6 @@ export default function Home() {
 
   // Render helper for posts - Modern Facebook/Instagram Feed Style
   const renderPostCard = (post: FeedPost) => {
-    const minutes = Math.max(1, Math.round((post.durationSeconds ?? 0) / 60));
     let meta = "Reciente";
     try {
       const d = new Date(post.createdAt);
@@ -2161,9 +2160,6 @@ export default function Home() {
     } catch {
       meta = String(post.createdAt || "Reciente");
     }
-    const visualStat = post.distanceMeters
-      ? `${(Number(post.distanceMeters) / 1000).toFixed(1)} KM`
-      : `${minutes} MIN`;
     const authorName = String(post.userName || "Familiar");
     const authorInitial = (authorName.charAt(0) || "F").toUpperCase();
     const isAuthor = Boolean(
@@ -2221,7 +2217,6 @@ export default function Home() {
             <div className="fb-activity-pill">
               <span className="fb-act-dot" />
               <b>{post.activityType}</b>
-              {post.durationSeconds ? <span>· {minutes} min</span> : null}
             </div>
           )}
           {post.caption && (
@@ -2229,11 +2224,10 @@ export default function Home() {
           )}
         </div>
 
-        {/* 3. Imagen / Foto de Evidencia (100% responsive sin cortes forzados) */}
+        {/* 3. Imagen / Foto de Evidencia (100% limpia sin etiquetas de tiempo) */}
         {post.evidenceUrl ? (
           <div className="fb-post-photo-wrap">
             <img src={post.evidenceUrl} alt={`Evidencia de entrenamiento de ${post.userName}`} />
-            <span className="fb-photo-stat-badge">{visualStat}</span>
           </div>
         ) : (
           <div className={`fb-post-visual-banner visual-${(post.id % 3) + 1}`}>
@@ -2255,7 +2249,6 @@ export default function Home() {
                 />
               </label>
             )}
-            <span className="fb-photo-stat-badge">{visualStat}</span>
           </div>
         )}
 
@@ -2971,6 +2964,10 @@ export default function Home() {
               <span className="prize-badge">RIFA {monthlyPrize.month.toUpperCase()}</span>
             </div>
             <div className="prize-info-box">
+              <div className="prize-sponsor-header-pill">
+                <span className="sponsor-dot" />
+                <span>PATROCINADO POR FIX SYSTEMS</span>
+              </div>
               <p className="eyebrow">PREMIO DEL MES A LA CONSTANCIA</p>
               <h2>{monthlyPrize.title}</h2>
               <p className="prize-desc">{monthlyPrize.description}</p>
@@ -2982,8 +2979,37 @@ export default function Home() {
                 </span>
                 <small>Se rifa a fin de mes entre los que cumplan su 4×7</small>
               </div>
+              <div className="prize-sponsor-signature">
+                <img src="/images/fix-systems.png" alt="Fix Systems - Punto de Venta y Básculas" className="prize-sponsor-logo" />
+                <div className="prize-sponsor-caption">
+                  <b>Fix Systems</b>
+                  <span>Punto de Venta y Básculas · Patrocinador Oficial</span>
+                </div>
+              </div>
             </div>
           </article>
+
+          {/* 3.1 Official Sponsor Highlight Banner */}
+          <section className="official-sponsor-banner" style={{ marginTop: "18px" }}>
+            <div className="sponsor-banner-badge">
+              <span className="sponsor-flame-icon">🔥</span>
+              <span>PATROCINADOR OFICIAL 4×7</span>
+            </div>
+            <div className="sponsor-banner-body">
+              <div className="sponsor-banner-logo-box">
+                <img src="/images/fix-systems.png" alt="Fix Systems - Punto de Venta y Básculas" />
+              </div>
+              <div className="sponsor-banner-content">
+                <div className="sponsor-title-wrap">
+                  <h3>Fix Systems</h3>
+                  <span className="sponsor-subtitle-tag">Punto de Venta y Básculas</span>
+                </div>
+                <p className="sponsor-quote">
+                  Patrocinador oficial del Reto Familiar 4×7. Respaldando la constancia, el esfuerzo y los premios mensuales de nuestra familia.
+                </p>
+              </div>
+            </div>
+          </section>
 
           {/* 4. Live Family Feed - Todas las publicaciones del muro en la pantalla de Inicio */}
           <section className="section-block" style={{ marginTop: "28px" }}>
@@ -5300,6 +5326,18 @@ export default function Home() {
           </p>
         </button>
 
+        {/* Patrocinador Oficial en Sidebar */}
+        <div className="sidebar-sponsor-widget" title="Fix Systems · Patrocinador Oficial: Punto de Venta y Básculas">
+          <div className="sidebar-sponsor-header">
+            <span className="sidebar-sponsor-dot" />
+            <span className="sidebar-sponsor-kicker">PATROCINADOR OFICIAL</span>
+          </div>
+          <div className="sidebar-sponsor-logo-wrap">
+            <img src="/images/fix-systems.png" alt="Fix Systems - Punto de Venta y Básculas" />
+          </div>
+          <p className="sidebar-sponsor-footer">Punto de Venta y Básculas</p>
+        </div>
+
         <div className="profile-card">
           <span className="avatar mint">{initials}</span>
           <span>
@@ -5313,7 +5351,7 @@ export default function Home() {
       </aside>
 
       <section className="workspace">
-        {/* Topbar with 4×7 Brand Badge and Discreet Logout */}
+        {/* Topbar with 4×7 Brand Badge, Sponsor and Discreet Logout */}
         <header className="topbar">
           <div className="topbar-left-titles">
             <p className="eyebrow">
@@ -5322,6 +5360,12 @@ export default function Home() {
             <h1>{currentTitle}</h1>
           </div>
           <div className="top-actions-cluster">
+            {/* Patrocinador Oficial Fix Systems */}
+            <div className="top-sponsor-badge" title="Fix Systems · Patrocinador Oficial: Punto de Venta y Básculas">
+              <span className="top-sponsor-kicker">PATROCINADOR</span>
+              <img src="/images/fix-systems.png" alt="Fix Systems - Punto de Venta y Básculas" className="top-sponsor-logo" />
+            </div>
+
             {/* 1. Reglas & Sistema de Puntos */}
             <button
               type="button"
