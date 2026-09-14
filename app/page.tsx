@@ -5317,11 +5317,11 @@ export default function Home() {
       <section className="workspace">
         {/* Topbar with 4×7 Brand Badge, Sponsor and Discreet Logout */}
         <header className="topbar">
-          <div className="topbar-left-titles">
-            <p className="eyebrow">
+          <div className="topbar-left-titles" style={{ minWidth: 0 }}>
+            <p className="eyebrow" style={{ wordBreak: "normal", overflowWrap: "normal" }}>
               {inAdminView ? "ZONA PRIVADA" : titleCopy[active][0]}
             </p>
-            <h1>{currentTitle}</h1>
+            <h1 style={{ wordBreak: "normal", overflowWrap: "normal", whiteSpace: "normal" }}>{currentTitle}</h1>
           </div>
           <div className="top-actions-cluster">
             {/* Patrocinador Oficial Fix Systems */}
