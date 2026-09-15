@@ -1,6 +1,7 @@
 import { and, eq, gt } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { families, familyMembers, sessions, users } from "../../../db/schema";
+import { getSupabase } from "../../../db/supabase";
 
 const encoder = new TextEncoder();
 const SESSION_DAYS = 365;
@@ -280,4 +281,90 @@ if (!globalStore.__evidenceStore) {
   globalStore.__evidenceStore = new Map();
 }
 export const evidenceStore = globalStore.__evidenceStore;
+
+export interface MonthlyPrize {
+  title: string;
+  description: string;
+  imageUrl: string;
+  month: string;
+  minWeeklyCheckIns: number;
+  updatedAt?: string;
+}
+
+export const defaultMonthlyPrize: MonthlyPrize = {
+  title: "Smartwatch Deportivo o Audífonos Pro 🎧",
+  description: "Cumple mínimo tus 4 check-ins por semana en Septiembre y participa en la rifa familiar del mes.",
+  imageUrl: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80",
+  month: "Septiembre 2026",
+  minWeeklyCheckIns: 4,
+};
+
+let cachedMonthlyPrize: MonthlyPrize | null = null;
+let lastPrizeFetchTime = 0;
+const PRIZE_CACHE_TTL_MS = 60_000; // 1 minute in-memory cache
+
+export async function getPersistedMonthlyPrize(forceRefresh = false): Promise<MonthlyPrize> {
+  const now = Date.now();
+  if (!forceRefresh && cachedMonthlyPrize && now - lastPrizeFetchTime < PRIZE_CACHE_TTL_MS) {
+    return cachedMonthlyPrize;
+  }
+
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase.storage.from("evidence").download("config/monthly_prize.json");
+    if (data && !error) {
+      const text = await data.text();
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed === "object" && parsed.title) {
+        cachedMonthlyPrize = {
+          title: String(parsed.title || defaultMonthlyPrize.title),
+          description: String(parsed.description || defaultMonthlyPrize.description),
+          imageUrl: String(parsed.imageUrl || defaultMonthlyPrize.imageUrl),
+          month: String(parsed.month || defaultMonthlyPrize.month),
+          minWeeklyCheckIns: Number(parsed.minWeeklyCheckIns) || 4,
+          updatedAt: parsed.updatedAt || undefined,
+        };
+        lastPrizeFetchTime = now;
+        return cachedMonthlyPrize;
+      }
+    }
+  } catch (e) {
+    console.warn("Error reading monthly prize from storage:", e);
+  }
+
+  return cachedMonthlyPrize || defaultMonthlyPrize;
+}
+
+export async function savePersistedMonthlyPrize(prizeData: Partial<MonthlyPrize>): Promise<MonthlyPrize> {
+  const current = await getPersistedMonthlyPrize();
+  const updated: MonthlyPrize = {
+    title: prizeData.title ? String(prizeData.title).trim() : current.title,
+    description: prizeData.description ? String(prizeData.description).trim() : current.description,
+    imageUrl: prizeData.imageUrl ? String(prizeData.imageUrl).trim() : current.imageUrl,
+    month: prizeData.month ? String(prizeData.month).trim() : current.month,
+    minWeeklyCheckIns: 4,
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    const supabase = getSupabase();
+    const { error } = await supabase.storage.from("evidence").upload(
+      "config/monthly_prize.json",
+      Buffer.from(JSON.stringify(updated, null, 2)),
+      { upsert: true, contentType: "application/json" }
+    );
+
+    if (error) {
+      console.error("Error saving monthly prize to Supabase storage:", error);
+      throw new Error(`No se pudo guardar el premio en Supabase: ${error.message}`);
+    }
+  } catch (err) {
+    console.error("Supabase storage upload failed:", err);
+    throw err;
+  }
+
+  cachedMonthlyPrize = updated;
+  lastPrizeFetchTime = Date.now();
+  return updated;
+}
 

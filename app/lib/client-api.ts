@@ -142,7 +142,12 @@ export const clientApi = {
     body: JSON.stringify({ action: "add_measurement", ...data }),
   }),
   feed: (clientSyncData?: Record<string, any>) =>
-    request<{ posts: FeedPost[]; familyProfiles?: Record<string, any>; familyStats?: Record<string, any> }>("/api/mobile/feed", {
+    request<{
+      posts: FeedPost[];
+      familyProfiles?: Record<string, any>;
+      familyStats?: Record<string, any>;
+      monthlyPrize?: { title: string; description: string; imageUrl: string; month: string; minWeeklyCheckIns: number };
+    }>("/api/mobile/feed", {
       headers: clientSyncData ? { "x-client-sync": JSON.stringify(clientSyncData) } : undefined,
     }),
   comments: (postId: number) => request<{ comments: Array<{ id: number; postId: number; userId: number; userName: string; body: string; createdAt: string }> }>(`/api/mobile/feed/${postId}/comments`),

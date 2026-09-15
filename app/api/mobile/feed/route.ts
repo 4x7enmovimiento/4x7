@@ -3,6 +3,7 @@ import {
   apiError,
   cleanText,
   familyProfilesCache,
+  getPersistedMonthlyPrize,
   json,
   options,
   requireMobileUser,
@@ -344,10 +345,13 @@ export async function GET(request: Request) {
       console.warn("Supabase family stats aggregation error:", e);
     }
 
+    const monthlyPrize = await getPersistedMonthlyPrize();
+
     return json({
       posts: postsList,
       familyProfiles: familyProfilesObj,
       familyStats: familyStatsObj,
+      monthlyPrize,
     });
   } catch (error) {
     return apiError(error);

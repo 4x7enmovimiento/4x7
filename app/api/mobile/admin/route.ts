@@ -1,27 +1,25 @@
 import { getSupabase } from "../../../../db/supabase";
-import { apiError, cleanText, hashPassword, json, options, randomToken, requireMobileUser } from "../_shared";
+import {
+  apiError,
+  cleanText,
+  getPersistedMonthlyPrize,
+  hashPassword,
+  json,
+  options,
+  randomToken,
+  requireMobileUser,
+  savePersistedMonthlyPrize,
+} from "../_shared";
 import { OFFICIAL_FAMILY_USERS } from "../auth/login/route";
 
 export const OPTIONS = options;
-
-// Monthly prize
-let monthlyPrize = {
-  title: "Smartwatch Deportivo o Audífonos Pro 🎧",
-  description: "Cumple mínimo tus 4 check-ins por semana en Septiembre y participa en la rifa familiar del mes.",
-  imageUrl: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80",
-  month: "Septiembre 2026",
-  minWeeklyCheckIns: 4,
-};
 
 const ADMIN_PIN = "123456";
 
 export async function GET(request: Request) {
   try {
-    const url = new URL(request.url);
-    if (url.searchParams.get("action") === "prize") {
-      return json({ prize: monthlyPrize });
-    }
-    return json({ prize: monthlyPrize });
+    const prize = await getPersistedMonthlyPrize();
+    return json({ prize });
   } catch (error) {
     return apiError(error);
   }
@@ -95,7 +93,8 @@ export async function POST(request: Request) {
         };
       });
 
-      return json({ users: usersWithStats, prize: monthlyPrize });
+      const prize = await getPersistedMonthlyPrize();
+      return json({ users: usersWithStats, prize });
     }
 
     // 2. Reset user password
@@ -202,20 +201,21 @@ export async function POST(request: Request) {
 
     // 5. Save Monthly Prize
     if (action === "save_prize") {
-      const title = cleanText(payload.title, 100) || monthlyPrize.title;
-      const description = cleanText(payload.description, 250) || monthlyPrize.description;
-      const imageUrl = cleanText(payload.imageUrl, 2000) || monthlyPrize.imageUrl;
-      const month = cleanText(payload.month, 50) || monthlyPrize.month;
+      const currentPrize = await getPersistedMonthlyPrize();
+      const title = cleanText(payload.title, 100) || currentPrize.title;
+      const description = cleanText(payload.description, 250) || currentPrize.description;
+      const imageUrl = cleanText(payload.imageUrl, 2000) || currentPrize.imageUrl;
+      const month = cleanText(payload.month, 50) || currentPrize.month;
 
-      monthlyPrize = {
+      const updatedPrize = await savePersistedMonthlyPrize({
         title,
         description,
         imageUrl,
         month,
         minWeeklyCheckIns: 4,
-      };
+      });
 
-      return json({ ok: true, prize: monthlyPrize, message: "¡Premio del mes actualizado exitosamente!" });
+      return json({ ok: true, prize: updatedPrize, message: "¡Premio del mes guardado exitosamente en Supabase!" });
     }
 
     return json({ error: "Acción no reconocida." }, 400);

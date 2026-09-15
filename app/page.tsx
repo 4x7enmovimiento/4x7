@@ -638,12 +638,37 @@ export default function Home() {
   };
 
   // Monthly Raffle Prize State
-  const [monthlyPrize, setMonthlyPrize] = useState({
-    title: "Smartwatch Deportivo Garmin / Apple Watch SE ⌚",
-    description: "Cumple mínimo tus 4 check-ins por semana en Septiembre y participa en la rifa familiar del mes.",
-    imageUrl: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80",
-    month: "Septiembre 2026",
-    minWeeklyCheckIns: 4,
+  const [monthlyPrize, setMonthlyPrize] = useState<{
+    title: string;
+    description: string;
+    imageUrl: string;
+    month: string;
+    minWeeklyCheckIns: number;
+  }>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("four_seven_monthly_prize");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed?.title) {
+            return {
+              title: parsed.title,
+              description: parsed.description || "Cumple mínimo tus 4 check-ins por semana en Septiembre y participa en la rifa familiar del mes.",
+              imageUrl: parsed.imageUrl || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80",
+              month: parsed.month || "Septiembre 2026",
+              minWeeklyCheckIns: Number(parsed.minWeeklyCheckIns) || 4,
+            };
+          }
+        }
+      } catch {}
+    }
+    return {
+      title: "Smartwatch Deportivo Garmin / Apple Watch SE ⌚",
+      description: "Cumple mínimo tus 4 check-ins por semana en Septiembre y participa en la rifa familiar del mes.",
+      imageUrl: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80",
+      month: "Septiembre 2026",
+      minWeeklyCheckIns: 4,
+    };
   });
 
   // Admin & Security PIN State
@@ -658,6 +683,7 @@ export default function Home() {
   const [prizeDescEdit, setPrizeDescEdit] = useState(monthlyPrize.description);
   const [prizeImgEdit, setPrizeImgEdit] = useState(monthlyPrize.imageUrl);
   const [prizeMonthEdit, setPrizeMonthEdit] = useState(monthlyPrize.month);
+  const [prizeImageFile, setPrizeImageFile] = useState<File | null>(null);
   const [selectedUserForPassword, setSelectedUserForPassword] = useState<{ id: number; name: string } | null>(null);
   const [newPasswordVal, setNewPasswordVal] = useState("");
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<{
@@ -714,7 +740,18 @@ export default function Home() {
           window.scrollTo({ top: 0, behavior: "smooth" });
           clientApi.adminListUsers("123456").then((res) => {
             if (res.users?.length) setAdminUsers(res.users);
-            if (res.prize) setMonthlyPrize({ minWeeklyCheckIns: 4, ...res.prize });
+            if (res.prize) {
+              setMonthlyPrize({ minWeeklyCheckIns: 4, ...res.prize });
+              setPrizeTitleEdit(res.prize.title);
+              setPrizeDescEdit(res.prize.description);
+              setPrizeImgEdit(res.prize.imageUrl);
+              setPrizeMonthEdit(res.prize.month);
+              try {
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("four_seven_monthly_prize", JSON.stringify(res.prize));
+                }
+              } catch {}
+            }
           }).catch(() => {}).finally(() => setAdminLoading(false));
         } else {
           setPinError("PIN incorrecto. Intenta con 123456");
@@ -739,7 +776,18 @@ export default function Home() {
     try {
       const res = await clientApi.adminListUsers("123456");
       if (res.users?.length) setAdminUsers(res.users);
-      if (res.prize) setMonthlyPrize({ minWeeklyCheckIns: 4, ...res.prize });
+      if (res.prize) {
+        setMonthlyPrize({ minWeeklyCheckIns: 4, ...res.prize });
+        setPrizeTitleEdit(res.prize.title);
+        setPrizeDescEdit(res.prize.description);
+        setPrizeImgEdit(res.prize.imageUrl);
+        setPrizeMonthEdit(res.prize.month);
+        try {
+          if (typeof window !== "undefined") {
+            localStorage.setItem("four_seven_monthly_prize", JSON.stringify(res.prize));
+          }
+        } catch {}
+      }
     } catch {
       // Keep state if offline
     } finally {
@@ -747,30 +795,74 @@ export default function Home() {
     }
   };
 
-  const handlePrizePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePrizePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setPrizeImageFile(file);
       const url = URL.createObjectURL(file);
       setPrizeImgEdit(url);
-      notify("Foto cuadrada del premio seleccionada 📸");
+      notify("Foto cuadrada seleccionada 📸 Subiendo...");
+      try {
+        const uploadRes = await clientApi.uploadEvidence(file);
+        if (uploadRes?.evidenceUrl) {
+          setPrizeImgEdit(uploadRes.evidenceUrl);
+          notify("📸 Foto del premio subida exitosamente");
+        }
+      } catch (err) {
+        console.warn("Could not upload prize photo immediately:", err);
+      }
     }
   };
 
   const handleSavePrize = async (e: React.FormEvent) => {
     e.preventDefault();
-    const updated = {
-      title: prizeTitleEdit,
-      description: prizeDescEdit,
-      imageUrl: prizeImgEdit,
-      month: prizeMonthEdit,
-      minWeeklyCheckIns: 4,
-    };
-    setMonthlyPrize(updated);
+    setAdminLoading(true);
     try {
-      await clientApi.adminSavePrize("123456", updated);
-      notify("🎁 ¡Premio del mes guardado para toda la familia!");
+      let finalImgUrl = prizeImgEdit;
+      if (finalImgUrl.startsWith("blob:") && prizeImageFile) {
+        try {
+          const uploadRes = await clientApi.uploadEvidence(prizeImageFile);
+          if (uploadRes?.evidenceUrl) {
+            finalImgUrl = uploadRes.evidenceUrl;
+            setPrizeImgEdit(finalImgUrl);
+          }
+        } catch (uploadErr) {
+          console.warn("Could not upload prize image file:", uploadErr);
+        }
+      }
+
+      const updated = {
+        title: prizeTitleEdit,
+        description: prizeDescEdit,
+        imageUrl: finalImgUrl,
+        month: prizeMonthEdit,
+        minWeeklyCheckIns: 4,
+      };
+      setMonthlyPrize(updated);
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("four_seven_monthly_prize", JSON.stringify(updated));
+        }
+      } catch {}
+
+      const res = await clientApi.adminSavePrize("123456", updated);
+      if (res?.prize) {
+        setMonthlyPrize({ minWeeklyCheckIns: 4, ...res.prize });
+        setPrizeTitleEdit(res.prize.title);
+        setPrizeDescEdit(res.prize.description);
+        setPrizeImgEdit(res.prize.imageUrl);
+        setPrizeMonthEdit(res.prize.month);
+        try {
+          if (typeof window !== "undefined") {
+            localStorage.setItem("four_seven_monthly_prize", JSON.stringify(res.prize));
+          }
+        } catch {}
+      }
+      notify("🎁 ¡Premio del mes guardado en Supabase para toda la familia!");
     } catch {
       notify("🎁 Premio del mes actualizado localmente.");
+    } finally {
+      setAdminLoading(false);
     }
   };
 
@@ -1606,6 +1698,14 @@ export default function Home() {
       if (response?.familyStats) {
         setFamilyStats((prev) => ({ ...prev, ...response.familyStats }));
       }
+      if (response?.monthlyPrize) {
+        setMonthlyPrize((prev) => ({ ...prev, ...response.monthlyPrize }));
+        try {
+          if (typeof window !== "undefined") {
+            localStorage.setItem("four_seven_monthly_prize", JSON.stringify(response.monthlyPrize));
+          }
+        } catch {}
+      }
     } catch {
       // Keep existing state gracefully
     } finally {
@@ -1681,6 +1781,14 @@ export default function Home() {
         }
         if (feed?.familyStats) {
           setFamilyStats((prev) => ({ ...prev, ...feed.familyStats }));
+        }
+        if (feed?.monthlyPrize) {
+          setMonthlyPrize((prev) => ({ ...prev, ...feed.monthlyPrize }));
+          try {
+            if (typeof window !== "undefined") {
+              localStorage.setItem("four_seven_monthly_prize", JSON.stringify(feed.monthlyPrize));
+            }
+          } catch {}
         }
 
         if (current?.user) {
@@ -4703,7 +4811,13 @@ export default function Home() {
           <button
             type="button"
             className={adminTab === "prize" ? "admin-tab-btn active" : "admin-tab-btn"}
-            onClick={() => setAdminTab("prize")}
+            onClick={() => {
+              setAdminTab("prize");
+              setPrizeTitleEdit(monthlyPrize.title);
+              setPrizeDescEdit(monthlyPrize.description);
+              setPrizeImgEdit(monthlyPrize.imageUrl);
+              setPrizeMonthEdit(monthlyPrize.month);
+            }}
           >
             Rifa y Premio del Mes
           </button>
@@ -5211,6 +5325,14 @@ export default function Home() {
               }
               if (feed?.familyStats) {
                 setFamilyStats((prev) => ({ ...prev, ...feed.familyStats }));
+              }
+              if (feed?.monthlyPrize) {
+                setMonthlyPrize((prev) => ({ ...prev, ...feed.monthlyPrize }));
+                try {
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("four_seven_monthly_prize", JSON.stringify(feed.monthlyPrize));
+                  }
+                } catch {}
               }
               syncUserCheckInState(current.user.email, current.user.id, finalFeed);
             })
