@@ -202,10 +202,46 @@ export async function POST(request: Request) {
     // 5. Save Monthly Prize
     if (action === "save_prize") {
       const currentPrize = await getPersistedMonthlyPrize();
-      const title = cleanText(payload.title, 100) || currentPrize.title;
-      const description = cleanText(payload.description, 250) || currentPrize.description;
-      const imageUrl = cleanText(payload.imageUrl, 2000) || currentPrize.imageUrl;
-      const month = cleanText(payload.month, 50) || currentPrize.month;
+      const title = cleanText(payload.title, 120) || currentPrize.title;
+      const description = cleanText(payload.description, 350) || currentPrize.description;
+      const month = cleanText(payload.month, 60) || currentPrize.month;
+
+      let imageUrl = typeof payload.imageUrl === "string" ? payload.imageUrl.trim() : "";
+
+      // If a base64 image was submitted from camera/gallery
+      if (imageUrl.startsWith("data:image/")) {
+        try {
+          const match = imageUrl.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/);
+          if (match) {
+            const rawExt = match[1].toLowerCase();
+            const ext = rawExt.includes("png") ? "png" : rawExt.includes("webp") ? "webp" : "jpg";
+            const buffer = Buffer.from(match[2], "base64");
+            const fileKey = `prizes/prize_${Date.now()}.${ext}`;
+
+            const supabase = getSupabase();
+            const { error: uploadErr } = await supabase.storage.from("evidence").upload(fileKey, buffer, {
+              contentType: `image/${ext === "jpg" ? "jpeg" : ext}`,
+              upsert: true,
+            });
+
+            if (!uploadErr) {
+              const { data: pubData } = supabase.storage.from("evidence").getPublicUrl(fileKey);
+              imageUrl = pubData.publicUrl;
+            } else {
+              console.error("Error uploading prize photo to Supabase:", uploadErr);
+              imageUrl = currentPrize.imageUrl;
+            }
+          }
+        } catch (e) {
+          console.error("Error processing prize image base64:", e);
+          imageUrl = currentPrize.imageUrl;
+        }
+      } else if (imageUrl.startsWith("blob:")) {
+        // Safeguard: Never save dead client-side blob URLs
+        imageUrl = currentPrize.imageUrl;
+      } else if (!imageUrl) {
+        imageUrl = currentPrize.imageUrl;
+      }
 
       const updatedPrize = await savePersistedMonthlyPrize({
         title,

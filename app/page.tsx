@@ -797,20 +797,49 @@ export default function Home() {
 
   const handlePrizePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setPrizeImageFile(file);
-      const url = URL.createObjectURL(file);
-      setPrizeImgEdit(url);
-      notify("Foto cuadrada seleccionada 📸 Subiendo...");
-      try {
-        const uploadRes = await clientApi.uploadEvidence(file);
-        if (uploadRes?.evidenceUrl) {
-          setPrizeImgEdit(uploadRes.evidenceUrl);
-          notify("📸 Foto del premio subida exitosamente");
+    if (!file) return;
+
+    notify("Procesando foto del premio 📸...");
+
+    // Compress client-side to maximum 800px JPEG 0.85
+    try {
+      const reader = new FileReader();
+      reader.onload = (readerEvent) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 800;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const base64Url = canvas.toDataURL("image/jpeg", 0.85);
+            setPrizeImgEdit(base64Url);
+            notify("✅ Foto lista para guardar");
+          }
+        };
+        if (typeof readerEvent.target?.result === "string") {
+          img.src = readerEvent.target.result;
         }
-      } catch (err) {
-        console.warn("Could not upload prize photo immediately:", err);
-      }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Error reading prize photo:", err);
+      notify("No se pudo procesar la foto.");
     }
   };
 
@@ -818,32 +847,13 @@ export default function Home() {
     e.preventDefault();
     setAdminLoading(true);
     try {
-      let finalImgUrl = prizeImgEdit;
-      if (finalImgUrl.startsWith("blob:") && prizeImageFile) {
-        try {
-          const uploadRes = await clientApi.uploadEvidence(prizeImageFile);
-          if (uploadRes?.evidenceUrl) {
-            finalImgUrl = uploadRes.evidenceUrl;
-            setPrizeImgEdit(finalImgUrl);
-          }
-        } catch (uploadErr) {
-          console.warn("Could not upload prize image file:", uploadErr);
-        }
-      }
-
       const updated = {
         title: prizeTitleEdit,
         description: prizeDescEdit,
-        imageUrl: finalImgUrl,
+        imageUrl: prizeImgEdit,
         month: prizeMonthEdit,
         minWeeklyCheckIns: 4,
       };
-      setMonthlyPrize(updated);
-      try {
-        if (typeof window !== "undefined") {
-          localStorage.setItem("four_seven_monthly_prize", JSON.stringify(updated));
-        }
-      } catch {}
 
       const res = await clientApi.adminSavePrize("123456", updated);
       if (res?.prize) {
@@ -859,8 +869,9 @@ export default function Home() {
         } catch {}
       }
       notify("🎁 ¡Premio del mes guardado en Supabase para toda la familia!");
-    } catch {
-      notify("🎁 Premio del mes actualizado localmente.");
+    } catch (err) {
+      console.error("Error saving prize:", err);
+      notify("Error al guardar en Supabase. Intenta de nuevo.");
     } finally {
       setAdminLoading(false);
     }
