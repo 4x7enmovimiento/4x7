@@ -62,6 +62,39 @@ export async function GET(request: Request) {
           if (current.name) sharedMemberStatsCache.set(current.name.toLowerCase(), updatedStat);
           if (current.email) sharedMemberStatsCache.set(current.email.toLowerCase(), updatedStat);
         }
+
+        if (Array.isArray(clientSync?.localChallenges) && clientSync.localChallenges.length > 0) {
+          const supabase = getSupabase();
+          const { data: existingCh } = await supabase.from("custom_challenges").select("title, creator_name");
+          const existingSet = new Set((existingCh || []).map((e: any) => `${e.creator_name}:::${e.title}`));
+          for (const loc of clientSync.localChallenges) {
+            const key = `${loc.creator}:::${loc.title}`;
+            if (!existingSet.has(key) && loc.title && loc.creator) {
+              await supabase.from("custom_challenges").insert({
+                creator_name: loc.creator,
+                targets: Array.isArray(loc.targets) ? loc.targets : ["Toda la Familia"],
+                title: loc.title,
+                description: loc.desc || "Reto familiar",
+                reward_points: Number(loc.rewardPoints) || 100,
+                bet: loc.bet || null,
+                completed_by: Array.isArray(loc.completedBy) ? loc.completedBy : [],
+                accepted_by: Array.isArray(loc.acceptedBy) ? loc.acceptedBy : [loc.creator],
+              });
+              existingSet.add(key);
+
+              const targetsStr = Array.isArray(loc.targets) && loc.targets.includes("Toda la Familia") ? "Toda la Familia 👥" : (loc.targets || []).join(", ");
+              await supabase.from("posts").insert({
+                family_id: current.familyId,
+                user_id: current.userId,
+                caption: `⚔️🔥 ¡NUEVO RETO FAMILIAR LANZADO! 🏆\n"${loc.title}"\n\n📌 Objetivo: ${loc.desc || "¡A ver quién cumple este reto primero!"}\n🎯 Dirigido a: ${targetsStr}\n✨ Recompensa: +${loc.rewardPoints || 100} PTS${loc.bet ? `\n🌮 Apuesta amistosa: ${loc.bet}` : ""}\n\n¡Acepta el duelo en la pestaña de Liga y Retos! 💪`,
+                activity_type: "Reto Familiar ⚔️",
+                evidence_url: null,
+                likes_count: 0,
+                comments_count: 0,
+              }).catch(() => {});
+            }
+          }
+        }
       } catch {}
     }
     const supabase = getSupabase();
@@ -347,11 +380,37 @@ export async function GET(request: Request) {
 
     const monthlyPrize = await getPersistedMonthlyPrize();
 
+    let challengesList: any[] = [];
+    try {
+      const { data: challengesRows } = await supabase
+        .from("custom_challenges")
+        .select("*")
+        .order("id", { ascending: false });
+
+      if (challengesRows && challengesRows.length > 0) {
+        challengesList = challengesRows.map((row: any) => ({
+          id: row.id,
+          creator: row.creator_name,
+          targets: Array.isArray(row.targets) ? row.targets : ["Toda la Familia"],
+          title: row.title,
+          desc: row.description,
+          rewardPoints: Number(row.reward_points) || 100,
+          bet: row.bet || undefined,
+          completedBy: Array.isArray(row.completed_by) ? row.completed_by : [],
+          acceptedBy: Array.isArray(row.accepted_by) ? row.accepted_by : [],
+          createdAt: row.created_at ? new Date(row.created_at).toLocaleDateString("es-MX", { day: "2-digit", month: "short" }) : "Reciente",
+        }));
+      }
+    } catch (chErr) {
+      console.warn("Could not load challenges in feed:", chErr);
+    }
+
     return json({
       posts: postsList,
       familyProfiles: familyProfilesObj,
       familyStats: familyStatsObj,
       monthlyPrize,
+      challenges: challengesList,
     });
   } catch (error) {
     return apiError(error);

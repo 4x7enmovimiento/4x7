@@ -147,6 +147,18 @@ export const clientApi = {
       familyProfiles?: Record<string, any>;
       familyStats?: Record<string, any>;
       monthlyPrize?: { title: string; description: string; imageUrl: string; month: string; minWeeklyCheckIns: number };
+      challenges?: Array<{
+        id: number;
+        creator: string;
+        targets: string[];
+        title: string;
+        desc: string;
+        rewardPoints: number;
+        bet?: string;
+        completedBy: string[];
+        acceptedBy: string[];
+        createdAt: string;
+      }>;
     }>("/api/mobile/feed", {
       headers: clientSyncData ? { "x-client-sync": JSON.stringify(clientSyncData) } : undefined,
     }),
@@ -242,5 +254,20 @@ export const clientApi = {
     method: "POST",
     body: JSON.stringify({ pin, action: "save_prize", ...data }),
   }),
+  createChallenge: (data: { title: string; desc: string; targets: string[]; rewardPoints: number; bet?: string; creator?: string }) =>
+    request<{ ok: boolean; challenge: any }>("/api/mobile/challenges", {
+      method: "POST",
+      body: JSON.stringify({ action: "create", ...data }),
+    }),
+  completeChallenge: (id: number, userName?: string) =>
+    request<{ ok: boolean; completedBy: string[] }>("/api/mobile/challenges", {
+      method: "POST",
+      body: JSON.stringify({ action: "complete", id, userName }),
+    }),
+  syncLocalChallenges: (challenges: any[]) =>
+    request<{ ok: boolean; challenges: any[] }>("/api/mobile/challenges", {
+      method: "POST",
+      body: JSON.stringify({ action: "sync_local", challenges }),
+    }),
 };
 

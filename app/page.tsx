@@ -1699,6 +1699,17 @@ export default function Home() {
         } catch {}
       }
 
+      try {
+        const savedCh = localStorage.getItem("4x7_custom_challenges");
+        if (savedCh) {
+          const parsedCh = JSON.parse(savedCh);
+          if (Array.isArray(parsedCh) && parsedCh.length > 0) {
+            if (!clientSyncData) clientSyncData = {};
+            clientSyncData.localChallenges = parsedCh;
+          }
+        }
+      } catch {}
+
       const response = await clientApi.feed(clientSyncData);
       if (response?.posts && Array.isArray(response.posts)) {
         setFeedPosts(response.posts);
@@ -1714,6 +1725,14 @@ export default function Home() {
         try {
           if (typeof window !== "undefined") {
             localStorage.setItem("four_seven_monthly_prize", JSON.stringify(response.monthlyPrize));
+          }
+        } catch {}
+      }
+      if (response?.challenges && Array.isArray(response.challenges)) {
+        setCustomChallenges(response.challenges);
+        try {
+          if (typeof window !== "undefined") {
+            localStorage.setItem("4x7_custom_challenges", JSON.stringify(response.challenges));
           }
         } catch {}
       }
@@ -1798,6 +1817,14 @@ export default function Home() {
           try {
             if (typeof window !== "undefined") {
               localStorage.setItem("four_seven_monthly_prize", JSON.stringify(feed.monthlyPrize));
+            }
+          } catch {}
+        }
+        if (feed?.challenges && Array.isArray(feed.challenges)) {
+          setCustomChallenges(feed.challenges);
+          try {
+            if (typeof window !== "undefined") {
+              localStorage.setItem("4x7_custom_challenges", JSON.stringify(feed.challenges));
             }
           } catch {}
         }
@@ -2138,7 +2165,7 @@ export default function Home() {
   };
 
   // Custom Challenge Handlers
-  const handleCreateChallenge = (e: React.FormEvent) => {
+  const handleCreateChallenge = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newChallengeTitle.trim()) return;
 
@@ -2170,39 +2197,28 @@ export default function Home() {
       } catch {}
     }
 
-    // Publicar automáticamente en el Muro Familiar (Feed de la app)
-    const challengePost: FeedPost = {
-      id: Date.now(),
-      userId: session?.user.id || 1,
-      userName: creatorDisplayName,
-      caption: `⚔️🔥 ¡NUEVO RETO FAMILIAR LANZADO! 🏆\n"${newChallengeTitle.trim()}"\n\n📌 Objetivo: ${newChallengeDesc.trim() || "¡A ver quién cumple este reto primero!"}\n🎯 Dirigido a: ${targetsDisplayStr}\n✨ Recompensa: +${newChallengeReward} PTS${newChallengeBet.trim() ? `\n🌮 Apuesta amistosa: ${newChallengeBet.trim()}` : ""}\n\n¡Acepta el duelo en la pestaña de Liga y Retos! 💪`,
-      evidenceUrl: null,
-      createdAt: new Date().toISOString(),
-      activityType: "Reto Familiar ⚔️",
-      durationSeconds: null,
-      distanceMeters: null,
-      steps: null,
-      calories: null,
-      likes: 1,
-      comments: 0,
-      likedByMe: true,
-    };
-
-    setFeedPosts((prev) => [challengePost, ...prev]);
-
-    if (typeof window !== "undefined") {
-      try {
-        const savedFeed = localStorage.getItem("4x7_family_feed");
-        const parsed = savedFeed ? JSON.parse(savedFeed) : [];
-        localStorage.setItem("4x7_family_feed", JSON.stringify([challengePost, ...parsed]));
-      } catch {}
-    }
-
     setShowNewChallengeModal(false);
     setNewChallengeTitle("");
     setNewChallengeDesc("");
     setNewChallengeBet("Unos tacos o cena 🌮");
     notify("⚔️ ¡Reto publicado en la Liga y anunciado en el Muro Familiar! 🎉");
+
+    try {
+      const res = await clientApi.createChallenge({
+        title: newChallenge.title,
+        desc: newChallenge.desc,
+        targets: newChallenge.targets,
+        rewardPoints: newChallenge.rewardPoints,
+        bet: newChallenge.bet,
+        creator: newChallenge.creator,
+      });
+      if (res?.challenge) {
+        setCustomChallenges((prev) => [res.challenge, ...prev.filter((c) => c.id !== newChallenge.id && c.id !== res.challenge.id)]);
+      }
+      loadFeed(true);
+    } catch (err) {
+      console.warn("Could not save challenge to server:", err);
+    }
   };
 
   const toggleTargetMember = (name: string) => {
@@ -2219,7 +2235,7 @@ export default function Home() {
     }
   };
 
-  const handleCompleteChallenge = (id: number) => {
+  const handleCompleteChallenge = async (id: number) => {
     const rawName = session?.user.name ? session.user.name.split(" ")[0] : "Usuario";
     const userName = currentUserNick || rawName;
     const ch = customChallenges.find((c) => c.id === id);
@@ -2240,27 +2256,14 @@ export default function Home() {
       } catch {}
     }
     setUserBonusPoints((pts) => pts + ch.rewardPoints);
+    notify(`👑 ¡Reto marcado como cumplido! (+${ch.rewardPoints} PTS)`);
 
-    // Publicar logro en el Muro Familiar
-    const victoryPost: FeedPost = {
-      id: Date.now(),
-      userId: session?.user.id || 1,
-      userName: userName,
-      caption: `👑🎉 ¡RETO FAMILIAR CUMPLIDO! 🏆\n"${ch.title}"\n¡Misión superada con éxito ganando +${ch.rewardPoints} PTS! ${ch.bet ? `\n🌮 Ya me gané: ${ch.bet}` : ""}\n¡A ver quién más se anima! 🔥💪`,
-      evidenceUrl: null,
-      createdAt: new Date().toISOString(),
-      activityType: "Reto Cumplido 👑",
-      durationSeconds: null,
-      distanceMeters: null,
-      steps: null,
-      calories: null,
-      likes: 2,
-      comments: 0,
-      likedByMe: true,
-    };
-    setFeedPosts((prev) => [victoryPost, ...prev]);
-
-    notify(`🎉 ¡Felicidades! Cumpliste el reto "${ch.title}", ganaste +${ch.rewardPoints} PTS y se publicó en el Muro`);
+    try {
+      await clientApi.completeChallenge(id, userName);
+      loadFeed(true);
+    } catch (err) {
+      console.warn("Could not complete challenge on server:", err);
+    }
   };
 
   // Render helper for posts - Modern Facebook/Instagram Feed Style
@@ -5342,6 +5345,14 @@ export default function Home() {
                 try {
                   if (typeof window !== "undefined") {
                     localStorage.setItem("four_seven_monthly_prize", JSON.stringify(feed.monthlyPrize));
+                  }
+                } catch {}
+              }
+              if (feed?.challenges && Array.isArray(feed.challenges)) {
+                setCustomChallenges(feed.challenges);
+                try {
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("4x7_custom_challenges", JSON.stringify(feed.challenges));
                   }
                 } catch {}
               }
