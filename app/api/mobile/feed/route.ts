@@ -202,12 +202,34 @@ export async function GET(request: Request) {
 
     // Include all registered users & synchronized stats from Supabase
     const familyStatsObj: Record<string, any> = {};
+    let challengesList: any[] = [];
 
     try {
       const { data: allUsers } = await supabase.from("users").select("id, name, email");
       const { data: allProfiles } = await supabase.from("user_profiles").select("*");
       const { data: allWorkouts } = await supabase.from("workouts").select("id, user_id, activity_type, started_at, created_at").eq("family_id", current.familyId);
-      const { data: allPoints } = await supabase.from("points_ledger").select("user_id, points");
+      const { data: allPoints } = await supabase.from("points_ledger").select("user_id, points, reason, source_type, source_id, created_at");
+      const { data: challengesRows } = await supabase
+        .from("custom_challenges")
+        .select("*")
+        .order("id", { ascending: false });
+
+      const allCustomChallenges = challengesRows || [];
+
+      if (allCustomChallenges.length > 0) {
+        challengesList = allCustomChallenges.map((row: any) => ({
+          id: row.id,
+          creator: row.creator_name,
+          targets: Array.isArray(row.targets) ? row.targets : ["Toda la Familia"],
+          title: row.title,
+          desc: row.description,
+          rewardPoints: Number(row.reward_points) || 100,
+          bet: row.bet || undefined,
+          completedBy: Array.isArray(row.completed_by) ? row.completed_by : [],
+          acceptedBy: Array.isArray(row.accepted_by) ? row.accepted_by : [],
+          createdAt: row.created_at ? new Date(row.created_at).toLocaleDateString("es-MX", { day: "2-digit", month: "short" }) : "Reciente",
+        }));
+      }
 
       const profileByUser = new Map((allProfiles || []).map((p: any) => [p.user_id, p]));
 
@@ -283,6 +305,26 @@ export async function GET(request: Request) {
         return pts;
       }
 
+      function userMatchesName(u: any, nickname: string, officialNick: string | null, targetName: string): boolean {
+        if (!targetName) return false;
+        const target = targetName.trim().toLowerCase();
+        if (!target) return false;
+        const userName = (u.name || "").trim().toLowerCase();
+        const userFirst = userName.split(" ")[0] || "";
+        const nick = (nickname || "").trim().toLowerCase();
+        const offNick = (officialNick || "").trim().toLowerCase();
+
+        return (
+          target === userName ||
+          target === userFirst ||
+          target === nick ||
+          target === offNick ||
+          (target.length >= 3 && (userName.includes(target) || nick.includes(target) || offNick.includes(target))) ||
+          (userFirst.length >= 3 && target.includes(userFirst)) ||
+          (nick.length >= 3 && target.includes(nick))
+        );
+      }
+
       (allUsers || []).forEach((u: any) => {
         const prof = profileByUser.get(u.id);
         const nameParts = (u.name || "").split(" ");
@@ -324,11 +366,51 @@ export async function GET(request: Request) {
         );
         const weekCount = currentWeekDates.length;
 
+        // Calculate completed custom challenges (deduplicating by challenge id)
+        const userCompletedChallengeMap = new Map<number, { points: number; date: string }>();
+
+        (allCustomChallenges || []).forEach((ch: any) => {
+          const completedList: string[] = Array.isArray(ch.completed_by) ? ch.completed_by : [];
+          const isCompleted = completedList.some((name: string) => userMatchesName(u, nickname, officialNick, name));
+          if (isCompleted) {
+            const chDate = toGdlDate(ch.created_at || new Date());
+            const pts = Number(ch.reward_points) || 100;
+            userCompletedChallengeMap.set(ch.id, { points: pts, date: chDate });
+          }
+        });
+
+        (allPoints || []).forEach((pt: any) => {
+          if (pt.user_id === u.id && pt.source_type === "challenge") {
+            const chId = Number(pt.source_id) || 0;
+            const ptDate = toGdlDate(pt.created_at || new Date());
+            const pts = Number(pt.points) || 100;
+            if (chId && !userCompletedChallengeMap.has(chId)) {
+              userCompletedChallengeMap.set(chId, { points: pts, date: ptDate });
+            }
+          }
+        });
+
+        // Group challenge points by week
+        const challengePointsByWeek = new Map<string, number>();
+        let currentWeekChallengePts = 0;
+
+        userCompletedChallengeMap.forEach(({ points: pts, date: chDate }) => {
+          const matchingWeek = WEEKS.find((w) => chDate >= w.start && chDate <= w.end);
+          if (matchingWeek) {
+            challengePointsByWeek.set(matchingWeek.id, (challengePointsByWeek.get(matchingWeek.id) || 0) + pts);
+          }
+          if (chDate >= currentMondayKey && chDate <= currentSundayKey) {
+            currentWeekChallengePts += pts;
+          }
+        });
+
         // Compute week-by-week history with workouts count and points per week
         const weeklyHistory = WEEKS.map((w) => {
           const datesInWeek = allCompletedDates.filter((k) => k >= w.start && k <= w.end);
           const isCurrent = w.start <= currentMondayKey && currentMondayKey <= w.end;
-          const weekPts = computeWeekPoints(datesInWeek.length);
+          const weekWorkoutPts = computeWeekPoints(datesInWeek.length);
+          const chPts = challengePointsByWeek.get(w.id) || 0;
+          const weekPts = weekWorkoutPts + chPts;
           return {
             weekId: w.id,
             label: w.label,
@@ -336,6 +418,7 @@ export async function GET(request: Request) {
             count: datesInWeek.length,
             dates: datesInWeek,
             points: weekPts,
+            challengePoints: chPts,
             completed: datesInWeek.length >= 4,
             isCurrent,
           };
@@ -344,8 +427,8 @@ export async function GET(request: Request) {
         const hasProfile = Boolean(prof && (prof.height_cm || prof.weight_kg || prof.target_weight_kg || prof.objective));
         const profileBonus = hasProfile ? 50 : 0;
 
-        // Weekly points strictly resets every Monday
-        const currentWeekPoints = computeWeekPoints(weekCount);
+        // Weekly points strictly resets every Monday (workouts + completed challenges this week)
+        const currentWeekPoints = computeWeekPoints(weekCount) + currentWeekChallengePts;
         const totalHistoricalPoints = weeklyHistory.reduce((acc, wh) => acc + wh.points, 0) + profileBonus;
 
         const lastWorkout = userWorkouts[userWorkouts.length - 1];
@@ -360,6 +443,7 @@ export async function GET(request: Request) {
           weeklyHistory, // WEEK-BY-WEEK HISTORY BREAKDOWN
           points: currentWeekPoints, // STRICT WEEKLY POINTS (Resets every Monday)
           weeklyPoints: currentWeekPoints,
+          challengePoints: currentWeekChallengePts,
           totalPoints: totalHistoricalPoints, // ALL-TIME CHALLENGE POINTS
           hasProfile,
           activity: lastWorkout?.activity_type || "",
@@ -379,31 +463,6 @@ export async function GET(request: Request) {
     }
 
     const monthlyPrize = await getPersistedMonthlyPrize();
-
-    let challengesList: any[] = [];
-    try {
-      const { data: challengesRows } = await supabase
-        .from("custom_challenges")
-        .select("*")
-        .order("id", { ascending: false });
-
-      if (challengesRows && challengesRows.length > 0) {
-        challengesList = challengesRows.map((row: any) => ({
-          id: row.id,
-          creator: row.creator_name,
-          targets: Array.isArray(row.targets) ? row.targets : ["Toda la Familia"],
-          title: row.title,
-          desc: row.description,
-          rewardPoints: Number(row.reward_points) || 100,
-          bet: row.bet || undefined,
-          completedBy: Array.isArray(row.completed_by) ? row.completed_by : [],
-          acceptedBy: Array.isArray(row.accepted_by) ? row.accepted_by : [],
-          createdAt: row.created_at ? new Date(row.created_at).toLocaleDateString("es-MX", { day: "2-digit", month: "short" }) : "Reciente",
-        }));
-      }
-    } catch (chErr) {
-      console.warn("Could not load challenges in feed:", chErr);
-    }
 
     return json({
       posts: postsList,

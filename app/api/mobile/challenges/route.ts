@@ -115,12 +115,14 @@ export async function POST(request: Request) {
       if (chErr || !ch) return json({ error: "Reto no encontrado." }, 404);
 
       const completedBy: string[] = Array.isArray(ch.completed_by) ? ch.completed_by : [];
+      let isNewlyAdded = false;
       if (!completedBy.includes(userName)) {
         completedBy.push(userName);
         await supabase
           .from("custom_challenges")
           .update({ completed_by: completedBy })
           .eq("id", challengeId);
+        isNewlyAdded = true;
 
         // Announce completion on feed
         await supabase.from("posts").insert({
@@ -132,6 +134,26 @@ export async function POST(request: Request) {
           likes_count: 0,
           comments_count: 0,
         }).catch((e) => console.warn("Could not insert challenge victory post:", e));
+      }
+
+      // Check if already in points_ledger; if not, insert it!
+      const { data: existingLedger } = await supabase
+        .from("points_ledger")
+        .select("id")
+        .eq("user_id", current.userId)
+        .eq("source_type", "challenge")
+        .eq("source_id", challengeId)
+        .maybeSingle();
+
+      if (!existingLedger) {
+        await supabase.from("points_ledger").insert({
+          family_id: current.familyId,
+          user_id: current.userId,
+          points: Number(ch.reward_points) || 100,
+          reason: `Reto cumplido: ${ch.title}`,
+          source_type: "challenge",
+          source_id: challengeId,
+        }).catch((e) => console.warn("Could not insert challenge points into ledger:", e));
       }
 
       return json({ ok: true, completedBy });
