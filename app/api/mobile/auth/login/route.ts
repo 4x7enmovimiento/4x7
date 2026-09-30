@@ -117,6 +117,15 @@ export const OFFICIAL_FAMILY_USERS = [
     aliases: ["viridiana.ca@icloud.com"],
     role: "member" as const,
   },
+  {
+    name: "Valentina González Díaz",
+    nickname: "Vale",
+    password: "4x7vale",
+    phone: "",
+    email: "pedcaz_19@hotmail.com",
+    aliases: ["pedcaz_19@hotmail.com", "vale", "valentina"],
+    role: "member" as const,
+  },
 ];
 
 export async function POST(request: Request) {
