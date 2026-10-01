@@ -18,6 +18,7 @@ export type FeedPost = {
   calories: number | null;
   likes: number;
   likedByNames?: string[];
+  likers?: Array<{ userId: number; name: string; avatarUrl?: string }>;
   comments: number;
   likedByMe: boolean;
 };

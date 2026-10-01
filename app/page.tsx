@@ -272,6 +272,7 @@ export default function Home() {
   const [familyProfiles, setFamilyProfiles] = useState<Record<string, any>>({});
   const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState<boolean>(false);
+  const [likersModalPost, setLikersModalPost] = useState<FeedPost | null>(null);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -2023,6 +2024,15 @@ export default function Home() {
     );
   };
 
+  const formatLikerNames = (names?: string[]) => {
+    if (!names || names.length === 0) return "";
+    if (names.length === 1) return `${names[0]} motivó`;
+    if (names.length === 2) return `${names[0]} y ${names[1]}`;
+    const allExceptLast = names.slice(0, -1).join(", ");
+    const last = names[names.length - 1];
+    return `${allExceptLast} y ${last}`;
+  };
+
   const handlePhotoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const rawFile = event.target.files?.[0];
     if (rawFile) {
@@ -2141,10 +2151,21 @@ export default function Home() {
     const current = feedPosts.find((post) => post.id === id);
     if (!current) return;
     const myNick = currentUserNick || currentUserName || "Tú";
+    const myUserId = session?.user?.id || 0;
     const nextLiked = !current.likedByMe;
     const nextLikedByNames = nextLiked
       ? Array.from(new Set([...(current.likedByNames || []), myNick]))
       : (current.likedByNames || []).filter((n) => n !== myNick && n !== currentUserNick && n !== currentUserName);
+    const nextLikers = nextLiked
+      ? [
+          ...(current.likers || []).filter((u) => u.userId !== myUserId),
+          {
+            userId: myUserId,
+            name: myNick,
+            avatarUrl: myAvatarUrl || `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/avatars/${myUserId}.jpg`,
+          },
+        ]
+      : (current.likers || []).filter((u) => u.userId !== myUserId);
 
     setFeedPosts((posts) =>
       posts.map((post) =>
@@ -2154,6 +2175,7 @@ export default function Home() {
               likedByMe: nextLiked,
               likes: Math.max(0, post.likes + (nextLiked ? 1 : -1)),
               likedByNames: nextLikedByNames,
+              likers: nextLikers,
             }
           : post
       )
@@ -2474,16 +2496,18 @@ export default function Home() {
         <div className="fb-reactions-bar">
           <div
             className="fb-reactions-count"
-            title={post.likedByNames && post.likedByNames.length > 0 ? `Motivado por: ${post.likedByNames.join(", ")}` : ""}
+            onClick={() => {
+              if ((post.likedByNames && post.likedByNames.length > 0) || (post.likers && post.likers.length > 0) || post.likes > 0) {
+                setLikersModalPost(post);
+              }
+            }}
+            style={{ cursor: post.likes > 0 ? "pointer" : "default" }}
+            title="Toca para ver todos los que motivaron"
           >
             <span className="fb-reaction-icons">🔥👏</span>
             {post.likedByNames && post.likedByNames.length > 0 ? (
-              <small style={{ fontWeight: 600, color: "var(--ink)" }}>
-                {post.likedByNames.length === 1
-                  ? `${post.likedByNames[0]} motivó`
-                  : post.likedByNames.length === 2
-                  ? `${post.likedByNames[0]} y ${post.likedByNames[1]}`
-                  : `${post.likedByNames[0]}, ${post.likedByNames[1]} y ${post.likedByNames.length - 2} más`}
+              <small style={{ fontWeight: 600, color: "var(--ink)", lineHeight: 1.4 }}>
+                {formatLikerNames(post.likedByNames)}
               </small>
             ) : (
               <small>{post.likes} {post.likes === 1 ? "motivación" : "motivaciones"}</small>
@@ -5821,6 +5845,101 @@ export default function Home() {
 
             <button className="primary-button full" onClick={() => setShowPointsModal(false)}>
               ✓ ¡Entendido, a sumar puntos!
+            </button>
+          </section>
+        </div>
+      )}
+
+      {/* Modal - Lista completa de personas que motivaron */}
+      {likersModalPost && (
+        <div className="modal-backdrop" onMouseDown={() => setLikersModalPost(null)}>
+          <section
+            className="points-modal"
+            role="dialog"
+            aria-modal="true"
+            style={{ maxWidth: "440px", padding: "20px" }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "24px" }}>🔥</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "var(--ink)" }}>
+                    Motivaciones ({likersModalPost.likes || likersModalPost.likedByNames?.length || 0})
+                  </h3>
+                  <small style={{ color: "var(--muted)", fontSize: "12px" }}>
+                    Familiares que dieron ánimos a este entrenamiento
+                  </small>
+                </div>
+              </div>
+              <button className="close-button" onClick={() => setLikersModalPost(null)} aria-label="Cerrar">
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "380px", overflowY: "auto", paddingRight: "4px" }}>
+              {likersModalPost.likers && likersModalPost.likers.length > 0 ? (
+                likersModalPost.likers.map((liker) => (
+                  <div
+                    key={liker.userId}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "10px 14px",
+                      borderRadius: "14px",
+                      background: "rgba(255, 255, 255, 0.05)",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      {renderAvatar(liker.userId, liker.name, "mint", "small", liker.avatarUrl)}
+                      <div>
+                        <b style={{ fontSize: "14.5px", color: "var(--ink)", display: "block" }}>{liker.name}</b>
+                        <span style={{ fontSize: "11px", color: "var(--muted)" }}>Familiar 4×7</span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: "18px" }}>🔥</span>
+                  </div>
+                ))
+              ) : likersModalPost.likedByNames && likersModalPost.likedByNames.length > 0 ? (
+                likersModalPost.likedByNames.map((name, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "10px 14px",
+                      borderRadius: "14px",
+                      background: "rgba(255, 255, 255, 0.05)",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      {renderAvatar(undefined, name, "mint", "small")}
+                      <div>
+                        <b style={{ fontSize: "14.5px", color: "var(--ink)", display: "block" }}>{name}</b>
+                        <span style={{ fontSize: "11px", color: "var(--muted)" }}>Familiar 4×7</span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: "18px" }}>🔥</span>
+                  </div>
+                ))
+              ) : (
+                <p style={{ textAlign: "center", color: "var(--muted)", fontStyle: "italic", margin: "20px 0" }}>
+                  Aún nadie ha motivado esta publicación.
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="primary-button full"
+              onClick={() => setLikersModalPost(null)}
+              style={{ marginTop: "16px" }}
+            >
+              Cerrar
             </button>
           </section>
         </div>

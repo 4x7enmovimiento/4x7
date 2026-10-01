@@ -161,18 +161,29 @@ export async function GET(request: Request) {
 
         const likesByPost = new Map<number, number[]>();
         const likerNamesByPost = new Map<number, string[]>();
+        const likersByPost = new Map<number, Array<{ userId: number; name: string; avatarUrl: string }>>();
 
         (likesData || []).forEach((l: any) => {
           const list = likesByPost.get(l.post_id) || [];
           list.push(l.user_id);
           likesByPost.set(l.post_id, list);
 
-          const names = likerNamesByPost.get(l.post_id) || [];
           const likerNick = resolveNick(l.user_id, l.users?.email, l.users?.name);
+          const names = likerNamesByPost.get(l.post_id) || [];
           if (!names.includes(likerNick)) {
             names.push(likerNick);
           }
           likerNamesByPost.set(l.post_id, names);
+
+          const fullList = likersByPost.get(l.post_id) || [];
+          if (!fullList.some((u) => u.userId === l.user_id)) {
+            fullList.push({
+              userId: l.user_id,
+              name: likerNick,
+              avatarUrl: `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/avatars/${l.user_id}.jpg`,
+            });
+          }
+          likersByPost.set(l.post_id, fullList);
         });
 
         const commentsCountByPost = new Map<number, number>();
@@ -199,6 +210,7 @@ export async function GET(request: Request) {
             calories: row.workouts?.calories || null,
             likes: userLikes.length,
             likedByNames: likerNamesByPost.get(row.id) || [],
+            likers: likersByPost.get(row.id) || [],
             comments: commentsCountByPost.get(row.id) || 0,
             likedByMe: userLikes.includes(current.userId),
           };
