@@ -270,6 +270,16 @@ export default function Home() {
   const [commentsByPost, setCommentsByPost] = useState<Record<number, any[]>>({});
   const [familyStats, setFamilyStats] = useState<Record<string, any>>({});
   const [familyProfiles, setFamilyProfiles] = useState<Record<string, any>>({});
+  const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      setMyAvatarUrl(`https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/avatars/${session.user.id}.jpg`);
+    } else {
+      setMyAvatarUrl(null);
+    }
+  }, [session?.user?.id]);
 
   // Guadalajara (GDL / America/Mexico_City) Date & Real Week Helper
   const getGdlDateInfo = useCallback(() => {
@@ -1349,8 +1359,13 @@ export default function Home() {
         realActivity = memberWeekPosts[0].activityType;
       }
 
+      const memberUserId = m.userId || serverStat?.userId;
+      const memberAvatarUrl = serverStat?.avatarUrl || (memberUserId ? `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/avatars/${memberUserId}.jpg` : null);
+
       return {
         ...m,
+        userId: memberUserId,
+        avatarUrl: memberAvatarUrl,
         activity: realActivity,
         workouts: currentWorkouts,
         weeklyHistory: serverStat?.weeklyHistory || [],
@@ -1372,6 +1387,8 @@ export default function Home() {
         rawName: m.name,
         fullName: m.fullName,
         isCurrentUser: Boolean(m.isCurrentUser),
+        userId: m.userId,
+        avatarUrl: m.avatarUrl,
         points: m.points, // Puntos de la semana en curso
         totalPoints: m.totalPoints, // Gran total acumulado del reto
         initials: (m.nickname || m.name || "F").charAt(0).toUpperCase(),
@@ -1938,6 +1955,74 @@ export default function Home() {
     });
   };
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFile = event.target.files?.[0];
+    if (!rawFile) return;
+    try {
+      setUploadingAvatar(true);
+      notify("Comprimiendo y subiendo foto de perfil… 📸");
+      const file = await compressImageFile(rawFile);
+      const res = await clientApi.uploadAvatar(file);
+      if (res?.avatarUrl) {
+        const freshUrl = `${res.avatarUrl}?t=${Date.now()}`;
+        setMyAvatarUrl(freshUrl);
+        notify("✅ ¡Foto de perfil guardada con éxito en Supabase!");
+        loadFeed(true);
+      }
+    } catch (err: any) {
+      notify(err?.message || "No se pudo subir la foto de perfil.");
+    } finally {
+      setUploadingAvatar(false);
+      event.target.value = "";
+    }
+  };
+
+  const renderAvatar = (
+    userId?: number,
+    name?: string,
+    colorClass = "mint",
+    sizeClass = "",
+    avatarUrl?: string | null,
+    extraStyle: React.CSSProperties = {}
+  ) => {
+    const initial = (name || "F").charAt(0).toUpperCase();
+    const finalUrl =
+      session?.user?.id && userId === session.user.id && myAvatarUrl
+        ? myAvatarUrl
+        : avatarUrl || (userId ? `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/avatars/${userId}.jpg` : null);
+
+    return (
+      <span
+        className={`avatar ${sizeClass} ${colorClass}`}
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          ...extraStyle,
+        }}
+      >
+        {finalUrl && (
+          <img
+            src={finalUrl}
+            alt={name || "Avatar"}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              borderRadius: "50%",
+            }}
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = "none";
+            }}
+          />
+        )}
+        <span>{initial}</span>
+      </span>
+    );
+  };
+
   const handlePhotoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const rawFile = event.target.files?.[0];
     if (rawFile) {
@@ -2055,13 +2140,20 @@ export default function Home() {
   const toggleLike = async (id: number) => {
     const current = feedPosts.find((post) => post.id === id);
     if (!current) return;
+    const myNick = currentUserNick || currentUserName || "Tú";
+    const nextLiked = !current.likedByMe;
+    const nextLikedByNames = nextLiked
+      ? Array.from(new Set([...(current.likedByNames || []), myNick]))
+      : (current.likedByNames || []).filter((n) => n !== myNick && n !== currentUserNick && n !== currentUserName);
+
     setFeedPosts((posts) =>
       posts.map((post) =>
         post.id === id
           ? {
               ...post,
-              likedByMe: !post.likedByMe,
-              likes: Math.max(0, post.likes + (post.likedByMe ? -1 : 1)),
+              likedByMe: nextLiked,
+              likes: Math.max(0, post.likes + (nextLiked ? 1 : -1)),
+              likedByNames: nextLikedByNames,
             }
           : post
       )
@@ -2301,9 +2393,13 @@ export default function Home() {
         {/* 1. Header estilo Red Social */}
         <div className="fb-post-header">
           <div className="fb-author-row">
-            <span className={`avatar ${authorName === "Pedro" || authorName === "Pedcaz" ? "mint" : authorName === "Ana" ? "coral" : authorName === "Sofi" ? "lilac" : "sun"}`}>
-              {authorInitial}
-            </span>
+            {renderAvatar(
+              post.userId,
+              authorName,
+              authorName === "Pedro" || authorName === "Pedcaz" ? "mint" : authorName === "Ana" ? "coral" : authorName === "Sofi" ? "lilac" : "sun",
+              "",
+              post.avatarUrl
+            )}
             <div className="fb-author-info">
               <div className="fb-name-row">
                 <b>{authorName}</b>
@@ -2374,11 +2470,24 @@ export default function Home() {
           </div>
         )}
 
-        {/* 4. Contador de Reacciones / Comentarios */}
+        {/* 4. Contador de Reacciones con Nombres / Comentarios */}
         <div className="fb-reactions-bar">
-          <div className="fb-reactions-count">
+          <div
+            className="fb-reactions-count"
+            title={post.likedByNames && post.likedByNames.length > 0 ? `Motivado por: ${post.likedByNames.join(", ")}` : ""}
+          >
             <span className="fb-reaction-icons">🔥👏</span>
-            <small>{post.likes} {post.likes === 1 ? "motivación" : "motivaciones"}</small>
+            {post.likedByNames && post.likedByNames.length > 0 ? (
+              <small style={{ fontWeight: 600, color: "var(--ink)" }}>
+                {post.likedByNames.length === 1
+                  ? `${post.likedByNames[0]} motivó`
+                  : post.likedByNames.length === 2
+                  ? `${post.likedByNames[0]} y ${post.likedByNames[1]}`
+                  : `${post.likedByNames[0]}, ${post.likedByNames[1]} y ${post.likedByNames.length - 2} más`}
+              </small>
+            ) : (
+              <small>{post.likes} {post.likes === 1 ? "motivación" : "motivaciones"}</small>
+            )}
           </div>
           <div className="fb-comments-count" onClick={() => toggleCommentSection(post.id)}>
             <small>{post.comments} {post.comments === 1 ? "comentario" : "comentarios"}</small>
@@ -2442,9 +2551,7 @@ export default function Home() {
               {commentsByPost[post.id] && commentsByPost[post.id].length > 0 ? (
                 commentsByPost[post.id].map((comm) => (
                   <div key={comm.id} className="fb-comment-bubble">
-                    <span className="avatar tiny mint">
-                      {comm.userName ? comm.userName.charAt(0).toUpperCase() : "F"}
-                    </span>
+                    {renderAvatar(comm.userId, comm.userName, "mint", "tiny", comm.avatarUrl)}
                     <div className="fb-comment-text-box">
                       <b>{comm.userName}</b>
                       <span>{comm.body}</span>
@@ -2460,9 +2567,7 @@ export default function Home() {
 
             {/* Input para agregar comentario */}
             <div className="fb-comment-input-row">
-              <span className="avatar tiny mint">
-                {(session?.user?.name || "Usuario").charAt(0).toUpperCase()}
-              </span>
+              {renderAvatar(session?.user?.id, session?.user?.name, "mint", "tiny", myAvatarUrl)}
               <div className="fb-input-wrapper">
                 <input
                   autoFocus
@@ -2760,9 +2865,7 @@ export default function Home() {
               >
                 <div className="row-left-user">
                   <div className={`avatar-ring-box ${isCompleted ? "gold-ring" : ""}`}>
-                    <span className={`avatar ${member.color}`}>
-                      {(member.nickname || member.name).charAt(0).toUpperCase()}
-                    </span>
+                    {renderAvatar(member.userId, member.nickname || member.name, member.color, "", member.avatarUrl)}
                     {isCompleted && <span className="trophy-badge-mini">🏆</span>}
                   </div>
                   <div className="user-details-col">
@@ -3172,7 +3275,7 @@ export default function Home() {
         {familyScores.map((member, index) => (
           <li key={member.name} className={member.isCurrentUser ? "you" : ""}>
             <span className="rank">{index + 1}</span>
-            <span className={`avatar small ${member.color}`}>{member.initials}</span>
+            {renderAvatar(member.userId, member.name, member.color, "small", member.avatarUrl)}
             <span className="member">
               <b>{member.name}</b>
             </span>
@@ -3800,6 +3903,86 @@ export default function Home() {
 
     return (
       <section className="module-page">
+        {/* Foto de Perfil / Cuenta */}
+        <article className="coach-master-card" style={{ marginBottom: "22px", background: "linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))", border: "1px solid rgba(255,255,255,0.12)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <div style={{ position: "relative", width: "68px", height: "68px" }}>
+                {renderAvatar(session?.user?.id, session?.user?.name, "mint", "", myAvatarUrl, { width: "68px", height: "68px", fontSize: "24px" })}
+                <label
+                  title="Cambiar foto de perfil"
+                  style={{
+                    position: "absolute",
+                    bottom: "-2px",
+                    right: "-2px",
+                    background: "var(--green)",
+                    color: "#fff",
+                    borderRadius: "50%",
+                    width: "26px",
+                    height: "26px",
+                    display: "grid",
+                    placeItems: "center",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+                    border: "2px solid #1e293b",
+                  }}
+                >
+                  📷
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    disabled={uploadingAvatar}
+                    onChange={handleAvatarUpload}
+                  />
+                </label>
+              </div>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <h3 style={{ margin: 0, fontSize: "19px", fontWeight: 800, color: "#fff" }}>
+                    {session?.user?.name || "Mi Cuenta"}
+                  </h3>
+                  {currentUserNick && (
+                    <span style={{ fontSize: "11px", fontWeight: 800, padding: "2px 8px", background: "rgba(52,211,153,0.18)", color: "#34d399", borderRadius: "10px" }}>
+                      @{currentUserNick}
+                    </span>
+                  )}
+                </div>
+                <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "rgba(255,255,255,0.68)" }}>
+                  {session?.user?.email || ""} · Foto visible para toda la familia en el muro y podio
+                </p>
+              </div>
+            </div>
+
+            <label
+              className="top-pill-btn"
+              style={{
+                cursor: "pointer",
+                background: "linear-gradient(135deg, #10b981, #059669)",
+                color: "#fff",
+                fontWeight: 700,
+                padding: "8px 16px",
+                borderRadius: "12px",
+                border: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                fontSize: "13px",
+              }}
+            >
+              <span>{uploadingAvatar ? "Subiendo a Supabase..." : "📷 Subir Foto de Perfil"}</span>
+              <input
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                disabled={uploadingAvatar}
+                onChange={handleAvatarUpload}
+              />
+            </label>
+          </div>
+        </article>
+
         {/* Pregúntale al Coach - Inteligencia Artificial con Voz */}
         <article className="coach-master-card" style={{ marginBottom: "22px" }}>
           <div className="coach-header">
@@ -4571,24 +4754,18 @@ export default function Home() {
           </div>
           <div className="podium">
             <div>
-              <span className={`avatar ${familyScores[1]?.color || "mint"}`}>
-                {familyScores[1]?.initials || "P"}
-              </span>
+              {renderAvatar(familyScores[1]?.userId, familyScores[1]?.name, familyScores[1]?.color || "mint", "", familyScores[1]?.avatarUrl)}
               <b>{familyScores[1]?.name || "Pedro"}</b>
               <i>2</i>
             </div>
             <div className="winner">
               <span className="crown">♛</span>
-              <span className={`avatar ${familyScores[0]?.color || "coral"}`}>
-                {familyScores[0]?.initials || "A"}
-              </span>
+              {renderAvatar(familyScores[0]?.userId, familyScores[0]?.name, familyScores[0]?.color || "coral", "", familyScores[0]?.avatarUrl)}
               <b>{familyScores[0]?.name || "Ana"}</b>
               <i>1</i>
             </div>
             <div>
-              <span className={`avatar ${familyScores[2]?.color || "lilac"}`}>
-                {familyScores[2]?.initials || "S"}
-              </span>
+              {renderAvatar(familyScores[2]?.userId, familyScores[2]?.name, familyScores[2]?.color || "lilac", "", familyScores[2]?.avatarUrl)}
               <b>{familyScores[2]?.name || "Sofi"}</b>
               <i>3</i>
             </div>
@@ -4611,7 +4788,7 @@ export default function Home() {
             {familyScores.map((member, index) => (
               <div key={member.name} className={member.isCurrentUser ? "you" : ""}>
                 <b className="rank">{index + 1}</b>
-                <span className={`avatar ${member.color}`}>{member.initials}</span>
+                {renderAvatar(member.userId, member.name, member.color, "", member.avatarUrl)}
                 <p>
                   <strong>
                     {member.name}
@@ -5447,7 +5624,17 @@ export default function Home() {
         </button>
 
         <div className="profile-card">
-          <span className="avatar mint">{initials}</span>
+          <label title="Cambiar foto de perfil" style={{ cursor: "pointer", position: "relative", display: "inline-block" }}>
+            {renderAvatar(session?.user?.id, userName, "mint", "", myAvatarUrl)}
+            <span style={{ position: "absolute", bottom: -2, right: -2, background: "var(--green)", color: "#fff", borderRadius: "50%", width: "16px", height: "16px", fontSize: "9px", display: "grid", placeItems: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.5)" }}>📷</span>
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              disabled={uploadingAvatar}
+              onChange={handleAvatarUpload}
+            />
+          </label>
           <span>
             <b>{userName}</b>
             <small>{session?.user?.email || ""}</small>
@@ -5485,14 +5672,30 @@ export default function Home() {
               <span className="pill-text-label">Reglas</span>
             </button>
 
-            {/* 2. User & Logout Action */}
+            {/* 2. Foto de Perfil / Avatar */}
+            <label
+              className="top-pill-btn user-avatar-pill-btn"
+              title="Cambiar foto de perfil (se guarda en Supabase)"
+              style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px", padding: "4px 8px" }}
+            >
+              {renderAvatar(session?.user?.id, userName, "mint", "tiny", myAvatarUrl)}
+              <span style={{ fontSize: "11px", fontWeight: 700 }}>📷</span>
+              <input
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                disabled={uploadingAvatar}
+                onChange={handleAvatarUpload}
+              />
+            </label>
+
+            {/* 3. User & Logout Action */}
             <button
               type="button"
               className="top-pill-btn user-logout-btn"
               onClick={logout}
               title="Cerrar sesión"
             >
-              <span className="user-initial-dot">{initials.charAt(0) || "U"}</span>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             </button>
 

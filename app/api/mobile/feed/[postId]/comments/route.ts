@@ -3,6 +3,27 @@ import { apiError, cleanText, json, options, requireMobileUser, SharedComment, s
 
 export const OPTIONS = options;
 
+const officialNickMap: Record<string, string> = {
+  "p.glez.lpz92@gmail.com": "Pedcaz",
+  "pedcaz_19@hotmail.com": "Pedcaz",
+  "emilyalejandra01@gmail.com": "JuuGlez",
+  "hackyan4@gmail.com": "Baby",
+  "marbelen.chaz@gmail.com": "Mabel",
+  "edgar.lopez8983@alumnos.udg.mx": "Wero LM",
+  "lucymatdan@gmail.com": "Lucy",
+  "lucyramirezsolutec@gmail.com": "Lucy",
+  "valhumrh@gmail.com": "CristinaFit",
+  "chzivan@gmail.com": "Ivanovich",
+  "estefanylome@gmail.com": "EstefanyLM",
+  "eloalvarez.e@gmail.com": "Ely",
+  "emmanuellopez3911@gmail.com": "Emanuelle",
+  "viridiana.ca@icloud.com": "Virinovich",
+  "lupitatp@live.com.mx": "Pita",
+  "holobas12@gmail.com": "Holobas",
+  "alvarezset1984@gmail.com": "Set",
+  "fernando.life18@gmail.com": "Fercho",
+};
+
 export async function GET(request: Request, context: { params: Promise<{ postId: string }> }) {
   try {
     const current = await requireMobileUser(request);
@@ -12,18 +33,53 @@ export async function GET(request: Request, context: { params: Promise<{ postId:
     const supabase = getSupabase();
     const { data: rows } = await supabase
       .from("post_comments")
-      .select("id, post_id, user_id, body, created_at, users(name)")
+      .select("id, post_id, user_id, body, created_at, users(name, email)")
       .eq("post_id", postId)
       .order("created_at", { ascending: true });
 
-    const comments = (rows || []).map((r: any) => ({
-      id: r.id,
-      postId: r.post_id,
-      userId: r.user_id,
-      userName: r.users?.name || "Familiar",
-      body: r.body,
-      createdAt: r.created_at,
-    }));
+    const commentUserIds = Array.from(new Set((rows || []).map((r: any) => r.user_id)));
+    const { data: commentProfiles } = await supabase
+      .from("user_profiles")
+      .select("user_id, nickname")
+      .in("user_id", commentUserIds);
+    const commentNickMap = new Map((commentProfiles || []).map((p: any) => [p.user_id, p.nickname]));
+
+    const comments = (rows || []).map((r: any) => {
+      const userEmail = (r.users?.email || "").toLowerCase();
+      const officialNick = userEmail ? officialNickMap[userEmail] : null;
+      const userProfileNick = commentNickMap.get(r.user_id);
+      let displayNick = userProfileNick || officialNick;
+      if (!displayNick) {
+        const rawName = r.users?.name || "";
+        if (rawName.includes("Pedro")) displayNick = "Pedcaz";
+        else if (rawName.includes("Cristina")) displayNick = "CristinaFit";
+        else if (rawName.includes("Guadalupe")) displayNick = "Pita";
+        else if (rawName.includes("Belén") || rawName.includes("Belen")) displayNick = "Mabel";
+        else if (rawName.includes("Judith")) displayNick = "JuuGlez";
+        else if (rawName.includes("Ian")) displayNick = "Baby";
+        else if (rawName.includes("Ivan")) displayNick = "Ivanovich";
+        else if (rawName.includes("Estefany")) displayNick = "EstefanyLM";
+        else if (rawName.includes("Edgar")) displayNick = "Wero LM";
+        else if (rawName.includes("Elizabeth")) displayNick = "Ely";
+        else if (rawName.includes("Emmanuel")) displayNick = "Emanuelle";
+        else if (rawName.includes("Viridiana")) displayNick = "Virinovich";
+        else if (rawName.includes("Horacio")) displayNick = "Holobas";
+        else if (rawName.includes("Fernando")) displayNick = "Fercho";
+        else if (rawName.includes("Valentina") || rawName.includes("Vale")) displayNick = "Vale";
+        else if (rawName.includes("Luz") || rawName.includes("Lucy")) displayNick = "Lucy";
+        else displayNick = rawName.split(" ")[0] || "Familiar";
+      }
+
+      return {
+        id: r.id,
+        postId: r.post_id,
+        userId: r.user_id,
+        userName: displayNick,
+        avatarUrl: `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/avatars/${r.user_id}.jpg`,
+        body: r.body,
+        createdAt: r.created_at,
+      };
+    });
 
     if (comments.length === 0) {
       const fallbackComments = sharedCommentsCache.get(postId) || [];

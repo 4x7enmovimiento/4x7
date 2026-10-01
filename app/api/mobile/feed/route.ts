@@ -119,33 +119,25 @@ export async function GET(request: Request) {
       if (postsData && postsData.length > 0) {
         const postIds = postsData.map((p: any) => p.id);
         const postUserIds = Array.from(new Set(postsData.map((p: any) => p.user_id)));
-        const { data: postProfiles } = await supabase.from("user_profiles").select("user_id, nickname").in("user_id", postUserIds);
-        const postNickMap = new Map((postProfiles || []).map((p: any) => [p.user_id, p.nickname]));
 
-        const { data: likesData } = await supabase.from("post_likes").select("post_id, user_id").in("post_id", postIds);
+        const { data: likesData } = await supabase
+          .from("post_likes")
+          .select("post_id, user_id, users(name, email)")
+          .in("post_id", postIds);
         const { data: commentsData } = await supabase.from("post_comments").select("post_id").in("post_id", postIds);
 
-        const likesByPost = new Map<number, number[]>();
-        (likesData || []).forEach((l: any) => {
-          const list = likesByPost.get(l.post_id) || [];
-          list.push(l.user_id);
-          likesByPost.set(l.post_id, list);
-        });
+        const likerUserIds = Array.from(new Set((likesData || []).map((l: any) => l.user_id)));
+        const allRelevantUserIds = Array.from(new Set([...postUserIds, ...likerUserIds]));
+        const { data: userProfiles } = await supabase.from("user_profiles").select("user_id, nickname").in("user_id", allRelevantUserIds);
+        const postNickMap = new Map((userProfiles || []).map((p: any) => [p.user_id, p.nickname]));
 
-        const commentsCountByPost = new Map<number, number>();
-        (commentsData || []).forEach((c: any) => {
-          commentsCountByPost.set(c.post_id, (commentsCountByPost.get(c.post_id) || 0) + 1);
-        });
-
-        dbPosts = postsData.map((row: any) => {
-          const userLikes = likesByPost.get(row.id) || [];
-          const userEmail = (row.users?.email || "").toLowerCase();
+        const resolveNick = (userId: number, email?: string, name?: string) => {
+          const userEmail = (email || "").toLowerCase();
           const officialNick = userEmail ? officialNickMap[userEmail] : null;
-          const userProfileNick = postNickMap.get(row.user_id);
-
+          const userProfileNick = postNickMap.get(userId);
           let displayNick = userProfileNick || officialNick;
           if (!displayNick) {
-            const rawName = row.users?.name || "";
+            const rawName = name || "";
             if (rawName.includes("Pedro")) displayNick = "Pedcaz";
             else if (rawName.includes("Cristina")) displayNick = "CristinaFit";
             else if (rawName.includes("Guadalupe")) displayNick = "Pita";
@@ -160,13 +152,43 @@ export async function GET(request: Request) {
             else if (rawName.includes("Viridiana")) displayNick = "Virinovich";
             else if (rawName.includes("Horacio")) displayNick = "Holobas";
             else if (rawName.includes("Fernando")) displayNick = "Fercho";
+            else if (rawName.includes("Valentina") || rawName.includes("Vale")) displayNick = "Vale";
+            else if (rawName.includes("Luz") || rawName.includes("Lucy")) displayNick = "Lucy";
             else displayNick = rawName.split(" ")[0] || "Familiar";
           }
+          return displayNick;
+        };
+
+        const likesByPost = new Map<number, number[]>();
+        const likerNamesByPost = new Map<number, string[]>();
+
+        (likesData || []).forEach((l: any) => {
+          const list = likesByPost.get(l.post_id) || [];
+          list.push(l.user_id);
+          likesByPost.set(l.post_id, list);
+
+          const names = likerNamesByPost.get(l.post_id) || [];
+          const likerNick = resolveNick(l.user_id, l.users?.email, l.users?.name);
+          if (!names.includes(likerNick)) {
+            names.push(likerNick);
+          }
+          likerNamesByPost.set(l.post_id, names);
+        });
+
+        const commentsCountByPost = new Map<number, number>();
+        (commentsData || []).forEach((c: any) => {
+          commentsCountByPost.set(c.post_id, (commentsCountByPost.get(c.post_id) || 0) + 1);
+        });
+
+        dbPosts = postsData.map((row: any) => {
+          const userLikes = likesByPost.get(row.id) || [];
+          const displayNick = resolveNick(row.user_id, row.users?.email, row.users?.name);
 
           return {
             id: row.id,
             userId: row.user_id,
             userName: displayNick,
+            avatarUrl: `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/avatars/${row.user_id}.jpg`,
             caption: row.caption,
             evidenceUrl: row.evidence_url || null,
             createdAt: row.created_at,
@@ -176,6 +198,7 @@ export async function GET(request: Request) {
             steps: row.workouts?.steps || null,
             calories: row.workouts?.calories || null,
             likes: userLikes.length,
+            likedByNames: likerNamesByPost.get(row.id) || [],
             comments: commentsCountByPost.get(row.id) || 0,
             likedByMe: userLikes.includes(current.userId),
           };
@@ -336,6 +359,7 @@ export async function GET(request: Request) {
           name: nameParts[0] || u.name,
           fullName: u.name,
           nickname,
+          avatarUrl: `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/avatars/${u.id}.jpg`,
           preferredActivity: "",
           objective: prof?.objective || "general_fitness",
           challengeStartDate: prof?.challenge_start_date || "2026-09-01",
@@ -437,6 +461,7 @@ export async function GET(request: Request) {
           userId: u.id,
           nickname,
           fullName: u.name,
+          avatarUrl: `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/avatars/${u.id}.jpg`,
           workouts: weekCount, // STRICT CURRENT WEEK COUNT (Resets every Monday)
           currentWeekDates, // ONLY THIS WEEK DATES
           completedDates: allCompletedDates, // ALL TIME DATES

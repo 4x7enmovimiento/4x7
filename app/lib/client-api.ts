@@ -7,6 +7,7 @@ export type FeedPost = {
   id: number;
   userId: number;
   userName: string;
+  avatarUrl?: string | null;
   caption: string;
   evidenceUrl: string | null;
   createdAt: string;
@@ -16,6 +17,7 @@ export type FeedPost = {
   steps: number | null;
   calories: number | null;
   likes: number;
+  likedByNames?: string[];
   comments: number;
   likedByMe: boolean;
 };
@@ -189,6 +191,11 @@ export const clientApi = {
     const form = new FormData();
     form.append("photo", photo);
     return request<{ evidenceKey: string; evidenceUrl: string }>("/api/mobile/evidence", { method: "POST", body: form });
+  },
+  uploadAvatar: async (photo: File) => {
+    const form = new FormData();
+    form.append("photo", photo);
+    return request<{ ok: boolean; avatarUrl: string }>("/api/mobile/profile/avatar", { method: "POST", body: form });
   },
   workout: (data: {
     activityType: string;
