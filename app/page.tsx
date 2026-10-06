@@ -1880,7 +1880,7 @@ export default function Home() {
 
   const compressImageFile = async (file: File): Promise<File> => {
     return new Promise((resolve) => {
-      if (!file.type.startsWith("image/")) {
+      if (!file.type || !file.type.startsWith("image/")) {
         resolve(file);
         return;
       }
@@ -1888,65 +1888,78 @@ export default function Home() {
       reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
-          // 1080px is optimal resolution for mobile retina screens while keeping byte size minimal
-          const MAX_WIDTH = 1080;
-          const MAX_HEIGHT = 1080;
-          let width = img.width;
-          let height = img.height;
+          try {
+            // 1080px is optimal resolution for mobile retina screens while keeping byte size minimal
+            const MAX_WIDTH = 1080;
+            const MAX_HEIGHT = 1080;
+            let width = img.width;
+            let height = img.height;
 
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height = Math.round((height * MAX_WIDTH) / width);
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width = Math.round((width * MAX_HEIGHT) / height);
-              height = MAX_HEIGHT;
-            }
-          }
-
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            resolve(file);
-            return;
-          }
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // Try WebP first for extreme bandwidth efficiency, fallback to JPEG
-          canvas.toBlob(
-            (blob) => {
-              if (blob && blob.size > 0 && blob.size < file.size) {
-                const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".webp"), {
-                  type: "image/webp",
-                  lastModified: Date.now(),
-                });
-                resolve(compressedFile);
-              } else {
-                // Fallback to high-efficiency JPEG
-                canvas.toBlob(
-                  (jpegBlob) => {
-                    if (jpegBlob) {
-                      const compressedFile = new File([jpegBlob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
-                        type: "image/jpeg",
-                        lastModified: Date.now(),
-                      });
-                      resolve(compressedFile);
-                    } else {
-                      resolve(file);
-                    }
-                  },
-                  "image/jpeg",
-                  0.76
-                );
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height = Math.round((height * MAX_WIDTH) / width);
+                width = MAX_WIDTH;
               }
-            },
-            "image/webp",
-            0.76
-          );
+            } else {
+              if (height > MAX_HEIGHT) {
+                width = Math.round((width * MAX_HEIGHT) / height);
+                height = MAX_HEIGHT;
+              }
+            }
+
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              resolve(file);
+              return;
+            }
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const createFileFromBlob = (blob: Blob, ext: string, mime: string): File => {
+              const fileName = file.name ? file.name.replace(/\.[^/.]+$/, `.${ext}`) : `evidence.${ext}`;
+              try {
+                return new File([blob], fileName, { type: mime, lastModified: Date.now() });
+              } catch {
+                return Object.assign(blob, { name: fileName, lastModified: Date.now() }) as File;
+              }
+            };
+
+            // Try WebP first for extreme bandwidth efficiency, fallback to JPEG
+            canvas.toBlob(
+              (blob) => {
+                try {
+                  if (blob && blob.size > 0 && blob.size < file.size) {
+                    resolve(createFileFromBlob(blob, "webp", "image/webp"));
+                  } else {
+                    canvas.toBlob(
+                      (jpegBlob) => {
+                        try {
+                          if (jpegBlob) {
+                            resolve(createFileFromBlob(jpegBlob, "jpg", "image/jpeg"));
+                          } else {
+                            resolve(file);
+                          }
+                        } catch {
+                          resolve(file);
+                        }
+                      },
+                      "image/jpeg",
+                      0.76
+                    );
+                  }
+                } catch {
+                  resolve(file);
+                }
+              },
+              "image/webp",
+              0.76
+            );
+          } catch (canvasErr) {
+            console.warn("Canvas compression error, fallback to original file:", canvasErr);
+            resolve(file);
+          }
         };
         img.onerror = () => resolve(file);
         img.src = event.target?.result as string;
@@ -2069,11 +2082,15 @@ export default function Home() {
       let localPhotoUrl: string | null = null;
       if (evidenceFile) {
         try {
+          notify("☁️ Subiendo foto de evidencia...");
           const uploadRes = await clientApi.uploadEvidence(evidenceFile);
           evidenceKey = uploadRes.evidenceKey;
+          localPhotoUrl = uploadRes.evidenceUrl;
         } catch (uploadErr) {
-          console.warn("Evidence upload issue, fallback to local URL", uploadErr);
-          localPhotoUrl = URL.createObjectURL(evidenceFile);
+          console.error("Evidence upload error:", uploadErr);
+          notify("⚠️ No se pudo subir la foto de evidencia. Intenta de nuevo.");
+          setSavingWorkout(false);
+          return;
         }
       }
       const act = activityOptions.find((a) => a.name === selectedActivity) || activityOptions[0];
@@ -2123,7 +2140,7 @@ export default function Home() {
         userId: session?.user.id || 1,
         userName: session?.user.name.split(" ")[0] || "Pedro",
         caption: checkInNote.trim() || "¡Entrenamiento 4×7 completado con éxito!",
-        evidenceUrl: evidenceKey ? `/api/mobile/evidence/${evidenceKey}` : localPhotoUrl || evidencePreview,
+        evidenceUrl: localPhotoUrl || (evidenceKey ? `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/evidence/${evidenceKey}` : null) || evidencePreview,
         createdAt: new Date().toISOString(),
         activityType: act.name,
         durationSeconds: act.time * 60,

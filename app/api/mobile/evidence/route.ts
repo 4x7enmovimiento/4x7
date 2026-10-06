@@ -11,37 +11,52 @@ export async function POST(request: Request) {
 
     const form = await request.formData();
     const photo = form.get("photo");
-    if (!(photo instanceof File)) return json({ error: "Selecciona una fotografía." }, 400);
-    if (!photo.type.startsWith("image/")) return json({ error: "El archivo debe ser una imagen." }, 415);
-    if (photo.size > 50 * 1024 * 1024) return json({ error: "La imagen debe pesar menos de 50 MB." }, 413);
+    if (!(photo instanceof Blob || (photo && typeof (photo as any).arrayBuffer === "function"))) {
+      return json({ error: "Selecciona una fotografía." }, 400);
+    }
 
-    const extension = photo.type === "image/png" ? "png" : photo.type === "image/webp" ? "webp" : "jpg";
+    const mimeType = (photo as any).type || "image/jpeg";
+    if (mimeType && !mimeType.startsWith("image/") && mimeType !== "application/octet-stream") {
+      return json({ error: "El archivo debe ser una imagen." }, 415);
+    }
+    const photoSize = (photo as any).size || 0;
+    if (photoSize > 50 * 1024 * 1024) {
+      return json({ error: "La imagen debe pesar menos de 50 MB." }, 413);
+    }
+
+    const extension = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
     const key = `${current.familyId}/${current.userId}/${Date.now()}-${randomToken(6)}.${extension}`;
-    const buffer = Buffer.from(await photo.arrayBuffer());
+    const buffer = Buffer.from(await (photo as any).arrayBuffer());
 
-    try {
-      const { getSupabase } = await import("../../../../db/supabase");
-      const supabase = getSupabase();
-      await supabase.storage.from("evidence").upload(key, buffer, {
-        contentType: photo.type,
-        upsert: true,
-      });
-    } catch (storageErr) {
-      console.warn("Supabase storage upload error, fallback to memory:", storageErr);
+    const { getSupabase } = await import("../../../../db/supabase");
+    const supabase = getSupabase();
+    const { error: uploadError } = await supabase.storage.from("evidence").upload(key, buffer, {
+      contentType: mimeType.startsWith("image/") ? mimeType : "image/jpeg",
+      upsert: true,
+    });
+
+    if (uploadError) {
+      console.error("Supabase storage upload error:", uploadError);
+      return json({ error: `Error al guardar foto en Supabase: ${uploadError.message}` }, 500);
     }
 
     if (env.EVIDENCE) {
       try {
         await env.EVIDENCE.put(key, buffer, {
-          httpMetadata: { contentType: photo.type, cacheControl: "private, max-age=3600" },
+          httpMetadata: { contentType: mimeType, cacheControl: "public, max-age=86400" },
           customMetadata: { familyId: String(current.familyId), userId: String(current.userId) },
         });
       } catch {}
     }
 
-    evidenceStore.set(key, { buffer, contentType: photo.type });
+    evidenceStore.set(key, { buffer, contentType: mimeType });
 
-    return json({ evidenceKey: key, evidenceUrl: `/api/mobile/evidence/${key}` }, 201);
+    const directPublicUrl = `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/evidence/${key}`;
+
+    return json({
+      evidenceKey: key,
+      evidenceUrl: directPublicUrl,
+    }, 201);
   } catch (error) {
     return apiError(error);
   }

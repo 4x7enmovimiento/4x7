@@ -125,7 +125,11 @@ export async function POST(request: Request) {
     // Persist to Supabase
     try {
       const supabase = getSupabase();
-      const photoUrl = evidenceKey ? `/api/mobile/evidence/${evidenceKey}` : null;
+      const photoUrl = evidenceKey
+        ? (evidenceKey.startsWith("http")
+            ? evidenceKey
+            : `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/evidence/${evidenceKey.replace(/^\/api\/mobile\/evidence\//, "")}`)
+        : null;
       const { data: insertedWorkout, error: wErr } = await supabase.from("workouts").insert({
         user_id: current.userId,
         family_id: current.familyId,

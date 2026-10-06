@@ -97,6 +97,12 @@ export async function PATCH(
       return json({ error: "Falta la URL de la evidencia." }, 400);
     }
 
+    let directEvidenceUrl = evidenceUrl;
+    if (directEvidenceUrl.startsWith("/api/mobile/evidence/")) {
+      const key = directEvidenceUrl.replace(/^\/api\/mobile\/evidence\//, "");
+      directEvidenceUrl = `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/evidence/${key}`;
+    }
+
     const supabase = getSupabase();
 
     // 1. Check if post exists in Supabase
@@ -120,7 +126,7 @@ export async function PATCH(
       // Update posts table in Supabase
       const { error: updatePostErr } = await supabase
         .from("posts")
-        .update({ evidence_url: evidenceUrl })
+        .update({ evidence_url: directEvidenceUrl })
         .eq("id", postId);
 
       if (updatePostErr) {
@@ -131,7 +137,7 @@ export async function PATCH(
       if (post.workout_id) {
         const { error: updateWorkoutErr } = await supabase
           .from("workouts")
-          .update({ evidence_url: evidenceUrl })
+          .update({ evidence_url: directEvidenceUrl })
           .eq("id", post.workout_id);
 
         if (updateWorkoutErr) {
@@ -144,13 +150,13 @@ export async function PATCH(
     if (sharedPostsCache.has(postId)) {
       const cached = sharedPostsCache.get(postId);
       if (cached) {
-        cached.evidenceUrl = evidenceUrl;
+        cached.evidenceUrl = directEvidenceUrl;
       }
     }
 
     return json({
       success: true,
-      evidenceUrl,
+      evidenceUrl: directEvidenceUrl,
       message: "¡Foto agregada con éxito al check-in!",
     });
   } catch (error) {

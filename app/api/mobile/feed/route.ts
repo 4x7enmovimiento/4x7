@@ -110,7 +110,7 @@ export async function GET(request: Request) {
           evidence_url,
           created_at,
           users (id, name, email),
-          workouts (activity_type, duration_seconds, distance_meters, steps, calories)
+          workouts (activity_type, duration_seconds, distance_meters, steps, calories, evidence_url)
         `)
         .eq("family_id", current.familyId)
         .order("created_at", { ascending: false })
@@ -195,13 +195,19 @@ export async function GET(request: Request) {
           const userLikes = likesByPost.get(row.id) || [];
           const displayNick = resolveNick(row.user_id, row.users?.email, row.users?.name);
 
+          let evidenceUrl = row.evidence_url || row.workouts?.evidence_url || null;
+          if (evidenceUrl && evidenceUrl.startsWith("/api/mobile/evidence/")) {
+            const key = evidenceUrl.replace(/^\/api\/mobile\/evidence\//, "");
+            evidenceUrl = `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/evidence/${key}`;
+          }
+
           return {
             id: row.id,
             userId: row.user_id,
             userName: displayNick,
             avatarUrl: `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/avatars/${row.user_id}.jpg`,
             caption: row.caption,
-            evidenceUrl: row.evidence_url || null,
+            evidenceUrl,
             createdAt: row.created_at,
             activityType: row.activity_type || row.workouts?.activity_type || null,
             durationSeconds: row.workouts?.duration_seconds || null,
@@ -533,7 +539,11 @@ export async function POST(request: Request) {
       userName: nick,
       caption,
       evidenceKey,
-      evidenceUrl: evidenceKey ? `/api/mobile/evidence/${evidenceKey}` : null,
+      evidenceUrl: evidenceKey
+        ? (evidenceKey.startsWith("http")
+            ? evidenceKey
+            : `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/evidence/${evidenceKey.replace(/^\/api\/mobile\/evidence\//, "")}`)
+        : null,
       createdAt: new Date().toISOString(),
       activityType: null,
       durationSeconds: null,

@@ -20,43 +20,9 @@ export async function GET(request: Request, context: { params?: Promise<{ key?: 
       return json({ error: "Fotografía no especificada." }, 400);
     }
 
-    // 1. Try Supabase Storage
-    try {
-      const { getSupabase } = await import("../../../../../db/supabase");
-      const supabase = getSupabase();
-      const { data: fileData, error: fileErr } = await supabase.storage.from("evidence").download(key);
-      if (fileData && !fileErr) {
-        const buffer = Buffer.from(await fileData.arrayBuffer());
-        const headers = new Headers(corsHeaders);
-        headers.set("Content-Type", fileData.type || "image/jpeg");
-        headers.set("Cache-Control", "public, max-age=86400");
-        return new Response(buffer, { headers });
-      }
-    } catch (sbErr) {
-      console.warn("Supabase storage download issue:", sbErr);
-    }
-
-    // 2. Try Cloudflare R2 if available
-    if (env.EVIDENCE) {
-      const object = await env.EVIDENCE.get(key);
-      if (object) {
-        const headers = new Headers(corsHeaders);
-        object.writeHttpMetadata(headers);
-        headers.set("Cache-Control", "public, max-age=86400");
-        return new Response(object.body, { headers });
-      }
-    }
-
-    // 3. Try in-memory / local fallback store
-    const stored = evidenceStore.get(key);
-    if (stored) {
-      const headers = new Headers(corsHeaders);
-      headers.set("Content-Type", stored.contentType || "image/jpeg");
-      headers.set("Cache-Control", "public, max-age=86400");
-      return new Response(stored.buffer, { headers });
-    }
-
-    return json({ error: "Fotografía no encontrada." }, 404);
+    // Direct redirect to public Supabase Storage CDN (instant delivery, zero serverless latency)
+    const publicUrl = `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/evidence/${key}`;
+    return Response.redirect(publicUrl, 307);
   } catch (error) {
     console.error("Error serving evidence image:", error);
     return json({ error: "Error al cargar la fotografía." }, 500);
