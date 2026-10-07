@@ -331,7 +331,10 @@ export async function GET(request: Request) {
         { id: "week2", label: "Semana 2", range: "7 - 13 Sep", start: "2026-09-07", end: "2026-09-13" },
         { id: "week3", label: "Semana 3", range: "14 - 20 Sep", start: "2026-09-14", end: "2026-09-20" },
         { id: "week4", label: "Semana 4", range: "21 - 27 Sep", start: "2026-09-21", end: "2026-09-27" },
-        { id: "week5", label: "Semana 5", range: "28 - 30 Sep", start: "2026-09-28", end: "2026-09-30" },
+        { id: "week5", label: "Semana 5", range: "28 Sep - 4 Oct", start: "2026-09-28", end: "2026-10-04" },
+        { id: "week6", label: "Semana 6", range: "5 - 11 Oct", start: "2026-10-05", end: "2026-10-11" },
+        { id: "week7", label: "Semana 7", range: "12 - 18 Oct", start: "2026-10-12", end: "2026-10-18" },
+        { id: "week8", label: "Semana 8", range: "19 - 25 Oct", start: "2026-10-19", end: "2026-10-25" },
       ];
 
       function computeWeekPoints(count: number): number {
