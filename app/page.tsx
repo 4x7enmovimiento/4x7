@@ -1380,9 +1380,9 @@ export default function Home() {
     });
   }, [currentUserName, logged, weeklyWorkoutsCount, completedCheckInDates, userBonusPoints, feedPosts, fitness, familyProfiles, familyStats, getGdlDateInfo]);
 
-  // Family dynamic points calculation (Ranked by weekly points)
+  // Family dynamic points calculation (Ranked by weekly points with Dense Ranking for ties)
   const familyScores = useMemo(() => {
-    return familyCheckInData
+    const list = familyCheckInData
       .map((m) => ({
         name: m.nickname || m.name,
         rawName: m.name,
@@ -1397,8 +1397,19 @@ export default function Home() {
         trend: m.workouts >= 4 ? "+140" : m.workouts === 3 ? "+80" : "+40",
         workouts: m.workouts,
         totalMonthWorkouts: m.workouts + 12,
+        rank: 1,
       }))
-      .sort((a, b) => b.points - a.points);
+      .sort((a, b) => b.points - a.points || b.totalPoints - a.totalPoints || a.name.localeCompare(b.name));
+
+    let currentRank = 1;
+    for (let i = 0; i < list.length; i++) {
+      if (i > 0 && list[i].points < list[i - 1].points) {
+        currentRank++;
+      }
+      list[i].rank = currentRank;
+    }
+
+    return list;
   }, [familyCheckInData]);
 
   const totalPoints = useMemo(
@@ -3313,9 +3324,9 @@ export default function Home() {
         <small>Se reinicia cada lunes a las 00:00</small>
       </div>
       <ol className="leaderboard">
-        {familyScores.map((member, index) => (
+        {familyScores.map((member) => (
           <li key={member.name} className={member.isCurrentUser ? "you" : ""}>
-            <span className="rank">{index + 1}</span>
+            <span className={`rank ${member.rank === 1 ? "rank-gold" : member.rank === 2 ? "rank-silver" : member.rank === 3 ? "rank-bronze" : ""}`}>{member.rank}</span>
             {renderAvatar(member.userId, member.name, member.color, "small", member.avatarUrl)}
             <span className="member">
               <b>{member.name}</b>
@@ -4793,24 +4804,106 @@ export default function Home() {
             <strong>{totalPoints.toLocaleString("es-MX")}</strong>
             <span>Semana en curso (Lunes a Domingo)</span>
           </div>
-          <div className="podium">
-            <div>
-              {renderAvatar(familyScores[1]?.userId, familyScores[1]?.name, familyScores[1]?.color || "mint", "", familyScores[1]?.avatarUrl)}
-              <b>{familyScores[1]?.name || "Pedro"}</b>
-              <i>2</i>
-            </div>
-            <div className="winner">
-              <span className="crown">♛</span>
-              {renderAvatar(familyScores[0]?.userId, familyScores[0]?.name, familyScores[0]?.color || "coral", "", familyScores[0]?.avatarUrl)}
-              <b>{familyScores[0]?.name || "Ana"}</b>
-              <i>1</i>
-            </div>
-            <div>
-              {renderAvatar(familyScores[2]?.userId, familyScores[2]?.name, familyScores[2]?.color || "lilac", "", familyScores[2]?.avatarUrl)}
-              <b>{familyScores[2]?.name || "Sofi"}</b>
-              <i>3</i>
-            </div>
-          </div>
+          {/* Top 3 Dense Ranking Podium */}
+          {(() => {
+            const rank1 = familyScores.filter((m) => m.rank === 1 && m.points > 0);
+            const rank2 = familyScores.filter((m) => m.rank === 2 && m.points > 0);
+            const rank3 = familyScores.filter((m) => m.rank === 3 && m.points > 0);
+
+            const renderPodiumStep = (members: typeof familyScores, placeNumber: number, isWinner: boolean) => {
+              if (members.length === 0) {
+                return (
+                  <div className={isWinner ? "winner" : ""}>
+                    {isWinner && <span className="crown">♛</span>}
+                    <div style={{ height: isWinner ? "64px" : "54px", display: "grid", placeItems: "center" }}>
+                      <span className="avatar lilac" style={{ opacity: 0.35, fontSize: "16px" }}>-</span>
+                    </div>
+                    <b>Vacante</b>
+                    <i>{placeNumber}</i>
+                  </div>
+                );
+              }
+
+              const isTie = members.length > 1;
+
+              return (
+                <div className={isWinner ? "winner" : ""}>
+                  {isWinner && <span className="crown">♛</span>}
+
+                  {isTie ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        height: isWinner ? "64px" : "54px",
+                        padding: "0 4px",
+                      }}
+                      title={members.map((m) => `${m.name}: ${m.points} pts`).join(" · ")}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          marginLeft: members.length > 2 ? `${Math.min(10, (members.length - 1) * 6)}px` : "0px",
+                        }}
+                      >
+                        {members.slice(0, 4).map((m, idx) => (
+                          <div
+                            key={m.userId || m.name}
+                            style={{
+                              marginLeft: idx === 0 ? 0 : "-12px",
+                              zIndex: idx + 1,
+                              borderRadius: "50%",
+                              boxShadow: "0 0 0 2px rgba(255, 255, 255, 0.9)",
+                            }}
+                          >
+                            {renderAvatar(m.userId, m.name, m.color, members.length > 2 ? "tiny" : "small", m.avatarUrl)}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    renderAvatar(
+                      members[0].userId,
+                      members[0].name,
+                      members[0].color || (isWinner ? "coral" : placeNumber === 2 ? "mint" : "lilac"),
+                      "",
+                      members[0].avatarUrl
+                    )
+                  )}
+
+                  <b
+                    style={{
+                      maxWidth: "100%",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      padding: "0 2px",
+                    }}
+                    title={members.map((m) => m.name).join(", ")}
+                  >
+                    {isTie
+                      ? (members.length <= 2
+                          ? members.map((m) => m.name).join(" y ")
+                          : `${members.length} empatados`)
+                      : members[0].name}
+                  </b>
+
+                  <i>{placeNumber}</i>
+                </div>
+              );
+            };
+
+            return (
+              <div className="podium">
+                {renderPodiumStep(rank2, 2, false)}
+                {renderPodiumStep(rank1, 1, true)}
+                {renderPodiumStep(rank3, 3, false)}
+              </div>
+            );
+          })()}
         </div>
 
         <div className="league-grid">
@@ -4826,9 +4919,9 @@ export default function Home() {
                 ¿Cómo se ganan puntos?
               </button>
             </div>
-            {familyScores.map((member, index) => (
+            {familyScores.map((member) => (
               <div key={member.name} className={member.isCurrentUser ? "you" : ""}>
-                <b className="rank">{index + 1}</b>
+                <b className={`rank ${member.rank === 1 ? "rank-gold" : member.rank === 2 ? "rank-silver" : member.rank === 3 ? "rank-bronze" : ""}`}>{member.rank}</b>
                 {renderAvatar(member.userId, member.name, member.color, "", member.avatarUrl)}
                 <p>
                   <strong>

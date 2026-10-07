@@ -746,6 +746,9 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 .leaderboard li { min-width: 0; padding: 8px 6px; display: flex; align-items: center; gap: 8px; border-radius: 11px; }
 .leaderboard li.you { background: #edf8f1; }
 .rank { width: 15px; text-align: center; color: #87948d; font-size: 10px; font-weight: 700; }
+.rank.rank-gold { color: #d97706; font-weight: 800; }
+.rank.rank-silver { color: #64748b; font-weight: 800; }
+.rank.rank-bronze { color: #b45309; font-weight: 800; }
 .member { display: grid; flex: 1; }.member b { font-size: 11px; }.member small { color: #8a9790; font-size: 8px; }
 .leaderboard li > strong { font-size: 11px; }
 .text-button { width: 100%; height: 36px; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--green-dark); font-size: 10px; font-weight: 680; cursor: pointer; }
