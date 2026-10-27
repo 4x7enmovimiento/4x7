@@ -362,14 +362,15 @@ export async function GET(request: Request) {
         const nick = (nickname || "").trim().toLowerCase();
         const offNick = (officialNick || "").trim().toLowerCase();
 
+        const targetFirst = target.split(" ")[0] || "";
         return (
           target === userName ||
           target === userFirst ||
+          targetFirst === userFirst ||
           target === nick ||
           target === offNick ||
-          (target.length >= 3 && (userName.includes(target) || nick.includes(target) || offNick.includes(target))) ||
-          (userFirst.length >= 3 && target.includes(userFirst)) ||
-          (nick.length >= 3 && target.includes(nick))
+          (target.length >= 4 && (userName.startsWith(target) || nick.startsWith(target) || offNick.startsWith(target))) ||
+          (nick.length >= 4 && target.startsWith(nick))
         );
       }
 
