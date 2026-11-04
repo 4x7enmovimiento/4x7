@@ -18,7 +18,7 @@ const officialNickMap: Record<string, string> = {
   "p.glez.lpz92@gmail.com": "Pedcaz",
   "emilyalejandra01@gmail.com": "JuuGlez",
   "hackyan4@gmail.com": "Baby",
-  "marbelen.chaz@gmail.com": "Mabel",
+  "marbelen.chaz@gmail.com": "Mabel Cl",
   "edgar.lopez8983@alumnos.udg.mx": "Wero LM",
   "lucymatdan@gmail.com": "Lucy",
   "lucyramirezsolutec@gmail.com": "Lucy",
@@ -32,6 +32,10 @@ const officialNickMap: Record<string, string> = {
   "holobas12@gmail.com": "Holobas",
   "alvarezset1984@gmail.com": "Set",
   "fernando.life18@gmail.com": "Fercho",
+  "pedcaz_19@hotmail.com": "Vale",
+  "mateolopezchampy@gmail.com": "Champy",
+  "darianacoamaro@gmail.com": "Daris",
+  "santiago plascenciasantiago98@gmail.com": "Héctor Santiago 🦆",
 };
 
 export async function GET(request: Request) {
@@ -143,16 +147,18 @@ export async function GET(request: Request) {
             else if (rawName.includes("Guadalupe")) displayNick = "Pita";
             else if (rawName.includes("Belén") || rawName.includes("Belen")) displayNick = "Mabel";
             else if (rawName.includes("Judith")) displayNick = "JuuGlez";
+            else if (rawName.includes("Dariana")) displayNick = "Daris";
+            else if (rawName.includes("Viridiana")) displayNick = "Virinovich";
             else if (rawName.includes("Ian")) displayNick = "Baby";
             else if (rawName.includes("Ivan")) displayNick = "Ivanovich";
             else if (rawName.includes("Estefany")) displayNick = "EstefanyLM";
             else if (rawName.includes("Edgar")) displayNick = "Wero LM";
             else if (rawName.includes("Elizabeth")) displayNick = "Ely";
             else if (rawName.includes("Emmanuel")) displayNick = "Emanuelle";
-            else if (rawName.includes("Viridiana")) displayNick = "Virinovich";
             else if (rawName.includes("Horacio")) displayNick = "Holobas";
             else if (rawName.includes("Fernando")) displayNick = "Fercho";
             else if (rawName.includes("Valentina") || rawName.includes("Vale")) displayNick = "Vale";
+            else if (rawName.includes("Mateo")) displayNick = "Champy";
             else if (rawName.includes("Luz") || rawName.includes("Lucy")) displayNick = "Lucy";
             else displayNick = rawName.split(" ")[0] || "Familiar";
           }
@@ -489,6 +495,7 @@ export async function GET(request: Request) {
           fullName: u.name,
           avatarUrl: `https://lhrdapdtcrjqlbjozmjc.supabase.co/storage/v1/object/public/avatars/${u.id}.jpg`,
           workouts: weekCount, // STRICT CURRENT WEEK COUNT (Resets every Monday)
+          totalWorkouts: allCompletedDates.length, // ALL-TIME UNIQUE DAYS TRAINED
           currentWeekDates, // ONLY THIS WEEK DATES
           completedDates: allCompletedDates, // ALL TIME DATES
           weeklyHistory, // WEEK-BY-WEEK HISTORY BREAKDOWN

@@ -40,7 +40,7 @@ const COACH_QUICK_PROMPTS = [
 const familyMembersList = [
   { name: "Pedcaz", initials: "P", color: "mint" },
   { name: "Baby", initials: "B", color: "sun" },
-  { name: "Mabel", initials: "M", color: "coral" },
+  { name: "Mabel Cl", initials: "M", color: "coral" },
   { name: "Wero LM", initials: "W", color: "lilac" },
   { name: "Lucy", initials: "L", color: "coral" },
   { name: "CristinaFit", initials: "C", color: "mint" },
@@ -51,6 +51,13 @@ const familyMembersList = [
   { name: "Emanuelle", initials: "E", color: "sun" },
   { name: "Virinovich", initials: "V", color: "coral" },
   { name: "Pita", initials: "P", color: "sun" },
+  { name: "Holobas", initials: "H", color: "mint" },
+  { name: "Set", initials: "S", color: "lilac" },
+  { name: "Fercho", initials: "F", color: "sun" },
+  { name: "Vale", initials: "V", color: "coral" },
+  { name: "Champy", initials: "C", color: "mint" },
+  { name: "Daris", initials: "D", color: "lilac" },
+  { name: "Héctor Santiago 🦆", initials: "H", color: "sun" },
 ];
 
 const week = [
@@ -1050,8 +1057,14 @@ export default function Home() {
       Emanuelle: "523331087798",
       Virinovich: "523322729289",
       Pita: "523312345678",
-      Holobas: "",
-      Fercho: "",
+      Holobas: "523315333712",
+      Set: "523310699707",
+      Fercho: "523345182312",
+      Vale: "523319917867",
+      Champy: "523347963276",
+      "Mabel Cl": "52333871243",
+      Daris: "523318912662",
+      "Héctor Santiago 🦆": "523328665948",
     };
   });
   const [phoneEditMember, setPhoneEditMember] = useState<{ name: string; phone: string } | null>(null);
@@ -1059,6 +1072,24 @@ export default function Home() {
 
   const currentUserName = (session?.user?.name || "").trim();
   const currentUserNick = ((session?.user as any)?.nickname || (currentUserName ? currentUserName.split(" ")[0] : "")).trim();
+
+  const toGdlDateKey = useCallback((raw: string | Date): string => {
+    try {
+      const d = typeof raw === "string" ? new Date(raw) : raw;
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Mexico_City",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(d);
+      const y = parts.find((p) => p.type === "year")?.value;
+      const m = parts.find((p) => p.type === "month")?.value;
+      const day = parts.find((p) => p.type === "day")?.value;
+      if (y && m && day) return `${y}-${m}-${day}`;
+    } catch {}
+    const d = typeof raw === "string" ? new Date(raw) : raw;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
 
   const familyCheckInData = useMemo(() => {
     const rawMembers: Array<{
@@ -1074,19 +1105,24 @@ export default function Home() {
     }> = [
       { name: "Pedro", fullName: "Pedro Humberto González López", nickname: "Pedcaz", relation: "Papá / Admin", initials: "P", color: "mint", phone: "523324077845", email: "p.glez.lpz92@gmail.com", userId: 3 },
       { name: "Ian", fullName: "Ian González Torres", nickname: "Baby", relation: "", initials: "I", color: "sun", phone: "523312804849", email: "hackyan4@gmail.com", userId: 17 },
-      { name: "Belén", fullName: "María Belén Chávez López", nickname: "Mabel", relation: "", initials: "B", color: "coral", phone: "52333871243", email: "marbelen.chaz@gmail.com" },
+      { name: "Belén", fullName: "María Belén Chávez López", nickname: "Mabel Cl", relation: "", initials: "B", color: "coral", phone: "52333871243", email: "marbelen.chaz@gmail.com", userId: 26 },
       { name: "Edgar", fullName: "Edgar Josué López Melchor", nickname: "Wero LM", relation: "", initials: "E", color: "lilac", phone: "523310838858", email: "edgar.lopez8983@alumnos.udg.mx", userId: 19 },
       { name: "Lucy", fullName: "Luz María Ramírez Hernández", nickname: "Lucy", relation: "", initials: "L", color: "coral", phone: "523316089229", email: "lucyramirezsolutec@gmail.com", userId: 14 },
       { name: "Cristina", fullName: "Cristina Díaz González", nickname: "CristinaFit", relation: "", initials: "C", color: "mint", phone: "523331586066", email: "valhumrh@gmail.com", userId: 4 },
       { name: "Judith", fullName: "Judith González López", nickname: "JuuGlez", relation: "", initials: "J", color: "sun", phone: "523327479701", email: "emilyalejandra01@gmail.com", userId: 11 },
       { name: "Ivan", fullName: "Ivan Chávez López", nickname: "Ivanovich", relation: "", initials: "I", color: "mint", phone: "522326621281", email: "chzivan@gmail.com", userId: 12 },
       { name: "Estefany", fullName: "Estefany López Melchor", nickname: "EstefanyLM", relation: "", initials: "E", color: "coral", phone: "523324265455", email: "estefanylome@gmail.com", userId: 18 },
-      { name: "Ely", fullName: "Elizabeth López Álvarez", nickname: "Ely", relation: "", initials: "E", color: "lilac", phone: "523333541315", email: "eloalvarez.e@gmail.com", userId: 15 },
+      { name: "Ely", fullName: "Elizabeth López Álvarez", nickname: "Ely 🌸", relation: "", initials: "E", color: "lilac", phone: "523333541315", email: "eloalvarez.e@gmail.com", userId: 15 },
       { name: "Emmanuel", fullName: "Emmanuel López Álvarez", nickname: "Emanuelle", relation: "", initials: "E", color: "sun", phone: "523331087798", email: "emmanuellopez3911@gmail.com", userId: 21 },
       { name: "Viridiana", fullName: "Viridiana Contreras", nickname: "Virinovich", relation: "", initials: "V", color: "coral", phone: "523322729289", email: "viridiana.ca@icloud.com", userId: 16 },
       { name: "Pita", fullName: "María Guadalupe Torres Parra", nickname: "Pita", relation: "", initials: "P", color: "sun", phone: "523312345678", email: "lupitatp@live.com.mx", userId: 13 },
-      { name: "Horacio", fullName: "Horacio Lopez B", nickname: "Holobas", relation: "", initials: "H", color: "mint", phone: "", email: "holobas12@gmail.com", userId: 20 },
-      { name: "Fernando", fullName: "Luis Fernando Torres Zapata", nickname: "Fercho", relation: "", initials: "F", color: "sun", phone: "", email: "fernando.life18@gmail.com", userId: 23 },
+      { name: "Horacio", fullName: "Horacio Lopez B", nickname: "Holobas", relation: "", initials: "H", color: "mint", phone: "523315333712", email: "holobas12@gmail.com", userId: 20 },
+      { name: "Set", fullName: "Set López Álvarez", nickname: "Set", relation: "", initials: "S", color: "lilac", phone: "523310699707", email: "alvarezset1984@gmail.com", userId: 22 },
+      { name: "Fernando", fullName: "Luis Fernando Torres Zapata", nickname: "Fercho", relation: "", initials: "F", color: "sun", phone: "523345182312", email: "fernando.life18@gmail.com", userId: 23 },
+      { name: "Valentina", fullName: "Valentina González Díaz", nickname: "Vale", relation: "", initials: "V", color: "coral", phone: "523319917867", email: "pedcaz_19@hotmail.com", userId: 24 },
+      { name: "Mateo", fullName: "Mateo lopez Ramirez", nickname: "Champy", relation: "", initials: "C", color: "mint", phone: "523347963276", email: "mateolopezchampy@gmail.com", userId: 25 },
+      { name: "Dariana", fullName: "Dariana Contreras", nickname: "Daris", relation: "", initials: "D", color: "lilac", phone: "523318912662", email: "darianacoamaro@gmail.com", userId: 27 },
+      { name: "Héctor", fullName: "Plascencia Lopez Héctor Santiago", nickname: "Héctor Santiago 🦆", relation: "", initials: "H", color: "sun", phone: "523328665948", email: "santiago plascenciasantiago98@gmail.com", userId: 28 },
     ];
 
     const allMembers = [...rawMembers];
@@ -1100,13 +1136,16 @@ export default function Home() {
         .toLowerCase();
 
     const isMemberMatch = (m: any, checkName: string, checkNick: string, checkEmail?: string, checkUserId?: number | string) => {
-      if (checkUserId && m.userId && Number(checkUserId) === Number(m.userId)) {
-        return true;
+      // If both entries have a known database userId, match ONLY when userId is identical
+      if (checkUserId && m.userId) {
+        return Number(checkUserId) === Number(m.userId);
       }
       const cEmail = (checkEmail || "").toLowerCase().trim();
-      if (cEmail) {
-        if (m.email && m.email.toLowerCase() === cEmail) return true;
-        if (m.phone && (m.phone.toLowerCase() === cEmail || m.phone.replace(/\D/g, "") === cEmail.replace(/\D/g, ""))) return true;
+      if (cEmail && m.email) {
+        return m.email.toLowerCase().trim() === cEmail;
+      }
+      if (cEmail && m.phone && cEmail.replace(/\D/g, "").length >= 10) {
+        if (m.phone.toLowerCase() === cEmail || m.phone.replace(/\D/g, "").endsWith(cEmail.replace(/\D/g, "").slice(-10))) return true;
       }
 
       const normCName = normalize(checkName);
@@ -1121,10 +1160,6 @@ export default function Home() {
         return true;
       }
       if (normCName && (normMFull === normCName || normMName === normCName)) {
-        return true;
-      }
-      // Never do partial substring match if normCName is simply "maria" to avoid collision between María Belén & María Guadalupe
-      if (normCName && normCName !== "maria" && normMFull && (normMFull.includes(normCName) || normCName.includes(normMName))) {
         return true;
       }
       return false;
@@ -1238,8 +1273,7 @@ export default function Home() {
             normPName === normalize(m.fullName);
           if (!exactMatch) return false;
         }
-        const postDate = new Date(p.createdAt);
-        const pKey = `${postDate.getFullYear()}-${String(postDate.getMonth() + 1).padStart(2, "0")}-${String(postDate.getDate()).padStart(2, "0")}`;
+        const pKey = toGdlDateKey(p.createdAt);
         return gdl.currentWeekDays.some((d) => d.dateKey === pKey);
       });
 
@@ -1248,10 +1282,7 @@ export default function Home() {
         gdl.currentWeekDays.some((wd) => wd.dateKey === d)
       );
 
-      const memberWeekPostDates = memberWeekPosts.map((p) => {
-        const postDate = new Date(p.createdAt!);
-        return `${postDate.getFullYear()}-${String(postDate.getMonth() + 1).padStart(2, "0")}-${String(postDate.getDate()).padStart(2, "0")}`;
-      });
+      const memberWeekPostDates = memberWeekPosts.map((p) => toGdlDateKey(p.createdAt!));
 
       const memberUniqueWeekDates = Array.from(
         new Set([...memberWeekPostDates, ...serverWeekDates])
@@ -1303,12 +1334,8 @@ export default function Home() {
 
       // Did this member check in today?
       const memberHasCheckInToday = isCurrentUser
-        ? logged
-        : (memberWeekPosts.some((p) => {
-            const postDate = new Date(p.createdAt!);
-            const pKey = `${postDate.getFullYear()}-${String(postDate.getMonth() + 1).padStart(2, "0")}-${String(postDate.getDate()).padStart(2, "0")}`;
-            return pKey === gdl.todayKey;
-          }) || (serverStat?.currentWeekDates || []).includes(gdl.todayKey));
+        ? (logged || (serverStat?.currentWeekDates || []).includes(gdl.todayKey))
+        : (memberWeekPosts.some((p) => toGdlDateKey(p.createdAt!) === gdl.todayKey) || (serverStat?.currentWeekDates || []).includes(gdl.todayKey));
 
       const lastCheckIn = isCurrentUser
         ? (logged ? "Hoy (Completado)" : "Pendiente hoy")
@@ -1365,6 +1392,7 @@ export default function Home() {
 
       return {
         ...m,
+        isCurrentUser,
         userId: memberUserId,
         avatarUrl: memberAvatarUrl,
         activity: realActivity,
@@ -1378,7 +1406,7 @@ export default function Home() {
         status: currentWorkouts >= 4 ? "completed" : currentWorkouts >= 2 ? "progress" : "pending",
       };
     });
-  }, [currentUserName, logged, weeklyWorkoutsCount, completedCheckInDates, userBonusPoints, feedPosts, fitness, familyProfiles, familyStats, getGdlDateInfo]);
+  }, [currentUserName, logged, weeklyWorkoutsCount, completedCheckInDates, userBonusPoints, feedPosts, fitness, familyProfiles, familyStats, getGdlDateInfo, toGdlDateKey]);
 
   // Family dynamic points calculation (Ranked by weekly points with Dense Ranking for ties)
   const familyScores = useMemo(() => {
@@ -1668,28 +1696,34 @@ export default function Home() {
     return getGdlDateInfo().todayKey;
   }, [getGdlDateInfo]);
 
-  const syncUserCheckInState = useCallback((userEmail: string, userId: number, feedPostsList: FeedPost[] = []) => {
-    const todayStr = getGdlDateInfo().todayKey;
+  const syncUserCheckInState = useCallback((userEmail: string, userId: number, feedPostsList: FeedPost[] = [], statsMap?: Record<string, any>) => {
     const gdl = getGdlDateInfo();
+    const todayStr = gdl.todayKey;
 
-    // 1. Check if user has a real workout posted today in feed
-    const hasTodayInFeed = feedPostsList.some((p) => {
-      if (!p.createdAt) return false;
-      const postDate = new Date(p.createdAt);
-      const pKey = `${postDate.getFullYear()}-${String(postDate.getMonth() + 1).padStart(2, "0")}-${String(postDate.getDate()).padStart(2, "0")}`;
-      return p.userId === userId && pKey === todayStr;
-    });
+    const serverStat =
+      statsMap?.[userId] ||
+      statsMap?.[String(userId)] ||
+      (userEmail ? statsMap?.[userEmail.toLowerCase()] : undefined);
+
+    const serverWeekDates: string[] = Array.isArray(serverStat?.currentWeekDates)
+      ? serverStat.currentWeekDates.filter((dateKey: string) => gdl.currentWeekDays.some((d) => d.dateKey === dateKey))
+      : [];
+
+    // 1. Check if user has a real workout posted today in feed or workouts table
+    const hasTodayInFeed =
+      serverWeekDates.includes(todayStr) ||
+      feedPostsList.some((p) => {
+        if (!p.createdAt) return false;
+        return p.userId === userId && toGdlDateKey(p.createdAt) === todayStr;
+      });
 
     // 2. Compute unique days this user has checked in this current week
     const thisWeekPostDates = feedPostsList
       .filter((p) => p.userId === userId && p.createdAt)
-      .map((p) => {
-        const postDate = new Date(p.createdAt!);
-        return `${postDate.getFullYear()}-${String(postDate.getMonth() + 1).padStart(2, "0")}-${String(postDate.getDate()).padStart(2, "0")}`;
-      })
+      .map((p) => toGdlDateKey(p.createdAt!))
       .filter((dateKey) => gdl.currentWeekDays.some((d) => d.dateKey === dateKey));
 
-    const uniqueWeekDates = Array.from(new Set(thisWeekPostDates));
+    const uniqueWeekDates = Array.from(new Set([...thisWeekPostDates, ...serverWeekDates]));
     if (hasTodayInFeed && !uniqueWeekDates.includes(todayStr)) {
       uniqueWeekDates.push(todayStr);
     }
@@ -1697,7 +1731,7 @@ export default function Home() {
     setLogged(hasTodayInFeed);
     setWeeklyWorkoutsCount(uniqueWeekDates.length);
     setCompletedCheckInDates(uniqueWeekDates);
-  }, [getGdlDateInfo]);
+  }, [getGdlDateInfo, toGdlDateKey]);
 
   const loadFeed = useCallback(async (silent = false) => {
     if (!silent) setFeedLoading(true);
@@ -1748,6 +1782,14 @@ export default function Home() {
       }
       if (response?.familyStats) {
         setFamilyStats((prev) => ({ ...prev, ...response.familyStats }));
+      }
+      if (session?.user?.id) {
+        syncUserCheckInState(
+          session.user.email || "",
+          session.user.id,
+          Array.isArray(response?.posts) ? response.posts : [],
+          response?.familyStats
+        );
       }
       if (response?.monthlyPrize) {
         setMonthlyPrize((prev) => ({ ...prev, ...response.monthlyPrize }));
@@ -1859,7 +1901,7 @@ export default function Home() {
         }
 
         if (current?.user) {
-          syncUserCheckInState(current.user.email, current.user.id, finalFeed);
+          syncUserCheckInState(current.user.email, current.user.id, finalFeed, feed?.familyStats);
         }
 
         if (profile?.profile?.heightCm) {
@@ -2648,8 +2690,14 @@ export default function Home() {
   const renderHeroCheckInCard = () => {
     const firstName = session?.user?.name ? session.user.name.split(" ")[0] : "Compañero";
     const gdlInfo = getGdlDateInfo();
+    const myServerStat =
+      (session?.user?.id && (familyStats[session.user.id] || familyStats[String(session.user.id)])) ||
+      (session?.user?.email && familyStats[session.user.email.toLowerCase()]);
+    const serverMyWeekDates: string[] = Array.isArray(myServerStat?.currentWeekDates) ? myServerStat.currentWeekDates : [];
+    const allMyCompletedDates = Array.from(new Set([...completedCheckInDates, ...serverMyWeekDates]));
+
     const thisWeekDoneCount = gdlInfo.currentWeekDays.filter(
-      (d) => completedCheckInDates.includes(d.dateKey) || (d.isToday && logged)
+      (d) => allMyCompletedDates.includes(d.dateKey) || (d.isToday && logged)
     ).length;
     const nextReward = getWorkoutReward(thisWeekDoneCount + 1);
 
@@ -2828,7 +2876,7 @@ export default function Home() {
           <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "center" }}>
             <div className="days-row">
               {gdlInfo.currentWeekDays.map((item) => {
-                const isDone = completedCheckInDates.includes(item.dateKey) || (item.isToday && logged);
+                const isDone = allMyCompletedDates.includes(item.dateKey) || (item.isToday && logged);
                 const isToday = item.isToday;
                 const isPast = item.isPast && !isDone;
 
@@ -5667,7 +5715,7 @@ export default function Home() {
                   }
                 } catch {}
               }
-              syncUserCheckInState(current.user.email, current.user.id, finalFeed);
+              syncUserCheckInState(current.user.email, current.user.id, finalFeed, feed?.familyStats);
             })
             .catch((err) => {
               console.warn("Post-auth sync fallback:", err);

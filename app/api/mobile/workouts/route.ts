@@ -167,6 +167,8 @@ export async function POST(request: Request) {
         user_id: current.userId,
         points: 100,
         reason: "Entrenamiento completado",
+        source_type: "workout",
+        source_id: workoutRecordId,
       });
     } catch (err) {
       console.warn("Supabase workout save warning:", err);
