@@ -163,7 +163,7 @@ export const clientApi = {
         createdAt: string;
       }>;
     }>("/api/mobile/feed", {
-      headers: clientSyncData ? { "x-client-sync": JSON.stringify(clientSyncData) } : undefined,
+      headers: clientSyncData ? { "x-client-sync": encodeURIComponent(JSON.stringify(clientSyncData)) } : undefined,
     }),
   comments: (postId: number) => request<{ comments: Array<{ id: number; postId: number; userId: number; userName: string; body: string; createdAt: string }> }>(`/api/mobile/feed/${postId}/comments`),
   toggleLike: (postId: number) => request<{ liked: boolean }>(`/api/mobile/feed/${postId}/like`, { method: "POST" }),
@@ -208,7 +208,7 @@ export const clientApi = {
     calories: number;
     evidenceKey: string | null;
     caption?: string | null;
-  }) => request<{ workout: { id: number } }>("/api/mobile/workouts", {
+  }) => request<{ workout: { id: number; postId?: number }; postId?: number }>("/api/mobile/workouts", {
     method: "POST",
     body: JSON.stringify(data),
   }),

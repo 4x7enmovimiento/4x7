@@ -47,7 +47,10 @@ export async function GET(request: Request) {
     const clientSyncHeader = request.headers.get("x-client-sync");
     if (clientSyncHeader) {
       try {
-        const clientSync = JSON.parse(clientSyncHeader);
+        const decodedSync = clientSyncHeader.trim().startsWith("{")
+          ? clientSyncHeader
+          : decodeURIComponent(clientSyncHeader);
+        const clientSync = JSON.parse(decodedSync);
         if (clientSync?.nickname && typeof clientSync.workouts === "number") {
           const key = clientSync.nickname.toLowerCase();
           const existing = sharedMemberStatsCache.get(key);

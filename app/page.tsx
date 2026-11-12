@@ -2150,8 +2150,9 @@ export default function Home() {
       const endedAt = new Date();
       const startedAt = new Date(endedAt.getTime() - act.time * 60_000);
 
+      let realPostId: number | null = null;
       try {
-        await clientApi.workout({
+        const wRes = await clientApi.workout({
           activityType: act.name,
           startedAt: startedAt.toISOString(),
           endedAt: endedAt.toISOString(),
@@ -2162,6 +2163,7 @@ export default function Home() {
           evidenceKey,
           caption: checkInNote.trim() || undefined,
         });
+        realPostId = wRes?.postId || wRes?.workout?.postId || wRes?.workout?.id || null;
       } catch (workoutErr) {
         console.warn("Server workout record warning", workoutErr);
       }
@@ -2189,7 +2191,7 @@ export default function Home() {
 
       // Add local post to feed immediately so user sees their photo right away!
       const newPost: FeedPost = {
-        id: Date.now(),
+        id: realPostId || Date.now(),
         userId: session?.user.id || 1,
         userName: session?.user.name.split(" ")[0] || "Pedro",
         caption: checkInNote.trim() || "¡Entrenamiento 4×7 completado con éxito!",
@@ -2335,10 +2337,12 @@ export default function Home() {
       const res = await clientApi.attachPostPhoto(postId, compressedFile);
 
       if (res?.evidenceUrl) {
+        const targetId = (res as any).postId || postId;
         setFeedPosts((prev) =>
-          prev.map((p) => (p.id === postId ? { ...p, evidenceUrl: res.evidenceUrl } : p))
+          prev.map((p) => (p.id === postId || p.id === targetId ? { ...p, id: targetId, evidenceUrl: res.evidenceUrl } : p))
         );
         notify("🎉 ¡Foto agregada con éxito a tu check-in!");
+        loadFeed(true).catch(() => void 0);
       }
     } catch (err: any) {
       console.error("Error al agregar foto al check-in:", err);
@@ -2701,18 +2705,19 @@ export default function Home() {
     ).length;
     const nextReward = getWorkoutReward(thisWeekDoneCount + 1);
 
-    const myTodayPostWithoutPhoto = feedPosts.find((p) => {
-      const isMyPost = Boolean(
-        (session?.user?.id && p.userId === session.user.id) ||
-        (currentUserNick && p.userName?.toLowerCase() === currentUserNick.toLowerCase()) ||
-        (currentUserName && (
-          p.userName?.toLowerCase() === currentUserName.toLowerCase() ||
-          currentUserName.toLowerCase().includes(p.userName?.toLowerCase() || "") ||
-          (p.userName?.toLowerCase() || "").includes(currentUserName.toLowerCase())
-        ))
-      );
-      return isMyPost && !p.evidenceUrl;
-    });
+    const isMyFeedPost = (p: FeedPost) => Boolean(
+      (session?.user?.id && p.userId === session.user.id) ||
+      (currentUserNick && p.userName?.toLowerCase() === currentUserNick.toLowerCase()) ||
+      (currentUserName && (
+        p.userName?.toLowerCase() === currentUserName.toLowerCase() ||
+        currentUserName.toLowerCase().includes(p.userName?.toLowerCase() || "") ||
+        (p.userName?.toLowerCase() || "").includes(currentUserName.toLowerCase())
+      ))
+    );
+
+    const myTodayPostWithoutPhoto =
+      feedPosts.find((p) => isMyFeedPost(p) && !p.evidenceUrl && p.createdAt && toGdlDateKey(p.createdAt) === gdlInfo.todayKey) ||
+      feedPosts.find((p) => isMyFeedPost(p) && !p.evidenceUrl);
 
     return (
       <section className="unified-hero-card">

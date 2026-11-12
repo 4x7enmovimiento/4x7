@@ -148,18 +148,27 @@ export async function POST(request: Request) {
       }
 
       const workoutRecordId = insertedWorkout?.id || null;
+      if (workoutRecordId) {
+        workout.id = workoutRecordId;
+      }
 
-      const { error: pErr } = await supabase.from("posts").insert({
+      const { data: insertedPost, error: pErr } = await supabase.from("posts").insert({
         family_id: current.familyId,
         user_id: current.userId,
         workout_id: workoutRecordId,
         activity_type: activityType,
         caption,
         evidence_url: photoUrl,
-      });
+      }).select("id").single();
 
       if (pErr) {
         console.error("Supabase post insert error:", pErr);
+      }
+
+      if (insertedPost?.id) {
+        (workout as any).postId = insertedPost.id;
+        feedPost.id = insertedPost.id;
+        sharedPostsCache.set(insertedPost.id, feedPost);
       }
 
       await supabase.from("points_ledger").insert({
@@ -174,7 +183,7 @@ export async function POST(request: Request) {
       console.warn("Supabase workout save warning:", err);
     }
 
-    return json({ workout }, 201);
+    return json({ workout, postId: (workout as any).postId || workout.id }, 201);
   } catch (error) {
     return apiError(error);
   }

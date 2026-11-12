@@ -105,16 +105,46 @@ export async function PATCH(
 
     const supabase = getSupabase();
 
-    // 1. Check if post exists in Supabase
-    const { data: post, error: fetchErr } = await supabase
-      .from("posts")
-      .select("id, user_id, family_id, workout_id")
-      .eq("id", postId)
-      .maybeSingle();
+    // 1. Check if post exists in Supabase (handle temporary Date.now() IDs > 2,000,000,000 gracefully)
+    let post: any = null;
+    if (postId < 2_000_000_000) {
+      const { data: foundPost, error: fetchErr } = await supabase
+        .from("posts")
+        .select("id, user_id, family_id, workout_id")
+        .eq("id", postId)
+        .maybeSingle();
 
-    if (fetchErr) {
-      console.error("Fetch post error:", fetchErr);
-      return json({ error: "Error al consultar la publicación." }, 500);
+      if (fetchErr) {
+        console.error("Fetch post error:", fetchErr);
+      } else {
+        post = foundPost;
+      }
+    }
+
+    // Fallback: if postId was a temporary client timestamp (Date.now()) or not found by ID,
+    // find the most recent post by this user without a photo (or their latest post overall)
+    if (!post) {
+      const { data: latestNullPost } = await supabase
+        .from("posts")
+        .select("id, user_id, family_id, workout_id")
+        .eq("user_id", current.userId)
+        .is("evidence_url", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestNullPost) {
+        post = latestNullPost;
+      } else {
+        const { data: latestUserPost } = await supabase
+          .from("posts")
+          .select("id, user_id, family_id, workout_id")
+          .eq("user_id", current.userId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        post = latestUserPost;
+      }
     }
 
     if (post) {
@@ -127,7 +157,7 @@ export async function PATCH(
       const { error: updatePostErr } = await supabase
         .from("posts")
         .update({ evidence_url: directEvidenceUrl })
-        .eq("id", postId);
+        .eq("id", post.id);
 
       if (updatePostErr) {
         console.error("Update post photo error:", updatePostErr);
@@ -156,6 +186,7 @@ export async function PATCH(
 
     return json({
       success: true,
+      postId: post?.id || postId,
       evidenceUrl: directEvidenceUrl,
       message: "¡Foto agregada con éxito al check-in!",
     });
